@@ -1,20 +1,28 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
 import 'package:flutter/material.dart';
 
-class Signup extends StatefulWidget {
-  const Signup({super.key});
+class SignUpPage extends StatefulWidget {
+  const SignUpPage({super.key});
 
   @override
-  State<Signup> createState() => _SignupState();
+  State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _SignupState extends State<Signup> {
+class _SignUpPageState extends State<SignUpPage> {
   final nameController = TextEditingController();
   final phoneNumberController = TextEditingController();
 
   final formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose(){
+    nameController.dispose();
+    phoneNumberController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +57,29 @@ class _SignupState extends State<Signup> {
               SizedBox(height: 20),
 
               AuthButtons(buttonText: "Sign up"),
+
+              SizedBox(height: 20),
+              //to have duoble string in same line wiht different properties
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => SignInPage()));
+                },
+                child: RichText(
+                  text: TextSpan(
+                    text: 'Already have an account? ',
+                    style: Theme.of(context).textTheme.titleMedium, //refering to the theme of the app
+                    children: [
+                      TextSpan(
+                        text: 'Sign In',
+                        style: TextStyle(
+                          color: AppPallette.textColor,
+                          fontWeight: FontWeight.bold,
+                        )
+                      )
+                    ]
+                  ),
+                ),
+              )
             ],
           ),
         ),
