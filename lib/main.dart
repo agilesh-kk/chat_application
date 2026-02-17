@@ -2,7 +2,7 @@ import 'package:chat_application/features/auth/presentation/pages/sign_up_page.d
 import 'package:flutter/material.dart';
 
 void main() {
-  //hello
+  //hello123
   runApp(const MyApp());
 }
 
