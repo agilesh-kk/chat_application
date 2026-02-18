@@ -13,7 +13,15 @@ class SignInPage extends StatefulWidget {
 
 class _SignInPageState extends State<SignInPage> {
 
-  final phoneNumberController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  @override
+  void dispose(){
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   final formKey = GlobalKey<FormState>();
   @override
@@ -36,13 +44,18 @@ class _SignInPageState extends State<SignInPage> {
               //authentication input fields for singup page
               SizedBox(height: 20),
               AuthFields(
-                hinText: 'Phone Number',
-                textController: phoneNumberController,
+                hinText: 'Email',
+                textController: emailController,
+                isObscure: false,
+              ),
+              AuthFields(
+                hinText: 'Password',
+                textController: emailController,
                 isObscure: false,
               ),
               SizedBox(height: 20),
 
-              AuthButtons(buttonText: "Sign In"),
+              AuthButtons(buttonText: "Sign In",onPressed: (){},),
 
               SizedBox(height: 20),
               //to have duoble string in same line wiht different properties
