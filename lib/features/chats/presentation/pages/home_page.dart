@@ -1,6 +1,8 @@
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
+import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,7 +25,7 @@ class _HomePageState extends State<HomePage> {
                 // Trigger the logout event in your Bloc
                 final shouldLogout = await showConfirmationDialog(context, 'Log out?', Icons.warning_amber_outlined);
                 if(shouldLogout == true && context.mounted){
-                  //context.read<AuthBloc>().add(AuthUserSignOut());
+                  context.read<AuthBloc>().add(AuthSignOut());
                 }
                 //context.read<AuthBloc>().add(AuthUserSignOut());
               }

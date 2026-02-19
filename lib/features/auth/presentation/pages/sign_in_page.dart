@@ -99,7 +99,7 @@ class _SignInPageState extends State<SignInPage> {
                   //to have duoble string in same line wiht different properties
                   GestureDetector(
                     onTap: () {
-                      Navigator.pop(
+                      Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => SignUpPage()),
                       );

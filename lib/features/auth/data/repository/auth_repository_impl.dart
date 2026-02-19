@@ -37,11 +37,23 @@ class AuthRepositoryImpl implements AuthRepository {
     );
   }
 
+  //to fetch the details of the user who is signed in currently
   @override
   Future<Either<Failure, User?>> getCurrentUser() async {
     return _getNullableUser(
       () async => await remoteDataSources.getCurrentUser()
     );
+  }
+
+  @override
+  Future<Either<Failure, void>> signOut() async{
+    try{
+      await remoteDataSources.signout();
+      return right(null);
+    }
+    on ServerExceptions catch(e){
+      return left(Failure(e.message));
+    }
   }
 
   //created a function for try and catch, since it is repeatedly used in the codes, also making it easier to add any othre exceptions and other validations.

@@ -21,4 +21,6 @@ abstract interface class AuthRepository {
 
   //interface for getting the user details who is currently logged in.
   Future<Either<Failure, User?>> getCurrentUser();
+
+  Future<Either<Failure, void>> signOut();
 }

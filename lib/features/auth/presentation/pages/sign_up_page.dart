@@ -45,7 +45,11 @@ class _SignUpPageState extends State<SignUpPage> {
               showSnackbar(context, state.message);
             }
             else if(state is AuthSuccess){
-              Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => HomePage()),
+                (route) => false,
+              );
             }
           },
           builder: (context, state) {
@@ -103,7 +107,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 //to have duoble string in same line wiht different properties
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => SignInPage()));
+                    Navigator.pop(context, MaterialPageRoute(builder: (context) => SignInPage()));
                   },
                   child: RichText(
                     text: TextSpan(

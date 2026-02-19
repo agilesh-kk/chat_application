@@ -3,6 +3,7 @@ import 'package:chat_application/features/auth/data/repository/auth_repository_i
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
 import 'package:chat_application/features/auth/domain/usecase/current_user.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_in.dart';
+import 'package:chat_application/features/auth/domain/usecase/user_sign_out.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_up.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -57,6 +58,11 @@ void _initAuth() {
       serviceLocator<AuthRepository>(),
     )
   )
+  ..registerFactory(
+    () => UserSignOut(
+      serviceLocator<AuthRepository>(),
+    )
+  )
 
   //Bloc
   ..registerLazySingleton(
@@ -64,6 +70,7 @@ void _initAuth() {
       userSignUp: serviceLocator<UserSignUp>(), 
       userSignIn: serviceLocator<UserSignIn>(),
       currentUser: serviceLocator<CurrentUser>(),
+      userSignOut: serviceLocator<UserSignOut>(),
     ),
   );
 }

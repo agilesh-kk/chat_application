@@ -26,3 +26,5 @@ final class AuthSignIn extends AuthEvent {
 }
 
 class AuthCheckRequested extends AuthEvent {}
+
+final class AuthSignOut extends AuthEvent{}
