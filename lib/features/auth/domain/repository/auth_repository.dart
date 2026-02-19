@@ -1,5 +1,5 @@
 import 'package:chat_application/core/errors/failure.dart';
-import 'package:chat_application/features/auth/domain/entities/user.dart';
+import 'package:chat_application/core/common/entities/user.dart';
 import 'package:fpdart/fpdart.dart';
 
 //creating the interface for the repository (it is independent)

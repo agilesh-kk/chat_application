@@ -1,3 +1,4 @@
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/features/auth/data/datasources/auth_remote_data_sources.dart';
 import 'package:chat_application/features/auth/data/repository/auth_repository_impl.dart';
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
@@ -16,13 +17,17 @@ Future<void> initDependencies() async {
   _initAuth();
 
   //Firebase Instances
-  serviceLocator.registerLazySingleton(
+  serviceLocator
+  ..registerLazySingleton(
     () => FirebaseAuth.instance,
-  );
-
-  serviceLocator.registerLazySingleton(
+  )
+  ..registerLazySingleton(
     () => FirebaseFirestore.instance,
   );
+
+  //registering core dependencies
+  serviceLocator.registerLazySingleton(() => AppUserCubit());
+
 }
 
 void _initAuth() {
@@ -71,6 +76,7 @@ void _initAuth() {
       userSignIn: serviceLocator<UserSignIn>(),
       currentUser: serviceLocator<CurrentUser>(),
       userSignOut: serviceLocator<UserSignOut>(),
+      appUserCubit: serviceLocator<AppUserCubit>(),
     ),
   );
 }

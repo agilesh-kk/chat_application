@@ -1,3 +1,4 @@
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart';
 import 'package:chat_application/features/auth/presentation/pages/sign_up_page.dart';
@@ -13,10 +14,15 @@ void main() async {
   runApp(
     MultiBlocProvider(
       providers: [
+        //app user signed in cubit
+        BlocProvider(
+          create: (_) => serviceLocator<AppUserCubit>(), //loads the app_user_cubit contents from the dependency file
+        ),
         BlocProvider(
           create: (_) => serviceLocator<AuthBloc>()
           ..add(AuthCheckRequested()),
         ),
+
       
       ],
       child: MyApp(),

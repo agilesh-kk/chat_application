@@ -1,7 +1,7 @@
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/auth/data/datasources/auth_remote_data_sources.dart';
-import 'package:chat_application/features/auth/domain/entities/user.dart';
+import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
 import 'package:fpdart/fpdart.dart';
 
