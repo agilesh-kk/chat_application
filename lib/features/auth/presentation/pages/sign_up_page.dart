@@ -86,7 +86,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 AuthButtons(
                   buttonText: "Sign up",
                   onPressed: (){
-                    print("Form validated");
+                    //print("Form validated");
                     if(formKey.currentState!.validate()){
                       context.read<AuthBloc>().add(
                         AuthSignUp(

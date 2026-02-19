@@ -1,6 +1,8 @@
 import 'package:chat_application/features/auth/data/datasources/auth_remote_data_sources.dart';
 import 'package:chat_application/features/auth/data/repository/auth_repository_impl.dart';
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
+import 'package:chat_application/features/auth/domain/usecase/current_user.dart';
+import 'package:chat_application/features/auth/domain/usecase/user_sign_in.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_up.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,11 +13,8 @@ final serviceLocator = GetIt.instance;
 
 Future<void> initDependencies() async {
   _initAuth();
-}
 
-void _initAuth() {
-
-  // 🔥 Firebase Instances
+  //Firebase Instances
   serviceLocator.registerLazySingleton(
     () => FirebaseAuth.instance,
   );
@@ -23,33 +22,48 @@ void _initAuth() {
   serviceLocator.registerLazySingleton(
     () => FirebaseFirestore.instance,
   );
+}
 
-  // 🔥 Data Source
-  serviceLocator.registerFactory<AuthRemoteDataSources>(
+void _initAuth() {
+  //Data Source
+  serviceLocator
+  ..registerFactory<AuthRemoteDataSources>(
     () => AuthRemoteDataSourcesImpl(
       firebaseAuth: serviceLocator<FirebaseAuth>(),
       firebaseFirestore: serviceLocator<FirebaseFirestore>(),
     ),
-  );
+  )
 
-  // 🔥 Repository
-  serviceLocator.registerFactory<AuthRepository>(
+  //Repository
+  ..registerFactory<AuthRepository>(
     () => AuthRepositoryImpl(
       serviceLocator<AuthRemoteDataSources>(),
     ),
-  );
+  )
 
-  // 🔥 UseCase
-  serviceLocator.registerFactory(
+  //UseCase
+  ..registerFactory(
     () => UserSignUp(
       serviceLocator<AuthRepository>(),
     ),
-  );
+  )
+  ..registerFactory(
+    () => UserSignIn(
+      serviceLocator<AuthRepository>(),
+    )
+  )
+  ..registerFactory(
+    () => CurrentUser(
+      serviceLocator<AuthRepository>(),
+    )
+  )
 
-  // 🔥 Bloc
-  serviceLocator.registerFactory(
+  //Bloc
+  ..registerLazySingleton(
     () => AuthBloc(
-      userSignUp: serviceLocator<UserSignUp>(),
+      userSignUp: serviceLocator<UserSignUp>(), 
+      userSignIn: serviceLocator<UserSignIn>(),
+      currentUser: serviceLocator<CurrentUser>(),
     ),
   );
 }

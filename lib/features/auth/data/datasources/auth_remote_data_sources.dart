@@ -1,3 +1,4 @@
+import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/auth/data/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +10,16 @@ abstract interface class AuthRemoteDataSources {
     required String email,
     required String password,
   });
+
+  Future<UserModel> signInWithEmailPassword({
+    required String email,
+    required String password,
+  });
+
+  Future<UserModel?> getCurrentUser();
+
+  Future<void> signout();
+
 }
 
 class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
@@ -28,8 +39,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
   }) async {
     try {
       //Create user in Firebase Auth
-      final userCredential =
-          await firebaseAuth.createUserWithEmailAndPassword(
+      final userCredential = await firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -48,19 +58,93 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
       );
 
       //Saving user to Firestore
-      await firebaseFirestore
-          .collection('users')
-          .doc(firebaseUser.uid)
-          .set({
+      await firebaseFirestore.collection('users').doc(firebaseUser.uid).set({
         'id': firebaseUser.uid,
         'name': name,
         'email': email,
       });
 
       return userModel;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        throw ServerExceptions("Email already exists");
+      } else if (e.code == 'invalid-email') {
+        throw ServerExceptions("Invalid email address");
+      } else if (e.code == 'weak-password') {
+        throw ServerExceptions("Password is too weak");
+      } else {
+        throw ServerExceptions(e.message ?? "Authentication failed");
+      }
+    }
+  }
+
+  @override
+  Future<UserModel> signInWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      //Sign in user
+      final userCredential =
+          await firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final firebaseUser = userCredential.user;
+
+      if (firebaseUser == null) {
+        throw ServerExceptions("Login failed");
+      }
+
+      //Fetch user data from Firestore
+      final userDoc = await firebaseFirestore
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        throw ServerExceptions("User data not found");
+      }
+
+      return UserModel.fromJson(userDoc.data()!);
 
     } on FirebaseAuthException catch (e) {
-      throw Exception(e.message ?? "Something went wrong");
+
+      if (e.code == 'user-not-found') {
+        throw ServerExceptions("User not found");
+      } else if (e.code == 'wrong-password') {
+        throw ServerExceptions("Incorrect password");
+      } else if (e.code == 'invalid-email') {
+        throw ServerExceptions("Invalid email address");
+      } else {
+        throw ServerExceptions(e.message ?? "Login failed");
+      }
+
+    } catch (e) {
+      throw ServerExceptions(e.toString());
     }
+  }
+  
+  @override
+  Future<UserModel?> getCurrentUser() async {
+    final firebaseUser = firebaseAuth.currentUser;
+
+    if(firebaseUser == null) return null;
+
+    final userDoc = await firebaseFirestore
+      .collection('users')
+      .doc(firebaseUser.uid)
+      .get();
+    
+    if(!userDoc.exists) return null;
+
+    return UserModel.fromJson(userDoc.data()!);
+  }
+  
+  @override
+  Future<void> signout() {
+    // TODO: implement signout
+    throw UnimplementedError();
   }
 }
