@@ -1,3 +1,4 @@
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/cupertino.dart';
@@ -12,8 +13,21 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+
+  @override
+  void initState() {
+    super.initState();
+    final state = context.read<AppUserCubit>().state;
+    if (state is AppUserIsSignedin) {
+      //context.read<BlogBloc>().add(YourBlogsEvent(posterId: state.user.id));
+      //context.read<BlogBloc>().add(GetAllBlogsEvent());
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
+    final appUserState = context.watch<AppUserCubit>().state;
+
     return Scaffold(
       appBar: AppBar(
         title: Text("Home"),
@@ -47,6 +61,17 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+      body: Center(
+      child: appUserState is AppUserIsSignedin
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text("Name: ${appUserState.user.name}"),
+                Text("Email: ${appUserState.user.email}"),
+              ],
+            )
+          : const Text("No user signed in"),
+    ),
     );
   }
 }

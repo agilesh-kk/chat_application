@@ -1,7 +1,8 @@
 import 'dart:async';
 
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/usecase/usecase.dart';
-import 'package:chat_application/features/auth/domain/entities/user.dart';
+import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/features/auth/domain/usecase/current_user.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_in.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_out.dart';
@@ -17,16 +18,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final UserSignIn _userSignIn;
   final CurrentUser _currentUser;
   final UserSignOut _userSignOut;
+  final AppUserCubit _appUserCubit;
   AuthBloc({
     required UserSignUp userSignUp,
     required UserSignIn userSignIn,
     required CurrentUser currentUser,
     required UserSignOut userSignOut,
+    required AppUserCubit appUserCubit,
   })
     : _userSignUp = userSignUp,
     _userSignIn = userSignIn,
     _currentUser = currentUser,
     _userSignOut = userSignOut,
+    _appUserCubit = appUserCubit,
       super(AuthInitial()) {
      on<AuthEvent>((_, emit)=> emit(AuthLoading()));
      on<AuthSignUp>(_onAuthSignUp);
@@ -47,7 +51,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     res.fold(
       (failure) => emit(AuthFailure(failure.message)),
-      (user) => emit(AuthSuccess(user)),
+      (user) => _emitAuthSuccess(user, emit),
     );
   }
 
@@ -61,19 +65,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     res.fold(
       (failure) => emit(AuthFailure(failure.message)),
-      (user) => emit(AuthSuccess(user)),
+      (user) => _emitAuthSuccess(user, emit),
     );
   }
 
   void _onAuthCheckRequested(AuthCheckRequested event, Emitter<AuthState> emit) async{
-    print("Checking current user...");
+    //print("Checking current user...");
     final result = await _currentUser(NoParams());
 
     result.fold(
       (failure) => emit(AuthUnauthenticated()),
       (user) {
         if (user != null) {
-          emit(AuthSuccess(user));
+          _emitAuthSuccess(user, emit);
         } else {
           emit(AuthUnauthenticated());
         }
@@ -86,7 +90,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthFailure(failure.message)),
-      (_) => emit(AuthUnauthenticated()),
+      (_) { // Use '_' because the success value is void/null
+         _appUserCubit.updateUser(null); // Ensure AppUserCubit handles null
+         emit(AuthUnauthenticated()); // Reset state to unauthenticated
+      },
     );
+  }
+
+  void _emitAuthSuccess(User user, Emitter<AuthState> emit){
+    _appUserCubit.updateUser(user);
+    emit(AuthSuccess(user));
   }
 }
