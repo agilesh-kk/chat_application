@@ -64,7 +64,13 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'email': email,
       });
 
-      return userModel;
+      if(firebaseUser.emailVerified){
+        return userModel;
+      }else{
+        await firebaseUser.sendEmailVerification();
+        throw ServerExceptions("Verify your email");
+      }
+
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
         throw ServerExceptions("Email already exists");
@@ -106,8 +112,13 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
       if (!userDoc.exists) {
         throw ServerExceptions("User data not found");
       }
-
-      return UserModel.fromJson(userDoc.data()!);
+      
+      if(firebaseUser.emailVerified){
+        return UserModel.fromJson(userDoc.data()!);
+      }else{
+        throw ServerExceptions("Email not verified");
+      }
+      
 
     } on FirebaseAuthException catch (e) {
 

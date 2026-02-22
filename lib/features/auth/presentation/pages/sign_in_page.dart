@@ -1,3 +1,4 @@
+
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
@@ -30,6 +31,7 @@ class _SignInPageState extends State<SignInPage> {
   final formKey = GlobalKey<FormState>();
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(),
       body: Padding(
@@ -39,13 +41,6 @@ class _SignInPageState extends State<SignInPage> {
           listener: (context, state) {
             if(state is AuthFailure){
               showSnackbar(context, state.message);
-            }
-            else if(state is AuthSuccess){
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => HomePage()),
-                (route) => false,
-              );
             }
           },
           builder: (context, state) {
@@ -77,7 +72,7 @@ class _SignInPageState extends State<SignInPage> {
                   AuthFields(
                     hinText: 'Password',
                     textController: passwordController,
-                    isObscure: false,
+                    isObscure: true,
                   ),
                   SizedBox(height: 20),
 

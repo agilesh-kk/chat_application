@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+//returns a loader indicator
 class Loader extends StatelessWidget {
   const Loader({super.key});
 

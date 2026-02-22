@@ -1,4 +1,4 @@
-//user structure
+//core user structure
 class User {
   final String id;
   final String name;
