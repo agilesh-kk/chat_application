@@ -7,6 +7,15 @@ import 'package:chat_application/features/auth/domain/usecase/user_sign_in.dart'
 import 'package:chat_application/features/auth/domain/usecase/user_sign_out.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_up.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources.dart';
+import 'package:chat_application/features/chats/data/models/message_model.dart';
+import 'package:chat_application/features/chats/data/repository/chat_repository_impl.dart';
+import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
+import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
+import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
+import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
+import 'package:chat_application/features/chats/presentation/bloc/chat_bloc.dart';
+import 'package:chat_application/features/chats/presentation/bloc/conversation_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
@@ -16,6 +25,7 @@ final serviceLocator = GetIt.instance;
 Future<void> initDependencies() async {
   _initAuth();
 
+
   //Firebase Instances
   serviceLocator
   ..registerLazySingleton(
@@ -24,6 +34,8 @@ Future<void> initDependencies() async {
   ..registerLazySingleton(
     () => FirebaseFirestore.instance,
   );
+
+  _initChat();
 
   //registering core dependencies
   serviceLocator.registerLazySingleton(() => AppUserCubit());
@@ -78,5 +90,49 @@ void _initAuth() {
       userSignOut: serviceLocator<UserSignOut>(),
       appUserCubit: serviceLocator<AppUserCubit>(),
     ),
+  );
+}
+
+void _initChat()async {
+  //Data Source
+  serviceLocator
+  ..registerFactory<ChatRemoteDataSources>(
+    () => ChatRemoteDataSourcesImpl(firestore: serviceLocator<FirebaseFirestore>()),
+  )
+
+  ..registerFactory<ChatRepository>(
+    () => ChatRepositoryImpl(
+      chatRemoteDataSources:  serviceLocator<ChatRemoteDataSources>(),
+    ),
+  )
+
+  //UseCase
+  ..registerFactory(
+    () => GetConversations(
+      chatRepository:  serviceLocator<ChatRepository>(),
+    ),
+  )
+  ..registerFactory(
+    () => GetMessages(
+     chatRepository:  serviceLocator<ChatRepository>(),
+    )
+  )
+  ..registerFactory(
+    () => SendMessage(
+    chatRepository:  serviceLocator<ChatRepository>(),
+    )
+  )
+
+  ..registerLazySingleton(
+    () => ChatBloc(
+      getMessages: serviceLocator(),
+      sendMessage: serviceLocator()
+    )
+  )
+
+  ..registerLazySingleton(
+    ()=> ConversationBloc(
+      getConversations: serviceLocator()
+    )
   );
 }
