@@ -1,4 +1,5 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+import 'package:chat_application/core/keys/app_keys.dart';
 import 'package:chat_application/features/auth/data/datasources/auth_remote_data_sources.dart';
 import 'package:chat_application/features/auth/data/repository/auth_repository_impl.dart';
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
@@ -18,15 +19,20 @@ import 'package:chat_application/features/chats/domain/usecase/send_message.dart
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/status/data/datasources/status_remote_data_source.dart';
+import 'package:chat_application/features/status/data/repository/status_repository_impl.dart';
+import 'package:chat_application/features/status/domain/repository/status_repository.dart';
+import 'package:chat_application/features/status/domain/usecase/upload_status.dart';
+import 'package:chat_application/features/status/presentation/bloc/status_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 final serviceLocator = GetIt.instance;
 
 Future<void> initDependencies() async {
   _initAuth();
-
 
   //Firebase Instances
   serviceLocator
@@ -37,11 +43,40 @@ Future<void> initDependencies() async {
     () => FirebaseFirestore.instance,
   );
 
-  _initChat();
-
   //registering core dependencies
   serviceLocator.registerLazySingleton(() => AppUserCubit());
 
+}
+
+void _initStatus() {
+  //data source
+  serviceLocator
+  ..registerFactory<StatusRemoteDataSource>(
+    () => StatusRemoteDataSourceImpl(
+      supabaseClient: serviceLocator<SupabaseClient>(),
+    )
+  )
+
+  //repository
+  ..registerFactory<StatusRepository>(
+    () => StatusRepositoryImpl(
+      statusRemoteDataSource: serviceLocator<StatusRemoteDataSource>(),
+    )
+  )
+
+  //usecase
+  ..registerFactory(
+    () => UploadStatus(
+      serviceLocator<StatusRepository>()
+    )
+  )
+
+  //bloc
+  ..registerLazySingleton(
+    () => StatusBloc(
+      uploadStatus: serviceLocator<UploadStatus>()
+    )
+  );
 }
 
 void _initAuth() {

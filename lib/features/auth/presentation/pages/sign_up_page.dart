@@ -55,7 +55,7 @@ class _SignUpPageState extends State<SignUpPage> {
               children: [
                 Text(
                   "Sign Up.",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 50, color: AppPallette.textColor),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 50, color: AppPallete.textColor),
                 ),
             
                 //authentication input fields for singup page
@@ -109,7 +109,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         TextSpan(
                           text: 'Sign In',
                           style: TextStyle(
-                            color: AppPallette.textColor,
+                            color: AppPallete.textColor,
                             fontWeight: FontWeight.bold,
                           )
                         )

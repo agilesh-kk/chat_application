@@ -5,6 +5,7 @@ import 'package:chat_application/features/auth/presentation/pages/sign_up_page.d
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/status/presentation/bloc/status_bloc.dart';
 import 'package:chat_application/firebase_options.dart';
 import 'package:chat_application/init_dependencies.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,8 @@ void main() async {
         BlocProvider(
           create: (_) => serviceLocator<AppUserCubit>(), //loads the app_user_cubit contents from the dependency file
         ),
+
+        //authentication bloc
         BlocProvider(
           create: (_) => serviceLocator<AuthBloc>()
           ..add(AuthCheckRequested()),
@@ -34,8 +37,12 @@ void main() async {
         ),
         BlocProvider(
           create: (_) => serviceLocator<SearchBloc>(),
+        ),
+
+        //status bloc
+        BlocProvider(
+          create: (_) => serviceLocator<StatusBloc>(),
         )
-      
       ],
       child: MyApp(),
     ),

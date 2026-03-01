@@ -1,3 +1,4 @@
+
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
@@ -29,6 +30,7 @@ class _SignInPageState extends State<SignInPage> {
   final formKey = GlobalKey<FormState>();
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(),
       body: Padding(
@@ -55,7 +57,7 @@ class _SignInPageState extends State<SignInPage> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 50,
-                      color: AppPallette.textColor,
+                      color: AppPallete.textColor,
                     ),
                   ),
 
@@ -70,7 +72,7 @@ class _SignInPageState extends State<SignInPage> {
                   AuthFields(
                     hinText: 'Password',
                     textController: passwordController,
-                    isObscure: false,
+                    isObscure: true,
                   ),
                   SizedBox(height: 20),
 
@@ -108,7 +110,7 @@ class _SignInPageState extends State<SignInPage> {
                           TextSpan(
                             text: 'Sign Up',
                             style: TextStyle(
-                              color: AppPallette.textColor,
+                              color: AppPallete.textColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
