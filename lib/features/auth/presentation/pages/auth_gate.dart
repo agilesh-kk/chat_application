@@ -25,7 +25,12 @@ class AuthGate extends StatelessWidget {
         }
         //print(state);
         if(state is AuthSuccess){
-          return NavigationPage(pages: [ConversationPage(userId: state.user.id)]);
+          return NavigationPage(
+            pages: [
+              ConversationPage(userId: state.user.id),
+              StatusPage(),
+            ]
+          );
         }
         return const SignInPage();
       },
