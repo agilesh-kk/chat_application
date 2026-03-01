@@ -1,7 +1,6 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart';
-import 'package:chat_application/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';

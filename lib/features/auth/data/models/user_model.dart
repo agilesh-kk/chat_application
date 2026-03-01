@@ -5,6 +5,8 @@ class UserModel extends User {
     required super.id,
     required super.name,
     required super.email,
+    super.profilePic,
+    super.friends,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> map) {
@@ -15,6 +17,10 @@ class UserModel extends User {
           map['user_metadata']?['name'] ??
           '',
       email: map['email'] ?? '',
+      profilePic: map['profilePic'],
+      friends: map['friends'] != null
+          ? List<String>.from(map['friends'])
+          : [],
     );
   }
 
@@ -23,6 +29,8 @@ class UserModel extends User {
       'id': id,
       'name': name,
       'email': email,
+      'profilePic': profilePic,
+      'friends':friends
     };
   }
 
@@ -30,11 +38,15 @@ class UserModel extends User {
     String? id,
     String? name,
     String? email,
+    String? profilePic,
+    List<String>? friends,
   }) {
     return UserModel(
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
+      profilePic: profilePic ?? this.profilePic,
+      friends: friends ?? this.friends,
     );
   }
 }

@@ -74,6 +74,7 @@ class _StatusPageState extends State<StatusPage> {
 
     final String username = appUserState.user.name;
     final String userid = appUserState.user.id;
+    print(appUserState.user.friends);
 
     return Scaffold(
       appBar: AppBar(

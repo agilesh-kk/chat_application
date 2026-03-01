@@ -55,6 +55,8 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         id: firebaseUser.uid,
         name: name,
         email: email,
+        profilePic: '',
+        friends: [],
       );
 
       //Saving user to Firestore
@@ -62,6 +64,8 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'id': firebaseUser.uid,
         'name': name,
         'email': email,
+        'profilePic': '',
+        'friends': [],
       });
 
       if(firebaseUser.emailVerified){

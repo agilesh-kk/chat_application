@@ -5,8 +5,15 @@ class User {
   final String name;
   final String email;
   final String? profilePic;
-  
-  User({required this.id, required this.name, required this.email, this.profilePic});
+  final List<String>? friends;
+
+  User({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.profilePic,
+    this.friends,
+  });
 
   @override
   String toString() {
