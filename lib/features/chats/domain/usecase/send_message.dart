@@ -12,7 +12,9 @@ class SendMessage implements UseCase<void,SendMessageParams>{
     return await chatRepository.sendMessage(
       receiverId : params.receiverId,
       userId: params.userId,
-      content: params.content
+      content: params.content,
+      userName: params.userName,
+      userProfile: params.userProfile
     );
   }
 }
@@ -21,10 +23,14 @@ class SendMessageParams{
   final String receiverId;
   final String userId;
   final String content;
+  String? userName;
+  String? userProfile;
 
   SendMessageParams({
     required this.receiverId,
     required this.userId,
-    required this.content
+    required this.content,
+    this.userName,
+    this.userProfile
   });
 }

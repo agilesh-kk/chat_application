@@ -11,18 +11,18 @@ class GetMessages implements UseCase<Stream<List<Message>>,GetMessageParams>{
   @override
   Future<Either<Failure, Stream<List<Message>>>> call(GetMessageParams params)async {
     return await chatRepository.getMessages(
-      convoId: params.convoId,
+      receiverId: params.receiverId,
       userId: params.userId
     );
   }
 }
 
 class GetMessageParams{
-  final String convoId;
+  final String receiverId;
   final String userId;
 
   GetMessageParams({
-    required this.convoId,
+    required this.receiverId,
     required this.userId,
   });
 }

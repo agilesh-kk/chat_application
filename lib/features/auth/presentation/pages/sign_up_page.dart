@@ -5,7 +5,6 @@ import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart'
 import 'package:chat_application/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
-import 'package:chat_application/features/chats/presentation/pages/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -43,13 +42,6 @@ class _SignUpPageState extends State<SignUpPage> {
             
             if(state is AuthFailure){
               showSnackbar(context, state.message);
-            }
-            else if(state is AuthSuccess){
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => HomePage()),
-                (route) => false,
-              );
             }
           },
           builder: (context, state) {

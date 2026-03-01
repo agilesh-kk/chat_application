@@ -1,74 +1,69 @@
-import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
-import 'package:chat_application/features/chats/presentation/bloc/chat_bloc.dart';
-import 'package:chat_application/features/chats/presentation/bloc/conversation_bloc.dart';
+import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
+import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 
 class ConversationPage extends StatelessWidget {
+  final String userId;
 
-  const ConversationPage({super.key});
+  const ConversationPage({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
-    final appUserState = context.read<AppUserCubit>().state;
-    // Trigger loading conversations when page loads
-    if(appUserState is AppUserIsSignedin) {
-      context.read<ConversationBloc>().add(LoadConversationsEvent(appUserState.user.id));
-    }
+
+    context.read<ConversationBloc>()
+        .add(LoadConversationsEvent(userId));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Conversations'),
+        title: const Text("Chats"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => SearchPage(),));
+            },
+          )
+        ],
       ),
       body: BlocBuilder<ConversationBloc, ConversationState>(
         builder: (context, state) {
+
           if (state is ConversationLoading) {
             return const Center(child: CircularProgressIndicator());
-          } else if (state is ConversationError) {
-            return Center(child: Text('Error: ${state.message}'));
-          } else if (state is ConversationLoaded) {
+          }
+
+          if (state is ConversationLoaded) {
             final conversations = state.conversations;
 
             if (conversations.isEmpty) {
-              return const Center(child: Text('No conversations found'));
+              return const Center(child: Text("No chats yet"));
             }
 
             return ListView.builder(
               itemCount: conversations.length,
               itemBuilder: (context, index) {
                 final convo = conversations[index];
-                final isSelected = convo.convoId == state.selectedConvoId;
 
                 return ListTile(
-                  selected: isSelected,
-                  title: Text(convo.convoId ?? 'Unknown'),
-                  subtitle: Text(convo.lastMessage ?? ''),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle, color: Colors.blue)
-                      : null,
+                  title: Text(convo.receiverName),
+                  subtitle: Text(convo.lastMessage ?? ""),
                   onTap: () {
-                    // Update selected conversation in ConversationBloc
-
-                    // Load messages for this conversation in ChatBloc
-
+                    Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
                   },
                 );
               },
             );
           }
 
+          if (state is ConversationError) {
+            return Center(child: Text(state.message));
+          }
+
           return const SizedBox();
         },
       ),
-      // floatingActionButton: FloatingActionButton(
-      //   child: const Icon(Icons.add),
-      //   onPressed: () {
-      //     // Example: create a new conversation
-      //     context
-      //         .read<ConversationBloc>()
-      //         .add(ConversationCreatedEvent(['userId2']));
-      //   },
-      // ),
     );
   }
 }

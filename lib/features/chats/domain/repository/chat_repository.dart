@@ -1,4 +1,5 @@
 
+import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
@@ -16,13 +17,20 @@ abstract interface class ChatRepository{
   Future<Either<Failure,void>> sendMessage({
     required String receiverId,
     required String userId,
-    required String content
+    required String content,
+    String? userName,
+    String? userProfile
   });
 
   //Contract to fetch Messages of a Single Conversation
   Future<Either<Failure,Stream<List<Message>>>> getMessages({
-    required String convoId,
+    required String receiverId,
     required String userId,
+  });
+
+  //Contract to fetch receiverName
+  Future<Either<Failure,User?>> searchUser({
+    required String receiverName
   });
 
 }

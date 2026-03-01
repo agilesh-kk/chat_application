@@ -13,9 +13,11 @@ import 'package:chat_application/features/chats/data/repository/chat_repository_
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
+import 'package:chat_application/features/chats/domain/usecase/search_user.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
-import 'package:chat_application/features/chats/presentation/bloc/chat_bloc.dart';
-import 'package:chat_application/features/chats/presentation/bloc/conversation_bloc.dart';
+import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
+import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
+import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
@@ -122,6 +124,11 @@ void _initChat()async {
     chatRepository:  serviceLocator<ChatRepository>(),
     )
   )
+  ..registerFactory(
+    () => SearchUser(
+      chatRepository: serviceLocator<ChatRepository>(),
+    )
+  )
 
   ..registerLazySingleton(
     () => ChatBloc(
@@ -133,6 +140,12 @@ void _initChat()async {
   ..registerLazySingleton(
     ()=> ConversationBloc(
       getConversations: serviceLocator()
+    )
+  )
+
+  ..registerLazySingleton(
+    () => SearchBloc(
+      searchUser: serviceLocator<SearchUser>()
     )
   );
 }
