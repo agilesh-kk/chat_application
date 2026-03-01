@@ -57,7 +57,7 @@ class _SignInPageState extends State<SignInPage> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 50,
-                      color: AppPallette.textColor,
+                      color: AppPallete.textColor,
                     ),
                   ),
 
@@ -110,7 +110,7 @@ class _SignInPageState extends State<SignInPage> {
                           TextSpan(
                             text: 'Sign Up',
                             style: TextStyle(
-                              color: AppPallette.textColor,
+                              color: AppPallete.textColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

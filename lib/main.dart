@@ -1,6 +1,7 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart';
+import 'package:chat_application/features/status/presentation/bloc/status_bloc.dart';
 import 'package:chat_application/firebase_options.dart';
 import 'package:chat_application/init_dependencies.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,11 @@ void main() async {
           create: (_) => serviceLocator<AuthBloc>()
           ..add(AuthCheckRequested()),
         ),
+
+        //status bloc
+        BlocProvider(
+          create: (_) => serviceLocator<StatusBloc>(),
+        )
       ],
       child: MyApp(),
     ),
