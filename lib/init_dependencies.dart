@@ -33,6 +33,8 @@ final serviceLocator = GetIt.instance;
 
 Future<void> initDependencies() async {
   _initAuth();
+  _initChat();
+  _initStatus();
 
   //Firebase Instances
   serviceLocator
