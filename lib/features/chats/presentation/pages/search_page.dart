@@ -2,8 +2,6 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
 
 class SearchPage extends StatefulWidget {

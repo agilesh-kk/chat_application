@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class NavigationPage extends StatefulWidget {
   final List<dynamic> pages;
 
-  NavigationPage({super.key, required this.pages});
+  const NavigationPage({super.key, required this.pages});
 
   @override
   State<NavigationPage> createState() => _NavigationPageState();

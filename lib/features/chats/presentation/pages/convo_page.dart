@@ -1,3 +1,4 @@
+import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
 import 'package:flutter/material.dart';
@@ -31,7 +32,7 @@ class ConversationPage extends StatelessWidget {
         builder: (context, state) {
 
           if (state is ConversationLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const Loader();
           }
 
           if (state is ConversationLoaded) {

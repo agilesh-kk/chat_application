@@ -1,4 +1,3 @@
-import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
