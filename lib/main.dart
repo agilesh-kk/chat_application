@@ -28,6 +28,8 @@ void main() async {
           create: (_) => serviceLocator<AuthBloc>()
           ..add(AuthCheckRequested()),
         ),
+
+        //chat bloc
         BlocProvider(
           create: (_) => serviceLocator<ChatBloc>(), 
         ),

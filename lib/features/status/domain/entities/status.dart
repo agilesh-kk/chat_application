@@ -5,6 +5,7 @@ class Status {
   final String caption;
   final DateTime createdAt;
   final DateTime expiresAt;
+  final String userName;
 
   Status({
     required this.id,
@@ -13,5 +14,6 @@ class Status {
     required this.caption,
     required this.createdAt,
     required this.expiresAt,
+    required this.userName, 
   });
 }

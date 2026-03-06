@@ -13,3 +13,8 @@ final class StatusFailure extends StatusState{
   final String error;
   StatusFailure(this.error);
 }
+
+final class StatusDisplaySuccess extends StatusState{
+  final List<Status> status;
+  StatusDisplaySuccess(this.status);
+}

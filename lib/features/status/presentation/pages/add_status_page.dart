@@ -9,9 +9,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AddStatusPage extends StatelessWidget {
-  final String id;
+  final String userId;
   final XFile image;
-  const AddStatusPage({super.key, required this.id, required this.image});
+  final String userName;
+  const AddStatusPage({
+    super.key, 
+    required this.userId, 
+    required this.image, 
+    required this.userName
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +34,8 @@ class AddStatusPage extends StatelessWidget {
           }
           else if(state is StatusUploadSuccess){
             captionController.clear();
-            Navigator.push(
+            Navigator.pop(
               context, 
-              MaterialPageRoute(
-                builder: (_)=> StatusPage(),
-              ),
             );
           }
         },
@@ -48,8 +51,7 @@ class AddStatusPage extends StatelessWidget {
                 TextFormField(
                   controller: captionController,
                   decoration: InputDecoration(hintText: "Add caption"),
-                  maxLines:
-                      null, //used to make new lines once each line is filled.
+                  maxLines: null, //used to make new lines once each line is filled.
                   // validator: (value) { //to check if the fields are not empty.
                   //   if(value!.isEmpty){
                   //     return 'caption is missing';
@@ -61,9 +63,10 @@ class AddStatusPage extends StatelessWidget {
                   onPressed: () {
                     context.read<StatusBloc>().add(
                       UploadStatusEvent(
-                        userId: id,
+                        userId: userId,
                         image: image,
                         caption: captionController.text.trim(),
+                        userName: userName
                       ),
                     );
                   },

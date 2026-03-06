@@ -15,6 +15,7 @@ class UploadStatus implements UseCase<Status, UploadStatusParams>{
       image: params.image,
       caption: params.caption,
       userId: params.userId,
+      userName: params.userName,
     );
   }
 }
@@ -23,10 +24,12 @@ class UploadStatusParams {
   final XFile image;
   final String caption;
   final String userId;
+  final String userName;
 
   UploadStatusParams({
     required this.image,
     required this.caption,
     required this.userId,
+    required this.userName,
   });
 }

@@ -18,6 +18,7 @@ class StatusRepositoryImpl implements StatusRepository {
     required XFile image,
     required String caption,
     required String userId,
+    required String userName,
   }) async {
     try {
       StatusModel statusModel = StatusModel(
@@ -27,6 +28,7 @@ class StatusRepositoryImpl implements StatusRepository {
         caption: caption,
         createdAt: DateTime.now(),
         expiresAt: DateTime.now().add(const Duration(hours: 24)),
+        userName: userName,
       );
 
       //Upload Image
@@ -47,6 +49,18 @@ class StatusRepositoryImpl implements StatusRepository {
     } on ServerExceptions catch (e) {
       return left(Failure(e.message));
     } catch (e) {
+      return left(Failure(e.toString()));
+    }
+  }
+  
+  //fetches all status from the db.
+  @override
+  Future<Either<Failure, List<Status>>> getAllStatus() async {
+    try{
+      final status = await statusRemoteDataSource.getAllStatus();
+      return right(status);
+    }
+    on ServerExceptions catch(e){
       return left(Failure(e.toString()));
     }
   }

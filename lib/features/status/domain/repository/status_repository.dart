@@ -4,9 +4,14 @@ import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
 
 abstract interface class StatusRepository {
+
   Future<Either<Failure, Status>> uploadStatus({
     required XFile image,
     required String caption,
     required String userId,
+    required String userName,
   });
+
+  Future<Either<Failure, List<Status>>> getAllStatus();
+
 }

@@ -9,7 +9,7 @@ abstract interface class StatusRemoteDataSource {
   Future<StatusModel> uploadStatus(StatusModel status);
   Future<String> uploadImage({required XFile image, required StatusModel status});
 
-  //Future<List<StatusModel>> getAllStatus();
+  Future<List<StatusModel>> getAllStatus();
 }
 
 class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
@@ -50,9 +50,20 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
     }
   }
 
-  // @override
-  // Future<List<StatusModel>> getAllStatus() {
-  //   // TODO: implement getAllStatus
-  //   throw UnimplementedError();
-  // }
+  @override
+  Future<List<StatusModel>> getAllStatus() async {
+    try{
+      final statuses = await supabaseClient.from('statuses').select();
+      print('working');
+      return statuses.map(
+        (status) => StatusModel.fromJson(status)
+      ).toList();
+    }
+    on PostgrestException catch (e){
+      throw ServerExceptions(e.message);
+    }
+    catch(e){
+      throw ServerExceptions(e.toString());
+    }
+  }
 }

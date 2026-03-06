@@ -28,7 +28,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Home"),
+        title: Text("Profile"),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert), // The three dots icon
