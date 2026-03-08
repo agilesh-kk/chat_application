@@ -33,9 +33,9 @@ class ChatRepositoryImpl implements ChatRepository{
   }
 
   @override
-  Future<Either<Failure, void>> sendMessage({required String receiverId, required String userId, required String content, String? userName, String? userProfile}) async{
+  Future<Either<Failure, void>> sendMessage({required String receiverId, required String userId, required String content, required String msgId, String? userName, String? userProfile}) async{
     try{
-      await chatRemoteDataSources.sendMessage(receiverId: receiverId, userId: userId, content: content,userName: userName,userProfile: userProfile);
+      await chatRemoteDataSources.sendMessage(receiverId: receiverId, userId: userId, content: content,userName: userName,userProfile: userProfile,msgId: msgId);
       return right(null);
     }on ServerExceptions catch(e){
       return left(Failure(e.message));

@@ -13,6 +13,7 @@ class SendMessage implements UseCase<void,SendMessageParams>{
       receiverId : params.receiverId,
       userId: params.userId,
       content: params.content,
+      msgId: params.msgId,
       userName: params.userName,
       userProfile: params.userProfile
     );
@@ -23,6 +24,7 @@ class SendMessageParams{
   final String receiverId;
   final String userId;
   final String content;
+  final String msgId;
   String? userName;
   String? userProfile;
 
@@ -30,6 +32,7 @@ class SendMessageParams{
     required this.receiverId,
     required this.userId,
     required this.content,
+    required this.msgId,
     this.userName,
     this.userProfile
   });

@@ -13,6 +13,7 @@ abstract interface class ChatRemoteDataSources {
     required String receiverId,
     required String userId,
     required String content,
+    required String msgId,
     String? userName,
     String? userProfile
   });
@@ -64,7 +65,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
   }
 
   @override
-  Future<void> sendMessage({required String receiverId, required String userId, required String content, String? userName, String? userProfile}) async {
+  Future<void> sendMessage({required String receiverId, required String userId, required String content, required String msgId, String? userName, String? userProfile}) async {
     final convoRef =
       firestore
       .collection("Conversations")
@@ -72,10 +73,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
 
     final messageRef = convoRef
       .collection("messages")
-      .doc();  // generates id
+      .doc(msgId);  // generates id
 
     final message = MessageModel(
-      id: messageRef.id,
+      id: msgId,
       senderId: userId,
       content: content,
       createdAt: DateTime.now().toString(),
@@ -111,6 +112,15 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
             "receiverName" : userName ?? "Unknown",
             "receiverProfile" : userProfile ?? "Not Found"
           }
+        });
+
+        final user = firestore.collection("users").doc(userId);
+        transaction.update(user, {
+          "friends":FieldValue.arrayUnion(List.of(<String>[receiverId]))
+        });
+        final receiver = firestore.collection("users").doc(receiverId);
+        transaction.update(receiver, {
+          "friends":FieldValue.arrayUnion(List.of(<String>[userId]))
         });
       }
 

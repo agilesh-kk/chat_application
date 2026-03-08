@@ -48,8 +48,8 @@ class ConversationPage extends StatelessWidget {
                 final convo = conversations[index];
 
                 return ListTile(
-                  title: Text(convo.receiverName),
-                  subtitle: Text(convo.lastMessage ?? ""),
+                  title: Text(convo.receiverName,overflow: TextOverflow.ellipsis,maxLines: 1,),
+                  subtitle: Text(convo.lastMessage ?? "",overflow: TextOverflow.ellipsis,maxLines: 1,),
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
                   },

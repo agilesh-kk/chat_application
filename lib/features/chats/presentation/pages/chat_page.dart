@@ -1,4 +1,5 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -26,6 +27,8 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
 
   final TextEditingController controller = TextEditingController();
+  String lastAnimated = "";
+  bool firstTime = true;
 
   @override
   void initState() {
@@ -105,41 +108,17 @@ class _ChatPageState extends State<ChatPage> {
 
                       final isMe =
                           message.senderId == widget.currentUserId;
+                      bool isAnimate = false;
 
-                      return  TweenAnimationBuilder(
-  key: ValueKey(message.id),
-  tween: Tween<double>(begin: 0, end: 1),
-  duration: const Duration(milliseconds: 250),
-  curve: Curves.easeOut,
-  builder: (context, value, child) {
-    return Opacity(
-      opacity: value,
-      child: Transform.translate(
-        offset: Offset(0, 20 * (1 - value)),
-        child: child,
-      ),
-    );
-  },
-  child: Align(
-    alignment: isMe
-        ? Alignment.centerRight
-        : Alignment.centerLeft,
-    child: Container(
-      margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isMe ? Colors.blue : Colors.grey[300],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        message.content,
-        style: TextStyle(
-          color: isMe ? Colors.white : Colors.black,
-        ),
-      ),
-    ),
-  ),
-);
+                      if((index==0 && message.id != lastAnimated) && !firstTime){
+                        isAnimate = true;
+                      }
+                      if(index == 0){
+                        lastAnimated = message.id;
+                      }
+                      firstTime = false;
+
+                      return  MessageBubble(key: ValueKey(message.id),message: message, isMe: isMe, animate: isAnimate);
                     },
                   );
                 }

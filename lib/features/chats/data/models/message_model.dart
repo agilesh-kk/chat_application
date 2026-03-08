@@ -8,6 +8,7 @@ class MessageModel extends Message {
     required super.content,
     required super.createdAt,
     required super.deletedfor,
+    super.isLocal
   });
 
   factory MessageModel.fromJson(
