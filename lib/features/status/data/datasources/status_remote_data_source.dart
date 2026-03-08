@@ -54,7 +54,7 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
   Future<List<StatusModel>> getAllStatus() async {
     try{
       final statuses = await supabaseClient.from('statuses').select();
-      print('working');
+      //print('working');
       return statuses.map(
         (status) => StatusModel.fromJson(status)
       ).toList();

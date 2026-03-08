@@ -41,15 +41,13 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
           ),
         ),
       );
-
     }).toList();
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-
-          /// Story Viewer
+          //Story Viewer
           StoryView(
             storyItems: storyItems,
             controller: controller,
@@ -59,13 +57,12 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
             },
           ),
 
-          /// Username + time at top
+          // Username,time
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-
                   //const CircleAvatar(),
 
                   const SizedBox(width: 10),
@@ -73,7 +70,6 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
                       Text(
                         widget.statuses.first.userName,
                         style: const TextStyle(
@@ -90,7 +86,6 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                           fontSize: 12,
                         ),
                       ),
-
                     ],
                   ),
                 ],

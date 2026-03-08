@@ -1,3 +1,4 @@
+import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:flutter/material.dart';
 
@@ -28,12 +29,13 @@ class FriendsStatusCard extends StatelessWidget {
           children: [
             CircleAvatar(
               //backgroundImage: ,
+
               radius: 30,
             ),
             Column(
               children: [
                 Text(status.userName),
-                Text(status.createdAt.toString()),
+                Text(MomentsAgo.calculateMomentsAgo(status.createdAt.toString())),
               ],
             )
           ],

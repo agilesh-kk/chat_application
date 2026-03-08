@@ -83,7 +83,7 @@ class _StatusPageState extends State<StatusPage> {
                     UserStatusColumn(
                       name: username,
 
-                      /// VIEW MY STATUS
+                      // VIEW MY STATUS
                       onViewStatus: () {
                         if (myStatuses.isNotEmpty) {
                           Navigator.push(
@@ -97,7 +97,7 @@ class _StatusPageState extends State<StatusPage> {
                         }
                       },
 
-                      /// ADD STATUS
+                      // ADD STATUS
                       onAddStatus: () async {
 
                         XFile? res = await HelperFunctions.showImageSourceBottomSheet(

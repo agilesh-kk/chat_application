@@ -26,7 +26,7 @@ class StatusRepositoryImpl implements StatusRepository {
         userId: userId,
         imageUrl: '',
         caption: caption,
-        createdAt: DateTime.now(),
+        createdAt: DateTime.now().toUtc(),
         expiresAt: DateTime.now().add(const Duration(hours: 24)),
         userName: userName,
       );
