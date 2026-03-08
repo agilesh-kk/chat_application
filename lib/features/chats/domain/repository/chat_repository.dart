@@ -18,6 +18,7 @@ abstract interface class ChatRepository{
     required String receiverId,
     required String userId,
     required String content,
+    required String msgId,
     String? userName,
     String? userProfile
   });
