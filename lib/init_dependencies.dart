@@ -22,6 +22,7 @@ import 'package:chat_application/features/status/data/datasources/status_remote_
 import 'package:chat_application/features/status/data/repository/status_repository_impl.dart';
 import 'package:chat_application/features/status/domain/repository/status_repository.dart';
 import 'package:chat_application/features/status/domain/usecase/get_all_status.dart';
+import 'package:chat_application/features/status/domain/usecase/update_view.dart';
 import 'package:chat_application/features/status/domain/usecase/upload_status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -85,12 +86,18 @@ void _initStatus() {
       serviceLocator<StatusRepository>(),
     )
   )
+  ..registerFactory(
+    () => UpdateView(
+      serviceLocator<StatusRepository>(),
+    )
+  )
 
   //bloc
   ..registerLazySingleton(
     () => StatusBloc(
       uploadStatus: serviceLocator<UploadStatus>(),
       getAllStatus: serviceLocator<GetAllStatus>(),
+      updateView: serviceLocator<UpdateView>(),
     )
   );
 }

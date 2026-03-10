@@ -2,6 +2,7 @@ import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/status/data/datasources/status_remote_data_source.dart';
 import 'package:chat_application/features/status/data/model/status_model.dart';
+import 'package:chat_application/features/status/data/model/status_view_model.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/domain/repository/status_repository.dart';
 import 'package:fpdart/fpdart.dart';
@@ -41,26 +42,51 @@ class StatusRepositoryImpl implements StatusRepository {
       statusModel = statusModel.copyWith(imageUrl: imageUrl);
 
       //Insert into Supabase
-      final uploadedStatus =
-          await statusRemoteDataSource.uploadStatus(statusModel);
+      final uploadedStatus = await statusRemoteDataSource.uploadStatus(
+        statusModel,
+      );
 
       return right(uploadedStatus);
-
     } on ServerExceptions catch (e) {
       return left(Failure(e.message));
     } catch (e) {
       return left(Failure(e.toString()));
     }
   }
-  
+
   //fetches all status from the db.
   @override
   Future<Either<Failure, List<Status>>> getAllStatus() async {
-    try{
+    try {
       final status = await statusRemoteDataSource.getAllStatus();
       return right(status);
+    } on ServerExceptions catch (e) {
+      return left(Failure(e.toString()));
     }
-    on ServerExceptions catch(e){
+  }
+
+  @override
+  Future<Either<Failure, void>> updateView({
+    required String statusId,
+    required String viewerId,
+    required String viewerName,
+    //required DateTime viewedAt,
+  }) async{
+    try{
+      StatusViewModel statusViewModel = StatusViewModel(
+        id: const Uuid().v1(), 
+        statusId: statusId, 
+        viewerId: viewerId, 
+        viewerName: viewerName, 
+        viewedAt: DateTime.now().toUtc(),
+      );
+
+      await statusRemoteDataSource.updateView(statusViewModel);
+
+      return right(null);
+    }on ServerExceptions catch (e) {
+      return left(Failure(e.message));
+    } catch (e) {
       return left(Failure(e.toString()));
     }
   }

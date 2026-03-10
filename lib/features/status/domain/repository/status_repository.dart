@@ -14,4 +14,10 @@ abstract interface class StatusRepository {
 
   Future<Either<Failure, List<Status>>> getAllStatus();
 
+  Future<Either<Failure, void>> updateView({
+    required String statusId,
+    required String viewerId,
+    required String viewerName,
+    //required DateTime viewedAt,
+  });
 }

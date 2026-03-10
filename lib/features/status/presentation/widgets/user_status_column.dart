@@ -1,15 +1,20 @@
+import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:flutter/material.dart';
 
 class UserStatusColumn extends StatelessWidget {
   final String name;
   final VoidCallback onAddStatus;
-  final VoidCallback onViewStatus;
+  final VoidCallback? onViewStatus;
+  final bool hasStatus;
+  final String? image;
 
   const UserStatusColumn({
     super.key,
     required this.name,
     required this.onAddStatus,
     required this.onViewStatus,
+    required this.image, 
+    required this.hasStatus,
   });
 
   @override
@@ -20,8 +25,11 @@ class UserStatusColumn extends StatelessWidget {
           children: [
             GestureDetector(
               onTap: onViewStatus,
-              child: const CircleAvatar(
+              child: CircleAvatar(
                 radius: 30,
+                backgroundImage: image != null ? NetworkImage(image!) : null,
+                backgroundColor: AppPallete.transparentColor,
+                child: image == null ? const Icon(Icons.person) : null,
               ),
             ),
 
@@ -37,10 +45,8 @@ class UserStatusColumn extends StatelessWidget {
         ),
 
         const SizedBox(width: 20),
-
-        GestureDetector(
-          onTap: onViewStatus,
-          child: Column(
+        if(!hasStatus)
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -49,8 +55,23 @@ class UserStatusColumn extends StatelessWidget {
               ),
               const Text("Disappears after 24 hours"),
             ],
+          )
+        
+        else
+        GestureDetector(
+          onTap: onViewStatus,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "My status",
+                style: const TextStyle(fontSize: 20),
+              ),
+              //const Text("Disappears after 24 hours"),
+            ],
           ),
         )
+        
       ],
     );
   }
