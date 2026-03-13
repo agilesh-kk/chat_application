@@ -22,13 +22,14 @@ class StatusRepositoryImpl implements StatusRepository {
     required String userName,
   }) async {
     try {
+      final now = DateTime.now().toUtc();
       StatusModel statusModel = StatusModel(
         id: const Uuid().v1(),
         userId: userId,
         imageUrl: '',
         caption: caption,
-        createdAt: DateTime.now().toUtc(),
-        expiresAt: DateTime.now().add(const Duration(hours: 24)),
+        createdAt: now,
+        expiresAt: now.add(const Duration(hours: 24)),
         userName: userName,
       );
 

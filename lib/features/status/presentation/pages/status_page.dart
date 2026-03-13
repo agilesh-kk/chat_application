@@ -57,8 +57,12 @@ class _StatusPageState extends State<StatusPage> {
             //grouping all the status posted by the same user
             final Map<String, List<Status>> groupedStatuses = {};
 
+            final friends = appUserState.user.friends;
+
             for (var st in state.status) {
               if (st.userId == currentUserId) continue;
+              // filtering non friends
+              if (!friends!.contains(st.userId)) continue;
 
               if (!groupedStatuses.containsKey(st.userId)) {
                 groupedStatuses[st.userId] = [];
@@ -90,7 +94,7 @@ class _StatusPageState extends State<StatusPage> {
                       image: pfp,
                       hasStatus: hasStatus,
 
-                      // VIEW MY STATUS
+                      //to view the user's status
                       onViewStatus: () {
                         if (myStatuses.isNotEmpty) {
                           Navigator.push(
@@ -98,13 +102,14 @@ class _StatusPageState extends State<StatusPage> {
                             MaterialPageRoute(
                               builder: (_) => ViewStatusPage(
                                 statuses: myStatuses,
+                                //isUserStatus: true,
                               ),
                             ),
                           );
                         }
                       },
 
-                      // ADD STATUS
+                      // adding status
                       onAddStatus: () async {
 
                         XFile? res = await HelperFunctions.showImageSourceBottomSheet(
