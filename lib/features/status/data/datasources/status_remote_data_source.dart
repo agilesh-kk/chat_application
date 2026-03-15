@@ -13,6 +13,8 @@ abstract interface class StatusRemoteDataSource {
   Future<List<StatusModel>> getAllStatus();
 
   Future<void> updateView(StatusViewModel statusView);
+
+  Future<List<StatusViewModel>> getViews(String statusId);
 }
 
 class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
@@ -59,10 +61,10 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
       //final statuses = await supabaseClient.from('statuses').select();
       final nowUtc = DateTime.now().toUtc().toIso8601String();
       final statuses = await supabaseClient
-      .from('statuses')
-      .select()
-      .gt('expires_at', nowUtc);
-      //.order('created_at');
+        .from('statuses')
+        .select()
+        .gt('expires_at', nowUtc);
+        //.order('created_at');
       
       //print('working');
       return statuses.map(
@@ -90,6 +92,28 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
     on PostgrestException catch (e) {
       throw ServerExceptions(e.message);
     } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
+  
+  @override
+  Future<List<StatusViewModel>> getViews(String statusId) async{
+    try{
+      final response = await supabaseClient
+        .from('status_views')
+        .select()
+        .eq('status_id', statusId);
+
+      final List data = response as List;
+
+      return data
+          .map((json) => StatusViewModel.fromJson(json))
+          .toList();
+    }
+    on PostgrestException catch (e){
+      throw ServerExceptions(e.message);
+    }
+    catch(e){
       throw ServerExceptions(e.toString());
     }
   }  

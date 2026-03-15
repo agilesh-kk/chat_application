@@ -2,7 +2,7 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
-import 'package:chat_application/features/status/presentation/bloc/status_bloc.dart';
+import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/functions/helper_functions.dart';
 import 'package:chat_application/features/status/presentation/pages/add_status_page.dart';
 import 'package:chat_application/features/status/presentation/pages/view_status_page.dart';
@@ -102,6 +102,7 @@ class _StatusPageState extends State<StatusPage> {
                             MaterialPageRoute(
                               builder: (_) => ViewStatusPage(
                                 statuses: myStatuses,
+                                isUserStatus: true,
                                 //isUserStatus: true,
                               ),
                             ),
@@ -134,7 +135,7 @@ class _StatusPageState extends State<StatusPage> {
                             ),
                           ),
                         );
-
+                        
                         context.read<StatusBloc>().add(GetAllStatusEvent());
                       },
                     ),
@@ -173,6 +174,7 @@ class _StatusPageState extends State<StatusPage> {
                                   MaterialPageRoute(
                                     builder: (context) => ViewStatusPage(
                                       statuses: userStatuses,
+                                      isUserStatus: false,
                                     ),
                                   ),
                                 );

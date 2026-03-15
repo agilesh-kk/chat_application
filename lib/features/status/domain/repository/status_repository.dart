@@ -1,5 +1,6 @@
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
+import 'package:chat_application/features/status/domain/entities/status_view.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -19,5 +20,9 @@ abstract interface class StatusRepository {
     required String viewerId,
     required String viewerName,
     //required DateTime viewedAt,
+  });
+
+  Future<Either<Failure, List<StatusView>>> getViews({
+    required String statusId,
   });
 }
