@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
-import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -99,11 +98,12 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
       backgroundColor: Colors.black,
       body: BlocConsumer<StatusviewBloc, StatusviewState>(
         
-        listener: (context, state) {
+        listener: (context, state) async {
           if (state is ViewDisplaySuccess) {
-
-            showModalBottomSheet(
+            pauseStory(); //pauses when the view list is opened
+            await showModalBottomSheet(
               context: context,
+              isScrollControlled: true,
               backgroundColor: Colors.black,
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(
@@ -111,7 +111,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                 ),
               ),
               builder: (context) {
-                pauseStory();
+                //pauseStory();
                 return SizedBox(
                   height: 350,
                   child: Column(
@@ -149,10 +149,10 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                             final viewer = state.statusView[index];
 
                             return ListTile(
-                              leading: const CircleAvatar(
-                                radius: 22,
-                                backgroundColor: Colors.grey,
-                              ),
+                              // leading: const CircleAvatar(
+                              //   radius: 22,
+                              //   backgroundColor: Colors.grey,
+                              // ),
 
                               title: Text(
                                 viewer.viewerName,
@@ -179,6 +179,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                 );
               },
             );
+            resumeStory();
           }
         },
 

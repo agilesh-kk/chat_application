@@ -15,7 +15,7 @@ class StatusViewModel extends StatusView {
       statusId: json['status_id'], 
       viewerId: json['viewer_id'], 
       viewerName: json['viewer_name'], 
-      viewedAt: json['viewed_at']
+       viewedAt: DateTime.parse(json['viewed_at']),
     );
   }
 
