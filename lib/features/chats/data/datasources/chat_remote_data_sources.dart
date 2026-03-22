@@ -178,7 +178,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
           email: user["email"],
           name: user["name"],
           id: user["id"],
-          birthDate: user["birthDate"],
+          birthDate: user["birthDate"] ?? DateTime.now(),
         );
       }
     }
