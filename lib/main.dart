@@ -4,7 +4,8 @@ import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
-import 'package:chat_application/features/status/presentation/bloc/status_bloc.dart';
+import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
+import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
 import 'package:chat_application/firebase_options.dart';
 import 'package:chat_application/init_dependencies.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +44,10 @@ void main() async {
         //status bloc
         BlocProvider(
           create: (_) => serviceLocator<StatusBloc>(),
+        ),
+        //status view bloc
+        BlocProvider(
+          create: (_) => serviceLocator<StatusviewBloc>(),
         )
       ],
       child: MyApp(),

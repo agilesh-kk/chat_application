@@ -2,7 +2,7 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
-import 'package:chat_application/features/status/presentation/bloc/status_bloc.dart';
+import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/functions/helper_functions.dart';
 import 'package:chat_application/features/status/presentation/pages/add_status_page.dart';
 import 'package:chat_application/features/status/presentation/pages/view_status_page.dart';
@@ -20,6 +20,7 @@ class StatusPage extends StatefulWidget {
 }
 
 class _StatusPageState extends State<StatusPage> {
+  bool hasStatus=false;
   @override
   void initState() {
     super.initState();
@@ -34,8 +35,9 @@ class _StatusPageState extends State<StatusPage> {
       return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final String username = appUserState.user.name;
-    final String userid = appUserState.user.id;
+    final String currentUserName = appUserState.user.name;
+    final String currentUserId = appUserState.user.id;
+    final String? pfp = appUserState.user.profilePic;
     //print(appUserState.user.friends);
     //print(username);
 
@@ -55,8 +57,12 @@ class _StatusPageState extends State<StatusPage> {
             //grouping all the status posted by the same user
             final Map<String, List<Status>> groupedStatuses = {};
 
+            final friends = appUserState.user.friends;
+
             for (var st in state.status) {
-              if (st.userId == userid) continue;
+              if (st.userId == currentUserId) continue;
+              // filtering non friends
+              if (!friends!.contains(st.userId)) continue;
 
               if (!groupedStatuses.containsKey(st.userId)) {
                 groupedStatuses[st.userId] = [];
@@ -68,8 +74,11 @@ class _StatusPageState extends State<StatusPage> {
             final users = groupedStatuses.keys.toList();
 
             final myStatuses = state.status
-              .where((st) => st.userId == userid)
+              .where((st) => st.userId == currentUserId)
               .toList();
+            final bool hasStatus = myStatuses.isNotEmpty;
+            // print(hasStatus);
+            // print(pfp);
 
             return RefreshIndicator(
               onRefresh: () async{ //refreshing the page.
@@ -81,9 +90,11 @@ class _StatusPageState extends State<StatusPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     UserStatusColumn(
-                      name: username,
+                      name: currentUserName,
+                      image: pfp,
+                      hasStatus: hasStatus,
 
-                      // VIEW MY STATUS
+                      //to view the user's status
                       onViewStatus: () {
                         if (myStatuses.isNotEmpty) {
                           Navigator.push(
@@ -91,17 +102,19 @@ class _StatusPageState extends State<StatusPage> {
                             MaterialPageRoute(
                               builder: (_) => ViewStatusPage(
                                 statuses: myStatuses,
+                                isUserStatus: true,
+                                //isUserStatus: true,
                               ),
                             ),
                           );
                         }
                       },
 
-                      // ADD STATUS
+                      // adding status
                       onAddStatus: () async {
 
                         XFile? res = await HelperFunctions.showImageSourceBottomSheet(
-                          userid,
+                          currentUserId,
                           context,
                         );
 
@@ -115,14 +128,14 @@ class _StatusPageState extends State<StatusPage> {
                             builder: (_) => BlocProvider.value(
                               value: context.read<StatusBloc>(),
                               child: AddStatusPage(
-                                userId: userid,
+                                userId: currentUserId,
                                 image: res,
-                                userName: username,
+                                userName: currentUserName,
                               ),
                             ),
                           ),
                         );
-
+                        
                         context.read<StatusBloc>().add(GetAllStatusEvent());
                       },
                     ),
@@ -146,11 +159,22 @@ class _StatusPageState extends State<StatusPage> {
                             return FriendsStatusCard(
                               status: firstStatus,
                               onstatusTap: () {
+                                for(final status in userStatuses){
+                                  context.read<StatusBloc>().add(
+                                    UpdateViewEvent(
+                                      statusId: status.id,
+                                      viewerId: currentUserId,
+                                      viewerName: currentUserName,
+                                      //viewedAt: DateTime.now().toUtc(),
+                                    )
+                                  );
+                                }
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => ViewStatusPage(
                                       statuses: userStatuses,
+                                      isUserStatus: false,
                                     ),
                                   ),
                                 );

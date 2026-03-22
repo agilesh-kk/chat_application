@@ -5,6 +5,7 @@ import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart'
 import 'package:chat_application/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
+import 'package:chat_application/features/auth/presentation/widgets/date_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -19,6 +20,8 @@ class _SignUpPageState extends State<SignUpPage> {
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final birthDateController = TextEditingController();
+  DateTime? selectedDate;
 
   final formKey = GlobalKey<FormState>();
 
@@ -27,6 +30,7 @@ class _SignUpPageState extends State<SignUpPage> {
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    birthDateController.dispose();
     super.dispose();
   }
 
@@ -48,78 +52,101 @@ class _SignUpPageState extends State<SignUpPage> {
             if(state is AuthLoading){
               return const Loader();
             }
-            return Form(
-            key: formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Sign Up.",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 50, color: AppPallete.textColor),
-                ),
-            
-                //authentication input fields for singup page
-                SizedBox(height: 20),
-                AuthFields(
-                  hinText: 'Name',
-                  textController: nameController,
-                  isObscure: false,
-                ),
-                SizedBox(height: 20),
-                AuthFields(
-                  hinText: 'Email',
-                  textController: emailController,
-                  isObscure: false,
-                ),
-                SizedBox(height: 20),
-                AuthFields(
-                  hinText: 'Password',
-                  textController: passwordController,
-                  isObscure: true,
-                ),
-                SizedBox(height: 20),
-          
-                AuthButtons(
-                  buttonText: "Sign up",
-                  onPressed: (){
-                    //print("Form validated");
-                    if(formKey.currentState!.validate()){
-                      context.read<AuthBloc>().add(
-                        AuthSignUp(
-                          name: nameController.text.trim(),
-                          email: emailController.text.trim(),
-                          password: passwordController.text.trim(),
-                        ),
-                      );
-                    }
-                  },
-                ),
-          
-                SizedBox(height: 20),
-                //to have duoble string in same line wiht different properties
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context, MaterialPageRoute(builder: (context) => SignInPage()));
-                  },
-                  child: RichText(
-                    text: TextSpan(
-                      text: 'Already have an account? ',
-                      style: Theme.of(context).textTheme.titleMedium, //refering to the theme of the app
-                      children: [
-                        TextSpan(
-                          text: 'Sign In',
-                          style: TextStyle(
-                            color: AppPallete.textColor,
-                            fontWeight: FontWeight.bold,
+            return LayoutBuilder(
+              builder: (context, constraints){
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                  ),
+                  child: Center(
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Sign Up.",
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 50, color: AppPallete.textColor),
+                          ),
+                      
+                          //authentication input fields for singup page
+                          SizedBox(height: 20),
+                          AuthFields(
+                            hinText: 'Name',
+                            textController: nameController,
+                            isObscure: false,
+                          ),
+                          SizedBox(height: 20),
+                          AuthFields(
+                            hinText: 'Email',
+                            textController: emailController,
+                            isObscure: false,
+                          ),
+                          SizedBox(height: 20),
+                          AuthFields(
+                            hinText: 'Password',
+                            textController: passwordController,
+                            isObscure: true,
+                          ),
+                          SizedBox(height: 20),
+                          DatePicker(
+                            controller: birthDateController,
+                            hintText: "Enter your birth date",
+                            onDateSelected: (date){
+                              selectedDate = date;
+                            },
+                          ),
+                          SizedBox(height: 20),
+                      
+                          AuthButtons(
+                            buttonText: "Sign up",
+                            onPressed: (){
+                              //print("Form validated");
+                              if (formKey.currentState!.validate() && selectedDate != null) {
+                                context.read<AuthBloc>().add(
+                                  AuthSignUp(
+                                    name: nameController.text.trim(),
+                                    email: emailController.text.trim(),
+                                    password: passwordController.text.trim(),
+                                    birthDate: selectedDate!,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                                
+                          SizedBox(height: 20),
+                          //to have duoble string in same line wiht different properties
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context, MaterialPageRoute(builder: (context) => SignInPage()));
+                            },
+                            child: RichText(
+                              text: TextSpan(
+                                text: 'Already have an account? ',
+                                style: Theme.of(context).textTheme.titleMedium, //refering to the theme of the app
+                                children: [
+                                  TextSpan(
+                                    text: 'Sign In',
+                                    style: TextStyle(
+                                      color: AppPallete.textColor,
+                                      fontWeight: FontWeight.bold,
+                                    )
+                                  )
+                                ]
+                              ),
+                            ),
                           )
-                        )
-                      ]
+                        ],
+                      ),
                     ),
                   ),
-                )
-              ],
-            ),
-          );}
+                ),
+              );}
+
+            );
+          }
         ),
       ),
     );

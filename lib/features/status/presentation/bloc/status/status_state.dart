@@ -18,3 +18,6 @@ final class StatusDisplaySuccess extends StatusState{
   final List<Status> status;
   StatusDisplaySuccess(this.status);
 }
+
+final class UpdateViewSuccess extends StatusState{}
+

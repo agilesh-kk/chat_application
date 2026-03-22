@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
-import 'package:chat_application/features/status/presentation/bloc/status_bloc.dart';
+import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';

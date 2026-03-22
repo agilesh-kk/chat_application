@@ -1,10 +1,12 @@
 import 'package:chat_application/core/common/entities/user.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel extends User {
   UserModel({
     required super.id,
     required super.name,
     required super.email,
+    required super.birthDate,
     super.profilePic,
     super.friends,
   });
@@ -21,6 +23,11 @@ class UserModel extends User {
       friends: map['friends'] != null
           ? List<String>.from(map['friends'])
           : [],
+      birthDate: map['birthDate'] is Timestamp
+        ? (map['birthDate'] as Timestamp).toDate()
+        : map['birthDate'] is DateTime
+            ? map['birthDate']
+            : DateTime(2000, 1, 1),
     );
   }
 
@@ -30,7 +37,8 @@ class UserModel extends User {
       'name': name,
       'email': email,
       'profilePic': profilePic,
-      'friends':friends
+      'friends':friends,
+      'birthDate': Timestamp.fromDate(birthDate),
     };
   }
 
@@ -40,6 +48,7 @@ class UserModel extends User {
     String? email,
     String? profilePic,
     List<String>? friends,
+    DateTime? birthDate,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -47,6 +56,7 @@ class UserModel extends User {
       email: email ?? this.email,
       profilePic: profilePic ?? this.profilePic,
       friends: friends ?? this.friends,
+      birthDate: birthDate ?? this.birthDate,
     );
   }
 }

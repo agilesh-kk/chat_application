@@ -177,8 +177,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
         return User(
           email: user["email"],
           name: user["name"],
-          id: user["id"]
-          );
+          id: user["id"],
+          birthDate: user["birthDate"],
+        );
       }
     }
 

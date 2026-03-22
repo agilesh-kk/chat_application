@@ -6,11 +6,13 @@ class User {
   final String email;
   final String? profilePic;
   final List<String>? friends;
+  final DateTime birthDate;
 
   User({
     required this.id,
     required this.name,
     required this.email,
+    required this.birthDate,
     this.profilePic,
     this.friends,
   });

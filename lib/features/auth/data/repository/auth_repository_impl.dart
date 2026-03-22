@@ -14,12 +14,14 @@ class AuthRepositoryImpl implements AuthRepository {
     required String name,
     required String email,
     required String password,
+    required DateTime birthDate,
   }) async {
     return _getuser(
       () async => await remoteDataSources.signUpWithEmailPassword(
         name: name,
         email: email,
         password: password,
+        birthDate: birthDate,
       ),
     );
   }

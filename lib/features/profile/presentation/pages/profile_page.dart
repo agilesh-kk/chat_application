@@ -3,9 +3,22 @@ import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final bool isUser;
+  final String userId;
+  final String? profilePicture;
+  final DateTime? bDay;
+  final String email;
+  const ProfilePage({
+    super.key,
+    required this.isUser,
+    required this.userId,
+    required this.profilePicture,
+    required this.bDay,
+    required this.email,
+  });
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -17,8 +30,7 @@ class _ProfilePageState extends State<ProfilePage> {
     super.initState();
     final state = context.read<AppUserCubit>().state;
     if (state is AppUserIsSignedin) {
-      //context.read<BlogBloc>().add(YourBlogsEvent(posterId: state.user.id));
-      //context.read<BlogBloc>().add(GetAllBlogsEvent());
+      //checking if the user is logged in.
     }
   }
 
@@ -28,13 +40,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Profile"),
+        title: Text("Profile"),        
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert), // The three dots icon
             onSelected: (value) async {
               if (value == 'logout') {
-                // Trigger the logout event in your Bloc
                 final shouldLogout = await showConfirmationDialog(
                   context,
                   'Log out?',
@@ -71,6 +82,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     Text("Name: ${appUserState.user.name}"),
                     Text("Email: ${appUserState.user.email}"),
+                    Text("Birth date: ${DateFormat('dd MMM yyyy').format(appUserState.user.birthDate)}"),
                   ],
                 )
                 : const Text("No user signed in"),
