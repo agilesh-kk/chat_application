@@ -9,6 +9,7 @@ abstract interface class AuthRemoteDataSources {
     required String name,
     required String email,
     required String password,
+    required DateTime birthDate,
   });
 
   Future<UserModel> signInWithEmailPassword({
@@ -36,6 +37,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
     required String name,
     required String email,
     required String password,
+    required DateTime birthDate,
   }) async {
     try {
       //Create user in Firebase Auth
@@ -55,6 +57,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         id: firebaseUser.uid,
         name: name,
         email: email,
+        birthDate: birthDate,
         profilePic: '',
         friends: [],
       );
@@ -64,6 +67,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'id': firebaseUser.uid,
         'name': name,
         'email': email,
+        'birthDate': birthDate,
         'profilePic': '',
         'friends': [],
       });

@@ -11,6 +11,7 @@ abstract interface class AuthRepository {
     required String name,
     required String email,
     required String password,
+    required DateTime birthDate,
   });
 
   //interface for signing in with email and password.

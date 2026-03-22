@@ -7,11 +7,13 @@ final class AuthSignUp extends AuthEvent {
   final String name;
   final String email;
   final String password;
+  final DateTime birthDate;
 
   AuthSignUp({
     required this.name, 
     required this.email, 
     required this.password,
+    required this.birthDate,
   });
 }
 
