@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
+import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
@@ -9,8 +12,9 @@ import 'package:fpdart/src/either.dart';
 
 class ChatRepositoryImpl implements ChatRepository{
   final ChatRemoteDataSources chatRemoteDataSources;
+  final ChatLocalDataSource chatLocalDataSource;
 
-  ChatRepositoryImpl({required this.chatRemoteDataSources});
+  ChatRepositoryImpl({required this.chatRemoteDataSources, required this.chatLocalDataSource});
 
   @override
   Future<Either<Failure, Stream<List<Conversation>>>> getConversations({required String userId}) async{
@@ -29,6 +33,31 @@ class ChatRepositoryImpl implements ChatRepository{
       return right(res);
     }on ServerExceptions catch(e){
       return left(Failure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> sendImage({required String receiverId, required String userId, required File file, required String msgId, String? userName, String? userProfile}) async {
+    try {
+      final localPath = chatLocalDataSource.saveImage(file, msgId);
+
+      final imageUrl =
+          await chatRemoteDataSources.uploadImage(file: file, msgId: msgId);
+
+      await chatRemoteDataSources.sendMessage(
+        type: "image",
+        receiverId: receiverId,
+        userId: userId,
+        msgId: msgId,
+        content: imageUrl,
+        userName: userName,
+        userProfile: userProfile,
+      );
+
+      return right(null);
+    } catch (e) {
+      print(e.toString());
+      return left(Failure(e.toString()));
     }
   }
 

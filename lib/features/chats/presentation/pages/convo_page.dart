@@ -1,6 +1,8 @@
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
+import 'package:chat_application/features/chats/presentation/widgets/convo_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
@@ -47,9 +49,12 @@ class ConversationPage extends StatelessWidget {
               itemBuilder: (context, index) {
                 final convo = conversations[index];
 
-                return ListTile(
-                  title: Text(convo.receiverName,overflow: TextOverflow.ellipsis,maxLines: 1,),
-                  subtitle: Text(convo.lastMessage ?? "",overflow: TextOverflow.ellipsis,maxLines: 1,),
+                return ConvoTile(
+                  unread: convo.unread,
+                  name: convo.receiverName, 
+                  lastMessage: convo.lastMessage, 
+                  profilePic: convo.profilepicLink, 
+                  lastUpdateTime: convo.lastupdateTime,
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
                   },

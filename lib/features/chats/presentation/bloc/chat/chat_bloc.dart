@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
+import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
@@ -14,12 +16,55 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
   final  GetMessages getMessages;
   final  SendMessage sendMessage;
+  final SendImage sendImage;
   StreamSubscription<List<Message>>? _messageSub;
 
   ChatBloc({
     required this.getMessages,
     required this.sendMessage,
+    required this.sendImage
   }) : super(ChatInitial()) {
+
+    on<Closechat>((event, emit)async {
+      await _messageSub!.cancel();
+      emit(ChatClosed());
+    },);
+
+      on<SendImageEvent>((
+          SendImageEvent event, Emitter<ChatState> emit) async {
+
+        final current = state as ChatLoaded;
+
+        final msgId = const Uuid().v4();
+
+        // ✅ 1. Create LOCAL MESSAGE
+        final localMessage = Message(
+          senderId: event.userId,
+          createdAt: DateTime.now().toString(),
+          deletedfor: [],
+          id: msgId,
+          content: "",
+          type: "image",
+          localPath: event.file.path,
+          isLocal: true,
+          status: "sending",
+        );
+
+        // ✅ 2. Emit instantly (NO WAIT)
+        emit(ChatLoaded([localMessage, ...current.messages]));
+
+        // ✅ 3. Call usecase (async)
+        await sendImage(
+          SendImageParams(
+            receiverId: event.receiverId,
+            userId: event.userId,
+            file: event.file,
+            msgId: msgId,
+            userName: event.userName,
+            userProfile: event.userProfile
+          ),
+        );
+      });
 
     on<LoadMessagesEvent>((event, emit) async {
 
@@ -36,31 +81,26 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         ),
       );
 
-      await stream.fold(
-      (failure) {
-        // Left (failure)
-        emit(ChatError(failure.message));
-      },
-      (convoStream) async {
-        // Right (Stream<List<Message>>)
-        await emit.forEach<List<Message>>(
-          convoStream,
-          onData: (msg) => updateMessages(msg, emit),
-          onError: (error, stackTrace) => ChatError(error.toString()),
-        );
-      },
-    );
+      stream.fold(
+        (failure) => ChatError(failure.message),
+        (convoStream){
+          _messageSub = convoStream.listen(
+            (messages)=>updateMessages(messages, emit),
+          );
+        }
+      );
     });
 
     on<SendMessageEvent>((event, emit) async {
 
     final currentState = state as ChatLoaded;
 
-    var uid = Uuid();
+     var uid = Uuid();
 
     // 1️ Create temporary message
     final tempMessage = MessageModel(
       id: uid.v1(),
+      status: "uploading",
       senderId: event.userId,
       content: event.content,
       createdAt: DateTime.now().toString(),
@@ -104,19 +144,35 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
   }
 
-  ChatState updateMessages(List<Message> received, emit){
-    if (state is ChatLoaded) {
-      final currentState = state as ChatLoaded;
-      List<Message> local = currentState.messages.where((test)=>test.isLocal).toList();
+  void updateMessages(List<Message> received, emit) {
+  if (state is ChatLoaded) {
+    final currentState = state as ChatLoaded;
 
-      List<Message> updated = [...received,...local.where((test)=>!received.any((t)=>test.id==t.id))];
+    final Map<String, Message> messageMap = {};
 
-      return ChatLoaded(updated);
+    for (var msg in received) {
+      messageMap[msg.id] = msg;
     }
-    else{
-      return ChatLoaded(received);
+
+    for (var msg in currentState.messages) {
+      if (msg.isLocal && !messageMap.containsKey(msg.id)) {
+        messageMap[msg.id] = msg;
+      }
     }
+
+    List<Message> updated = messageMap.values.toList();
+
+    updated.sort((a, b) {
+      final aTime = a.createdAt;
+      final bTime = b.createdAt;
+      return bTime.compareTo(aTime);
+    });
+
+    add(MessagesUpdatedEvent(updated));
+  } else {
+    add(MessagesUpdatedEvent(received));
   }
+}
 
   String generateConversationId(String user1,String user2){
     final sorted = [user1, user2]..sort();

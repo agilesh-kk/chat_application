@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 abstract interface class ChatRemoteDataSources {
   Future<Stream<List<ConversationModel>>> getConversations({
@@ -14,8 +17,14 @@ abstract interface class ChatRemoteDataSources {
     required String userId,
     required String content,
     required String msgId,
+    String type = "text",
     String? userName,
     String? userProfile
+  });
+
+  Future<String> uploadImage({
+    required File file,
+    required String msgId,
   });
 
   Future<Stream<List<MessageModel>>> getMessages({
@@ -31,7 +40,8 @@ abstract interface class ChatRemoteDataSources {
 
 class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
   final FirebaseFirestore firestore;
-  ChatRemoteDataSourcesImpl({required this.firestore});
+  final SupabaseClient supabase;
+  ChatRemoteDataSourcesImpl({required this.firestore, required this.supabase});
 
   @override
   Future<Stream<List<ConversationModel>>> getConversations({required String userId}) async{
@@ -56,8 +66,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
            .doc(generateConversationId(userId, receiverId))
            .collection("messages")
            .orderBy("createdAt", descending: true)
-           .snapshots()
+           .snapshots(includeMetadataChanges: true)
            .map((snapshot) {
+            markMessagesDelivered(userId, receiverId);
              return snapshot.docs.map((doc) {
                return MessageModel.fromJson(doc.data(),doc.id);
              }).toList();
@@ -65,90 +76,88 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
   }
 
   @override
-  Future<void> sendMessage({required String receiverId, required String userId, required String content, required String msgId, String? userName, String? userProfile}) async {
-    final convoRef =
-      firestore
-      .collection("Conversations")
-      .doc(generateConversationId(userId, receiverId));
+  Future<String> uploadImage({required File file, required String msgId}) async {
+    final path = "$msgId.jpg";
 
-    final messageRef = convoRef
-      .collection("messages")
-      .doc(msgId);  // generates id
+    await supabase.storage.from("images").upload(path, file);
+
+    return supabase.storage.from("images").getPublicUrl(path);
+  }
+
+  @override
+  Future<void> sendMessage({required String userId, required String receiverId, required String msgId, String type = "text", required String content, String? userName, String? userProfile,}) async {
+  try {
+    final convoRef = firestore
+        .collection("Conversations")
+        .doc(generateConversationId(userId, receiverId));
+
+    final messageRef =
+        convoRef.collection("messages").doc(msgId);
+    
+    final receiverDoc = firestore.collection("users").doc(receiverId); 
+    
+    final receiverData = (await receiverDoc.get()).data()!;
 
     final message = MessageModel(
       id: msgId,
+      type: type,
+      status: "sent",
       senderId: userId,
       content: content,
       createdAt: DateTime.now().toString(),
       deletedfor: [],
     );
 
-    
-    await firestore.runTransaction((transaction) async {
+    WriteBatch batch = firestore.batch();
 
-      final convoSnapshot =
-      await transaction.get(convoRef);
-
-      // If conversation doesn't exist -> create
-      if (!convoSnapshot.exists) {
-        final receiverDoc = await transaction.get(
-                            firestore.collection("users").doc(receiverId),
-                            );
-
-        final receiverData = receiverDoc.data()!;
-
-        transaction.set(convoRef, {
-          "participantsId": {userId,receiverId},
-          "lastMessage": content,
-          "lastupdateTime":
-              FieldValue.serverTimestamp(),
-          userId : {
-            "receiverId" : receiverId,
-            "receiverName" : receiverData["name"],
-            "receiverProfile" : receiverData["profileLink"]
-          },
-          receiverId : {
-            "receiverId" : userId,
-            "receiverName" : userName ?? "Unknown",
-            "receiverProfile" : userProfile ?? "Not Found"
-          }
-        });
-
-        final user = firestore.collection("users").doc(userId);
-        transaction.update(user, {
-          "friends":FieldValue.arrayUnion(List.of(<String>[receiverId]))
-        });
-        final receiver = firestore.collection("users").doc(receiverId);
-        transaction.update(receiver, {
-          "friends":FieldValue.arrayUnion(List.of(<String>[userId]))
-        });
-      }
-
-      // add message
-      transaction.set(
-        messageRef,
-        message.toMap(),
-      );
-
-      transaction.update(
-        messageRef,
-        {
-          "createdAt" : FieldValue.serverTimestamp()
-        }
-      );
-
-      // update parent convo
-      transaction.update(
-        convoRef,
-        {
-          "lastMessage" : message.content,
-          "lastupdateTime" :
-            FieldValue.serverTimestamp()
-        }
-      );
-
+    batch.set(messageRef, {
+      ...message.toMap(),
+      "createdAt": FieldValue.serverTimestamp(), // server sync later
     });
+
+    batch.set(
+      convoRef,
+      {
+        "participantsId": [userId, receiverId],
+        "lastMessage": (type=="text")?content:"📷Image",
+        "lastupdateTime": FieldValue.serverTimestamp(),
+
+        // sender view
+        userId: {
+          "receiverId": receiverId,
+          "receiverName": receiverData["name"] ?? "Unknown",
+          "receiverProfile": receiverData["profileLink"] ?? "Not Found",
+          "unread": 0,
+        },
+
+        // receiver view
+        receiverId: {
+          "receiverId": userId,
+          "receiverName": userName ?? "Unknown",
+          "receiverProfile": userProfile ?? "Not Found",
+          "unread": FieldValue.increment(1),
+        }
+      },
+      SetOptions(merge: true),
+    );
+
+    final userRef = firestore.collection("users").doc(userId);
+    final receiverRef = firestore.collection("users").doc(receiverId);
+
+    batch.set(userRef, {
+      "friends": FieldValue.arrayUnion([receiverId])
+    }, SetOptions(merge: true));
+
+    batch.set(receiverRef, {
+      "friends": FieldValue.arrayUnion([userId])
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+
+  } catch (e) {
+    print("Send message error: $e");
   }
+}
 
   String generateConversationId(String user1,String user2){
     final sorted = [user1, user2]..sort();
@@ -175,4 +184,33 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
 
     throw ServerExceptions("User Not Found");
   }
+
+      Future<void> markMessagesDelivered(
+        String userId,
+        String receiverId,
+      ) async {
+
+        final convoRef = firestore
+            .collection("Conversations")
+            .doc(generateConversationId(userId, receiverId))
+            ..update({
+              "$userId.unread" : 0
+            });
+
+        final snapshot = await convoRef
+            .collection("messages")
+            .where("senderId", isEqualTo: receiverId)
+            .where("status", isEqualTo: "sent")
+            .get();
+
+        final batch = firestore.batch();
+
+        for (final doc in snapshot.docs) {
+          batch.update(doc.reference, {
+            "status": "seen",
+          });
+        }
+
+        await batch.commit();
+      }
 }

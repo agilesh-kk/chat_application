@@ -64,7 +64,8 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'id': firebaseUser.uid,
         'name': name,
         'email': email,
-        'profilePic': '',
+        //default link for profile picture
+        'profilePic': "https://gfwbvdboiyffebljzcju.supabase.co/storage/v1/object/public/profile_pics/pfp3.png",
         'friends': [],
       });
 
@@ -120,6 +121,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
       if(firebaseUser.emailVerified){
         return UserModel.fromJson(userDoc.data()!);
       }else{
+        await firebaseUser.sendEmailVerification();
         throw ServerExceptions("Email not verified");
       }
       

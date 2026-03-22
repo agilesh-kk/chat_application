@@ -4,6 +4,7 @@ class ConversationModel extends Conversation{
   
 
   ConversationModel({
+    required super.unread,
     required super.convoId,
     required super.receiverId,
     required super.lastMessage,
@@ -25,7 +26,8 @@ class ConversationModel extends Conversation{
       lastMessage: map['lastMessage'],
       lastupdateTime: map['lastupdateTime'].toDate().toString(),
       receiverName: receiverDetails["receiverName"] ?? "unknown",
-      profilepicLink: receiverDetails["receiverProfile"] ?? "not found"
+      profilepicLink: receiverDetails["receiverProfile"] ?? "not found",
+      unread: receiverDetails["unread"] ?? 0
     );
   }
 
@@ -34,7 +36,8 @@ class ConversationModel extends Conversation{
       userId: {
         "receiverId" : receiverId,
         "receiverName" : receiverName,
-        "receiverProfile" : profilepicLink
+        "receiverProfile" : profilepicLink,
+        "unread" : unread
       },
       "lastMessage": lastMessage,
       "lastupdateTime": lastupdateTime,

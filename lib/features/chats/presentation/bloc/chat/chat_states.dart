@@ -12,6 +12,8 @@ class ChatLoaded extends ChatState {
   ChatLoaded(this.messages);
 }
 
+class ChatClosed extends ChatState {}
+
 class ChatError extends ChatState {
   final String message;
   ChatError(this.message);

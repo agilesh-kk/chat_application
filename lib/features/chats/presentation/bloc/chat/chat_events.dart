@@ -28,8 +28,25 @@ class SendMessageEvent extends ChatEvent{
   });
 }
 
+class SendImageEvent extends ChatEvent {
+  final String receiverId;
+  final String userId;
+  final File file;
+  String? userName;
+  String? userProfile;
+  SendImageEvent({
+    required this.userId,
+    required this.receiverId,
+    required this.file,
+    this.userName,
+    this.userProfile
+  });
+}
+
 class MessagesUpdatedEvent extends ChatEvent {
   final List<Message> messages;
 
   MessagesUpdatedEvent(this.messages);
 }
+
+class Closechat extends ChatEvent{}

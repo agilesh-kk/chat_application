@@ -1,4 +1,5 @@
 import 'package:chat_application/features/chats/domain/entities/message.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MessageModel extends Message {
 
@@ -8,6 +9,8 @@ class MessageModel extends Message {
     required super.content,
     required super.createdAt,
     required super.deletedfor,
+    required super.status,
+    super.type,
     super.isLocal
   });
 
@@ -19,18 +22,40 @@ class MessageModel extends Message {
       id: id,
       senderId: map['senderId'],
       content: map['content'],
-      createdAt: (map['createdAt']).toDate().toString(),
+      status: map['status'] ?? "read",
+      createdAt: parseCreatedAt(map["createdAt"]),
+      type: map['type'] ?? "text",
       deletedfor:
         List<String>.from(map['deletedFor'] ?? []),
     );
   }
+
+static String parseCreatedAt(dynamic value) {
+  if (value == null) return DateTime.now().toString();
+
+  if (value is Timestamp) {
+    return value.toDate().toString();
+  }
+
+  if (value is String) {
+    return DateTime.tryParse(value).toString();
+  }
+
+  if (value is DateTime) {
+    return value.toString();
+  }
+
+  return "Time Error";
+}
 
   Map<String,dynamic> toMap(){
     return {
       "senderId": senderId,
       "content": content,
       "createdAt": createdAt,
+      "status": status,
       "deletedFor": deletedfor,
+      "type":type
     };
   }
 }

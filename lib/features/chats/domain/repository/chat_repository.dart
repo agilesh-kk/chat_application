@@ -1,4 +1,6 @@
 
+import 'dart:io';
+
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
@@ -21,6 +23,15 @@ abstract interface class ChatRepository{
     required String msgId,
     String? userName,
     String? userProfile
+  });
+
+  Future<Either<Failure, void>> sendImage({
+    required String receiverId,
+    required String userId,
+    required File file,
+    required String msgId,
+    String? userName,
+    String? userProfile,
   });
 
   //Contract to fetch Messages of a Single Conversation

@@ -5,6 +5,7 @@ class Conversation {
   final String lastupdateTime;
   final String profilepicLink;
   final String receiverName;
+  final int unread;
 
   Conversation({
     required this.convoId,
@@ -12,6 +13,7 @@ class Conversation {
     required this.lastMessage,
     required this.lastupdateTime,
     required this.profilepicLink,
-    required this.receiverName
+    required this.receiverName,
+    required this.unread
   });
 }

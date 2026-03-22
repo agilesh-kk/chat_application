@@ -3,8 +3,11 @@ class Message{
   final String senderId;
   final String content;
   final String createdAt;
+  final String type;
   final List<String> deletedfor;
   final bool isLocal;
+  final String status; 
+  final String? localPath;
 
   Message({
     required this.id,
@@ -12,6 +15,9 @@ class Message{
     required this.content,
     required this.createdAt,
     required this.deletedfor,
-    this.isLocal = false
+    required this.status,
+    this.isLocal = false,
+    this.type = "text",
+    this.localPath
   });
 }
