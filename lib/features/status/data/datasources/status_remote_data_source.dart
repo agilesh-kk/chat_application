@@ -63,8 +63,8 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
       final statuses = await supabaseClient
         .from('statuses')
         .select()
-        .gt('expires_at', nowUtc);
-        //.order('created_at');
+        .gt('expires_at', nowUtc)
+        .order('created_at', ascending: false);
       
       //print('working');
       return statuses.map(

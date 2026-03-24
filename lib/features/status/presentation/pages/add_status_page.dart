@@ -49,7 +49,10 @@ class AddStatusPage extends StatelessWidget {
                 Image.file(File(image.path)),
                 TextFormField(
                   controller: captionController,
-                  decoration: InputDecoration(hintText: "Add caption"),
+                  decoration: InputDecoration(
+                    hintText: "Add caption",
+                    //border: 
+                  ),
                   maxLines: null, //used to make new lines once each line is filled.
                   // validator: (value) { //to check if the fields are not empty.
                   //   if(value!.isEmpty){

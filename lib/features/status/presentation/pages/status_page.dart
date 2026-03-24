@@ -1,6 +1,7 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
+import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/functions/helper_functions.dart';
@@ -83,6 +84,7 @@ class _StatusPageState extends State<StatusPage> {
             return RefreshIndicator(
               onRefresh: () async{ //refreshing the page.
                 context.read<StatusBloc>().add(GetAllStatusEvent());
+                context.read<AuthBloc>().add(AuthCheckRequested());
               },
               child: Padding(
                 padding: EdgeInsets.all(15),
@@ -159,6 +161,9 @@ class _StatusPageState extends State<StatusPage> {
                             return FriendsStatusCard(
                               status: firstStatus,
                               onstatusTap: () {
+                                userStatuses.sort(
+                                  (a, b) => a.createdAt.compareTo(b.createdAt),
+                                );
                                 for(final status in userStatuses){
                                   context.read<StatusBloc>().add(
                                     UpdateViewEvent(
@@ -179,11 +184,13 @@ class _StatusPageState extends State<StatusPage> {
                                   ),
                                 );
                               },
+                              displayPicUrl: userStatuses.first.imageUrl,
+                              latestStatusTime: userStatuses.first.createdAt.toString(),
                             );
                           },
                         ),
                       ),
-                    )                    
+                    ),
                   ],
                 ),
               ),
