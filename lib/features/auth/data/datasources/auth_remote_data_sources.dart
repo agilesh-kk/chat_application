@@ -1,4 +1,5 @@
 import 'package:chat_application/core/errors/exceptions.dart';
+import 'package:chat_application/core/utils/random_profile_image.dart';
 import 'package:chat_application/features/auth/data/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -68,7 +69,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'name': name,
         'email': email,
         //default link for profile picture
-        'profilePic': "https://gfwbvdboiyffebljzcju.supabase.co/storage/v1/object/public/profile_pics/pfp3.png",
+        'profilePic': getRandomProfileImage(),
         'birthDate': birthDate,
         'friends': [],
       });

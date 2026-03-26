@@ -9,3 +9,4 @@ final class AppUserIsSignedin extends AppUserState{
   final User user;
   AppUserIsSignedin(this.user);
 }
+

@@ -27,7 +27,8 @@ class UserStatusColumn extends StatelessWidget {
               onTap: onViewStatus,
               child: CircleAvatar(
                 radius: 30,
-                backgroundImage: image != null ? NetworkImage(image!) : null,
+                //backgroundImage: image != null ? NetworkImage(image!) : null,
+                backgroundImage: AssetImage(image!),
                 backgroundColor: AppPallete.transparentColor,
                 child: image == null ? const Icon(Icons.person) : null,
               ),

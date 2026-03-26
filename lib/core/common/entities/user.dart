@@ -22,4 +22,22 @@ class User {
     // TODO: implement toString
     return "id : $id\nname: $name\nemail: $email";
   }
+
+  User copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? profilePic,
+    List<String>? friends,
+    DateTime? birthDate,
+  }) {
+    return User(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      profilePic: profilePic ?? this.profilePic,
+      friends: friends ?? this.friends,
+      birthDate: birthDate ?? this.birthDate,
+    );
+  }
 }

@@ -126,7 +126,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
         userId: {
           "receiverId": receiverId,
           "receiverName": receiverData["name"] ?? "Unknown",
-          "receiverProfile": receiverData["profileLink"] ?? "Not Found",
+          "receiverProfile": receiverData["profilePic"] ?? "Not Found",
           "unread": 0,
         },
 

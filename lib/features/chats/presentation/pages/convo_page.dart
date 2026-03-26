@@ -48,7 +48,7 @@ class ConversationPage extends StatelessWidget {
               itemCount: conversations.length,
               itemBuilder: (context, index) {
                 final convo = conversations[index];
-
+                //print("printing....."+convo.profilepicLink);
                 return ConvoTile(
                   unread: convo.unread,
                   name: convo.receiverName, 
@@ -57,6 +57,7 @@ class ConversationPage extends StatelessWidget {
                   lastUpdateTime: convo.lastupdateTime,
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
+
                   },
                 );
               },

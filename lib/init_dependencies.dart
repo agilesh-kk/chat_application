@@ -20,6 +20,11 @@ import 'package:chat_application/features/chats/domain/usecase/send_message.dart
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/profile/data/datasources/profile_remote_data_source.dart';
+import 'package:chat_application/features/profile/data/repository/profile_repository_impl.dart';
+import 'package:chat_application/features/profile/domain/repository/profile_repository.dart';
+import 'package:chat_application/features/profile/domain/usecase/update_profile.dart';
+import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:chat_application/features/status/data/datasources/status_remote_data_source.dart';
 import 'package:chat_application/features/status/data/repository/status_repository_impl.dart';
 import 'package:chat_application/features/status/domain/repository/status_repository.dart';
@@ -54,6 +59,7 @@ Future<void> initDependencies() async {
   _initAuth();
   _initChat();
   _initStatus();
+  _initProfile();
 
   //supabase initialization
   final supabase = await Supabase.initialize(
@@ -114,7 +120,7 @@ void _initStatus() {
       updateView: serviceLocator<UpdateView>(),
     )
   )
-  //
+  //status views bloc
   ..registerLazySingleton(
     () => StatusviewBloc(
       getViews: serviceLocator<GetViews>(),
@@ -237,4 +243,39 @@ void _initChat()async {
       searchUser: serviceLocator<SearchUser>()
     )
   );
+}
+
+//for profile feature
+void _initProfile() async{
+  serviceLocator
+  //data source
+  ..registerFactory<ProfileRemoteDataSource>(
+    () =>ProfileRemoteDataSourceImpl(
+      firebaseFirestore: serviceLocator<FirebaseFirestore>()
+    )
+  )
+
+  //repository
+  ..registerFactory<ProfileRepository>(
+    () => ProfileRepositoryImpl(
+      profileRemoteDataSource: serviceLocator<ProfileRemoteDataSource>()
+    )
+  )
+
+  //usecases
+  ..registerFactory(
+    () => UpdateProfile(
+      profileRepository: serviceLocator<ProfileRepository>(),
+    )
+  )
+
+  //bloc for profile pic
+  ..registerLazySingleton(
+    () => ProfilePicBloc(
+      updateProfile: serviceLocator<UpdateProfile>()
+    )
+  );
+
+  //bloc for bio
+  
 }

@@ -21,6 +21,7 @@ class ConvoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    //print(profilePic);
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -31,7 +32,7 @@ class ConvoTile extends StatelessWidget {
             CircleAvatar(
               radius: 26,
               backgroundImage: (profilePic.toLowerCase() != "not found")
-                  ? NetworkImage(profilePic)
+                  ? AssetImage(profilePic)
                   : null,
               child: (profilePic.toLowerCase() == "not found")
                   ? const Icon(Icons.person)

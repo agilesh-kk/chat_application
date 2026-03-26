@@ -1,38 +1,20 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
+import 'package:chat_application/features/profile/presentation/widgets/user_options_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends StatelessWidget {
   final bool isUser;
-  final String userId;
-  final String? profilePicture;
-  final DateTime? bDay;
-  final String email;
+  //final User user;
   const ProfilePage({
     super.key,
     required this.isUser,
-    required this.userId,
-    required this.profilePicture,
-    required this.bDay,
-    required this.email,
+    //required this.user
   });
-
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  @override
-  void initState() {
-    super.initState();
-    final state = context.read<AppUserCubit>().state;
-    if (state is AppUserIsSignedin) {
-      //checking if the user is logged in.
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,19 +56,65 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
-      body: Center(
-        child:
-            appUserState is AppUserIsSignedin
-                ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+      body: appUserState is AppUserIsSignedin
+          ? Center(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 80,
+                  backgroundImage: appUserState.user.profilePic != null
+                        ? AssetImage(appUserState.user.profilePic!)
+                        : null,
+                    child: appUserState.user.profilePic == null
+                        ? const Icon(Icons.person, size: 50)
+                        : null,
+                ),
+                SizedBox(height: 20,),
+                Text(
+                  appUserState.user.name,
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w500
+                  ),
+                ),
+
+                SizedBox(height: 20,),
+
+                Row(
+                  spacing: double.minPositive,
                   children: [
-                    Text("Name: ${appUserState.user.name}"),
-                    Text("Email: ${appUserState.user.email}"),
-                    Text("Birth date: ${DateFormat('dd MMM yyyy').format(appUserState.user.birthDate)}"),
+                    UserOptionsRow(
+                      icon: Icons.add_a_photo, 
+                      label: "Edit avatar", 
+                      onTap: (){
+                        Navigator.push(
+                          context, MaterialPageRoute(
+                            builder: (_) => EditAvatar(
+                              userId: appUserState.user.id,
+                            )
+                          )
+                        );
+                      }
+                    ),
+                    UserOptionsRow(
+                      icon: Icons.emoji_events, 
+                      label: "Achievements", 
+                      onTap: (){}
+                    ),
+                    UserOptionsRow(
+                      icon: Icons.favorite, 
+                      label: "Personal timeline", 
+                      onTap: (){}
+                    ),
                   ],
-                )
-                : const Text("No user signed in"),
-      ),
+                ),
+                Text("Email: ${appUserState.user.email}"),
+                Text("Birth date: ${DateFormat('dd MMM yyyy').format(appUserState.user.birthDate)}"),
+              ],
+            ),
+          )
+          : const Text("No user signed in"),
     );
   }
 }

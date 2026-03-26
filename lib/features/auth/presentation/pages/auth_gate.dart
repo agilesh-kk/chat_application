@@ -29,10 +29,7 @@ class AuthGate extends StatelessWidget {
               StatusPage(),
               ProfilePage(
                 isUser: true,
-                userId: state.user.id,
-                profilePicture: state.user.profilePic,
-                bDay: state.user.birthDate,
-                email: state.user.email,
+                //user: state.user,
               ),
             ]
           );
