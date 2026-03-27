@@ -18,7 +18,7 @@ class EditAvatar extends StatelessWidget {
     return BlocListener<ProfilePicBloc, ProfilePicState>(
       listener: (context, state) {
         if (state is ProfilePicUpdateScuccess) {
-          // 🔥 Update local state
+          //Update local state
           context
               .read<AppUserCubit>()
               .updateUserProfilePic(state.imageUrl);
