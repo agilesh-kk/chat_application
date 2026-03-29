@@ -66,7 +66,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
            .doc(generateConversationId(userId, receiverId))
            .collection("messages")
            .orderBy("createdAt", descending: true)
-           .snapshots(includeMetadataChanges: true)
+           .snapshots()
            .map((snapshot) {
             markMessagesDelivered(userId, receiverId);
              return snapshot.docs.map((doc) {
@@ -113,6 +113,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
     batch.set(messageRef, {
       ...message.toMap(),
       "createdAt": FieldValue.serverTimestamp(), // server sync later
+      "index": null
     });
 
     batch.set(
@@ -127,7 +128,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
           "receiverId": receiverId,
           "receiverName": receiverData["name"] ?? "Unknown",
           "receiverProfile": receiverData["profileLink"] ?? "Not Found",
-          "unread": 0,
+          "unread": 0,                          
         },
 
         // receiver view
@@ -211,7 +212,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
             "status": "seen",
           });
         }
-
         await batch.commit();
       }
 }
