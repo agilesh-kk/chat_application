@@ -15,10 +15,10 @@ class ProfilePicBloc extends Bloc<ProfilePicEvent, ProfilePicState> {
   _updateProfile = updateProfile,
   super(ProfileInitial()) {
     //on<ProfilePicEvent>((_, emit)=> emit(()));
-    on<profilePicUpdate>(_onProfilePicUpdate);
+    on<ProfilePicUpdate>(_onProfilePicUpdate);
   }
 
-  FutureOr<void> _onProfilePicUpdate(profilePicUpdate event, Emitter<ProfilePicState> emit) async{
+  FutureOr<void> _onProfilePicUpdate(ProfilePicUpdate event, Emitter<ProfilePicState> emit) async{
     final res = await _updateProfile(
       UpdateProfileParams(
         userId: event.userId, 

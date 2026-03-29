@@ -182,6 +182,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
             ? (user["birthDate"] as Timestamp).toDate()
             : DateTime.now(),
           profilePic: user['profilePic'],
+          bio: user['bio'],
         );
       }
     }

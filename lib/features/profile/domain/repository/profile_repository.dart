@@ -9,4 +9,8 @@ abstract interface class ProfileRepository {
   });
 
   //updating bio
+  Future<Either<Failure, void>> updateBio({
+    required String userId,
+    required String bio,
+  });
 }

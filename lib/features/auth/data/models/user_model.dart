@@ -9,6 +9,7 @@ class UserModel extends User {
     required super.birthDate,
     super.profilePic,
     super.friends,
+    super.bio,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> map) {
@@ -28,6 +29,7 @@ class UserModel extends User {
         : map['birthDate'] is DateTime
             ? map['birthDate']
             : DateTime(2000, 1, 1),
+      bio: map['bio'] ?? '',
     );
   }
 
@@ -39,6 +41,7 @@ class UserModel extends User {
       'profilePic': profilePic,
       'friends':friends,
       'birthDate': Timestamp.fromDate(birthDate),
+      'bio' : bio,
     };
   }
 
@@ -49,6 +52,7 @@ class UserModel extends User {
     String? profilePic,
     List<String>? friends,
     DateTime? birthDate,
+    String? bio,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -57,6 +61,7 @@ class UserModel extends User {
       profilePic: profilePic ?? this.profilePic,
       friends: friends ?? this.friends,
       birthDate: birthDate ?? this.birthDate,
+      bio: bio ?? this.bio,
     );
   }
 }

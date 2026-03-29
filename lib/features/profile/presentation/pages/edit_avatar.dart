@@ -65,7 +65,7 @@ class EditAvatar extends StatelessWidget {
 
                     if (confirm == true && context.mounted) {
                       context.read<ProfilePicBloc>().add(
-                            profilePicUpdate(
+                            ProfilePicUpdate(
                               userId: userId,
                               imageUrl: selectedImage,
                             ),

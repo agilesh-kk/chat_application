@@ -22,4 +22,15 @@ class ProfileRepositoryImpl implements ProfileRepository{
       return left(Failure(e.message));
     }
   }
+  
+  @override
+  Future<Either<Failure, void>> updateBio({required String userId, required String bio}) async{
+    try{
+      await profileRemoteDataSource.updateBio(userId, bio);
+      return right(null);
+    }
+    on ServerExceptions catch(e){
+      return left(Failure(e.message));
+    }
+  }
 }

@@ -3,10 +3,10 @@ import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
+import 'package:chat_application/features/profile/presentation/widgets/user_details_card.dart';
 import 'package:chat_application/features/profile/presentation/widgets/user_options_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 
 class ProfilePage extends StatelessWidget {
   final bool isUser;
@@ -25,7 +25,8 @@ class ProfilePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Profile"),        
+        title: Text("Profile"),  
+        
         actions: isUser ? [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert), // The three dots icon
@@ -60,7 +61,7 @@ class ProfilePage extends StatelessWidget {
         ] : null,
       ),
       body: profileUser == null ? const Center(child: Text("No user found")) :
-           Center(
+          Center(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -88,7 +89,11 @@ class ProfilePage extends StatelessWidget {
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: isUser ? [
+                  children: 
+                  //for user profile
+                  isUser ? [
+
+                    //for editing the profile avatar
                     UserOptionsRow(
                       icon: Icons.add_a_photo, 
                       label: "Edit avatar", 
@@ -102,18 +107,25 @@ class ProfilePage extends StatelessWidget {
                         );
                       }
                     ),
+
+                    //to view achievements
                     UserOptionsRow(
                       icon: Icons.emoji_events, 
                       label: "Achievements", 
                       onTap: (){}
                     ),
+
+                    //to view the personal timeline
                     UserOptionsRow(
                       icon: Icons.favorite, 
                       label: "Personal timeline", 
                       onTap: (){}
                     ),
                   ] : 
+
+                  //for freinds profile
                   [
+                    //to send message
                     UserOptionsRow(
                       icon : Icons.message,
                       label : "Send message",
@@ -135,11 +147,19 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ],
                 ),
-                Text("Email: ${profileUser.email}"),
-                Text("Birth date: ${DateFormat('dd MMM yyyy').format(profileUser.birthDate)}"),
+                SizedBox(height: 10,),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children:[ UserDetailsCard(
+                    email: profileUser.email, 
+                    bio: profileUser.bio,
+                    button: Icons.edit, 
+                    birthDate: profileUser.birthDate,
+                  ),]
+                )
               ],
             ),
-          )
+          ),
           //: const Text("No user signed in"),
     );
   }
