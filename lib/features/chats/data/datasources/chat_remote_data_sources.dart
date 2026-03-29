@@ -127,7 +127,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
         userId: {
           "receiverId": receiverId,
           "receiverName": receiverData["name"] ?? "Unknown",
-          "receiverProfile": receiverData["profileLink"] ?? "Not Found",
+          "receiverProfile": receiverData["profilePic"] ?? "Not Found",
           "unread": 0,                          
         },
 
@@ -179,7 +179,11 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
           email: user["email"],
           name: user["name"],
           id: user["id"],
-          birthDate: user["birthDate"] ?? DateTime.now(),
+          birthDate: user["birthDate"] != null
+            ? (user["birthDate"] as Timestamp).toDate()
+            : DateTime.now(),
+          profilePic: user['profilePic'],
+          bio: user['bio'],
         );
       }
     }

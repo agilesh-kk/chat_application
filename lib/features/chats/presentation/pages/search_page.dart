@@ -1,5 +1,5 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
-import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
+import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
@@ -64,7 +64,16 @@ class _SearchPageState extends State<SearchPage> {
                         subtitle: Text(user.email),
                         onTap: () {
                           if(sender is AppUserIsSignedin){
-                          Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: sender.user.id, receiverId: user.id, receiverName: user.name)));
+                            //Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: sender.user.id, receiverId: user.id, receiverName: user.name)));
+                            Navigator.push(
+                              context, 
+                              MaterialPageRoute(
+                                builder: (_) => ProfilePage(
+                                  isUser: false,
+                                  user: user,
+                                )
+                              )
+                            );
                           }
                         },
                       )

@@ -19,8 +19,8 @@ class _NavigationPageState extends State<NavigationPage> {
       bottomNavigationBar: BottomNavigationBar(
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.chat),label: "Chat"),
-          BottomNavigationBarItem(icon: Icon(Icons.chat),label: "Status"),
-          BottomNavigationBarItem(icon: Icon(Icons.person),label: "Profile")
+          BottomNavigationBarItem(icon: Icon(Icons.remove_red_eye),label: "Status"),
+          BottomNavigationBarItem(icon: Icon(Icons.person),label: "Profile"),
         ],
         currentIndex: 0,
         onTap: (v){

@@ -8,7 +8,7 @@ import 'package:chat_application/features/chats/data/datasources/chat_remote_dat
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
-import 'package:fpdart/src/either.dart';
+import 'package:fpdart/fpdart.dart';
 
 class ChatRepositoryImpl implements ChatRepository{
   final ChatRemoteDataSources chatRemoteDataSources;

@@ -16,4 +16,17 @@ class AppUserCubit extends Cubit<AppUserState> {
       emit(AppUserIsSignedin(user));
     }
   }
+
+  //updating the profile picture of the current user (the user signed-in to the app)
+  void updateUserProfilePic(String newPic) {
+    if (state is AppUserIsSignedin) {
+      final current = state as AppUserIsSignedin;
+
+      emit(
+        AppUserIsSignedin(
+          current.user.copyWith(profilePic: newPic),
+        ),
+      );
+    }
+  }
 }

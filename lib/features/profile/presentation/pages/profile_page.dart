@@ -1,47 +1,33 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
+import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
+import 'package:chat_application/features/profile/presentation/widgets/user_details_card.dart';
+import 'package:chat_application/features/profile/presentation/widgets/user_options_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends StatelessWidget {
   final bool isUser;
-  final String userId;
-  final String? profilePicture;
-  final DateTime? bDay;
-  final String email;
+  final dynamic user;
   const ProfilePage({
     super.key,
     required this.isUser,
-    required this.userId,
-    required this.profilePicture,
-    required this.bDay,
-    required this.email,
+    this.user,
   });
-
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  @override
-  void initState() {
-    super.initState();
-    final state = context.read<AppUserCubit>().state;
-    if (state is AppUserIsSignedin) {
-      //checking if the user is logged in.
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final appUserState = context.watch<AppUserCubit>().state;
+    
+    final profileUser = user ?? (appUserState is AppUserIsSignedin ? appUserState.user : null);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Profile"),        
-        actions: [
+        title: Text("Profile"),  
+        
+        actions: isUser ? [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert), // The three dots icon
             onSelected: (value) async {
@@ -72,21 +58,109 @@ class _ProfilePageState extends State<ProfilePage> {
               ];
             },
           ),
-        ],
+        ] : null,
       ),
-      body: Center(
-        child:
-            appUserState is AppUserIsSignedin
-                ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text("Name: ${appUserState.user.name}"),
-                    Text("Email: ${appUserState.user.email}"),
-                    Text("Birth date: ${DateFormat('dd MMM yyyy').format(appUserState.user.birthDate)}"),
+      body: profileUser == null ? const Center(child: Text("No user found")) :
+          Center(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 80,
+                  backgroundImage: profileUser.profilePic != null
+                        ? AssetImage(profileUser.profilePic!)
+                        : null,
+                    child: profileUser.profilePic == null
+                        ? const Icon(Icons.person, size: 50)
+                        : null,
+                ),
+
+                SizedBox(height: 20,),
+
+                Text(
+                  profileUser.name,
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w500
+                  ),
+                ),
+
+                SizedBox(height: 20,),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: 
+                  //for user profile
+                  isUser ? [
+
+                    //for editing the profile avatar
+                    UserOptionsRow(
+                      icon: Icons.add_a_photo, 
+                      label: "Edit avatar", 
+                      onTap: (){
+                        Navigator.push(
+                          context, MaterialPageRoute(
+                            builder: (_) => EditAvatar(
+                              userId: profileUser.id,
+                            )
+                          )
+                        );
+                      }
+                    ),
+
+                    //to view achievements
+                    UserOptionsRow(
+                      icon: Icons.emoji_events, 
+                      label: "Achievements", 
+                      onTap: (){}
+                    ),
+
+                    //to view the personal timeline
+                    UserOptionsRow(
+                      icon: Icons.favorite, 
+                      label: "Personal timeline", 
+                      onTap: (){}
+                    ),
+                  ] : 
+
+                  //for freinds profile
+                  [
+                    //to send message
+                    UserOptionsRow(
+                      icon : Icons.message,
+                      label : "Send message",
+                      onTap : (){
+                        if(appUserState is AppUserIsSignedin){
+                          final currentuser = appUserState.user;
+                          Navigator.push(
+                          context, 
+                          MaterialPageRoute(
+                            builder: (c)=>ChatPage(
+                              currentUserId: currentuser.id, 
+                              receiverId: profileUser.id, 
+                              receiverName: profileUser.name
+                            )
+                          )
+                        );
+                        }
+                      },
+                    ),
                   ],
+                ),
+                SizedBox(height: 10,),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children:[ UserDetailsCard(
+                    email: profileUser.email, 
+                    bio: profileUser.bio,
+                    button: Icons.edit, 
+                    birthDate: profileUser.birthDate,
+                  ),]
                 )
-                : const Text("No user signed in"),
-      ),
+              ],
+            ),
+          ),
+          //: const Text("No user signed in"),
     );
   }
 }

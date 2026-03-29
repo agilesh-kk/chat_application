@@ -1,4 +1,3 @@
-import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
@@ -48,7 +47,7 @@ class ConversationPage extends StatelessWidget {
               itemCount: conversations.length,
               itemBuilder: (context, index) {
                 final convo = conversations[index];
-
+                //print("printing....."+convo.profilepicLink);
                 return ConvoTile(
                   unread: convo.unread,
                   name: convo.receiverName, 
@@ -57,6 +56,7 @@ class ConversationPage extends StatelessWidget {
                   lastUpdateTime: convo.lastupdateTime,
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
+
                   },
                 );
               },
