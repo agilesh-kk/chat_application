@@ -34,6 +34,12 @@ import 'package:chat_application/features/status/domain/usecase/update_view.dart
 import 'package:chat_application/features/status/domain/usecase/upload_status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
+import 'package:chat_application/features/timeline/features/timeline/data/datasources/timeline_remote_data_sources.dart';
+import 'package:chat_application/features/timeline/features/timeline/data/repositories/timeline_repository_impl.dart';
+import 'package:chat_application/features/timeline/features/timeline/domain/repositories/timeline_repository.dart';
+import 'package:chat_application/features/timeline/features/timeline/domain/usecases/load_events.dart';
+import 'package:chat_application/features/timeline/features/timeline/domain/usecases/refresh_events.dart';
+import 'package:chat_application/features/timeline/features/timeline/presentation/bloc/timeline_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
@@ -60,6 +66,7 @@ Future<void> initDependencies() async {
   _initChat();
   _initStatus();
   _initProfile();
+  _initTimeline();
 
   //supabase initialization
   final supabase = await Supabase.initialize(
@@ -278,4 +285,23 @@ void _initProfile() async{
 
   //bloc for bio
   
+}
+
+void _initTimeline(){
+  serviceLocator
+  ..registerFactory<TimelineRemoteDataSources>(
+    () => TimelineRemoteDataSourcesImpl(firebaseFirestore: serviceLocator<FirebaseFirestore>())
+  )
+  ..registerFactory<TimelineRepository>(
+    () => TimelineRepositoryImpl(timelineRemoteDataSources: serviceLocator<TimelineRemoteDataSources>())
+  )
+  ..registerFactory(
+    () => LoadEvents(timelineRepository: serviceLocator<TimelineRepository>())
+  )
+  ..registerFactory(
+    () => RefreshEvents(timelineRepository: serviceLocator<TimelineRepository>())
+  )
+  ..registerFactory(
+    () => TimelineBloc(loadEvents: serviceLocator(),refreshEvents: serviceLocator())
+  );
 }

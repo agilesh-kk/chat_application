@@ -7,6 +7,7 @@ import 'package:chat_application/features/chats/presentation/bloc/search/search_
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
+import 'package:chat_application/features/timeline/features/timeline/presentation/bloc/timeline_bloc.dart';
 import 'package:chat_application/firebase_options.dart';
 import 'package:chat_application/init_dependencies.dart';
 import 'package:flutter/material.dart';
@@ -54,7 +55,7 @@ void main() async {
         //profile bloc
         BlocProvider(
           create: (_) => serviceLocator<ProfilePicBloc> ()
-        )
+        ),
       ],
       child: MyApp(),
     ),
