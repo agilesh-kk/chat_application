@@ -7,6 +7,7 @@ class UserModel extends User {
     required super.name,
     required super.email,
     required super.birthDate,
+    required super.gender,
     super.profilePic,
     super.friends,
     super.bio,
@@ -20,6 +21,7 @@ class UserModel extends User {
           map['user_metadata']?['name'] ??
           '',
       email: map['email'] ?? '',
+      gender: map['gender'] ?? '',
       profilePic: map['profilePic'],
       friends: map['friends'] != null
           ? List<String>.from(map['friends'])
@@ -53,6 +55,7 @@ class UserModel extends User {
     List<String>? friends,
     DateTime? birthDate,
     String? bio,
+    String? gender,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -62,6 +65,7 @@ class UserModel extends User {
       friends: friends ?? this.friends,
       birthDate: birthDate ?? this.birthDate,
       bio: bio ?? this.bio,
+      gender: gender ?? this.gender,
     );
   }
 }

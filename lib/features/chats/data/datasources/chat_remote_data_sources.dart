@@ -184,6 +184,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources{
             : DateTime.now(),
           profilePic: user['profilePic'],
           bio: user['bio'],
+          gender: user['gender'],
         );
       }
     }

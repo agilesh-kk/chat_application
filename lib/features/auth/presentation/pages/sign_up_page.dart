@@ -4,6 +4,7 @@ import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
+import 'package:chat_application/features/auth/presentation/widgets/auth_dropdown_selector.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
 import 'package:chat_application/features/auth/presentation/widgets/date_picker.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final passwordController = TextEditingController();
   final birthDateController = TextEditingController();
   DateTime? selectedDate;
+  String? selectedGender;
 
   final formKey = GlobalKey<FormState>();
 
@@ -42,8 +44,7 @@ class _SignUpPageState extends State<SignUpPage> {
         padding: const EdgeInsets.all(10),
 
         child: BlocConsumer<AuthBloc, AuthState>(
-          listener: (context, state) {
-            
+          listener: (context, state) {    
             if(state is AuthFailure){
               showSnackbar(context, state.message);
             }
@@ -98,6 +99,18 @@ class _SignUpPageState extends State<SignUpPage> {
                             },
                           ),
                           SizedBox(height: 20),
+                          
+                          AuthDropdownSelector(
+                            items: ['Male','Female'], 
+                            hintText: 'Select your gender', 
+                            selectedValue: selectedGender,
+                            onChanged: (value){
+                              setState(() {
+                                selectedGender = value;
+                              });
+                            }, 
+                          ),
+                          SizedBox(height: 20),
                       
                           AuthButtons(
                             buttonText: "Sign up",
@@ -110,6 +123,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                     email: emailController.text.trim(),
                                     password: passwordController.text.trim(),
                                     birthDate: selectedDate!,
+                                    gender: selectedGender!,
                                   ),
                                 );
                               }

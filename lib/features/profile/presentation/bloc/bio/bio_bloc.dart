@@ -26,7 +26,7 @@ class BioBloc extends Bloc<BioEvent, BioState> {
         userId: event.userId
       )
     );
-
+    
     return res.fold(
       (failure) => emit(BioUpdateFailure(failure.message)), 
       (_) => emit(BioUpdateSuccess(bio: event.bio)),
