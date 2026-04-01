@@ -4,18 +4,21 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
+import 'package:chat_application/features/timeline/features/timeline/presentation/pages/timeline_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ChatPage extends StatefulWidget {
-  final String? convoId;       // nullable
+  final String? convoId;
   final String currentUserId;
   final String receiverId;
   final String receiverName;
+  int? scrolltoIndex;
   CacheService? cacheService;
 
   ChatPage({
@@ -24,6 +27,7 @@ class ChatPage extends StatefulWidget {
     required this.currentUserId,
     required this.receiverId,
     required this.receiverName,
+    this.scrolltoIndex,
   });
 
   @override
@@ -31,18 +35,18 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-
   final TextEditingController controller = TextEditingController();
+
+  late final ChatBloc cb;
+  int ?highlightedIndex;
+
   String lastAnimated = "";
   bool firstTime = true;
-  late final ChatBloc cb;
 
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    cb.add(Closechat());
-    super.dispose();
-  }
+  /// 🔥 ScrollablePositionedList controllers
+  final ItemScrollController _scrollController = ItemScrollController();
+  final ItemPositionsListener _positionsListener =
+      ItemPositionsListener.create();
 
   @override
   void initState() {
@@ -50,21 +54,32 @@ class _ChatPageState extends State<ChatPage> {
     widget.cacheService = CacheService();
 
     cb = context.read<ChatBloc>()
-        ..add(LoadMessagesEvent(userId: widget.currentUserId,receiverId: widget.receiverId));
+      ..add(
+        LoadMessagesEvent(
+          userId: widget.currentUserId,
+          receiverId: widget.receiverId,
+        ),
+      );
   }
 
-  // Call this whenever you want to scroll to the bottom, 
-// for instance, after adding a new message to the list
-    void _scrollToBottom() {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollController.animateTo(
-          _scrollController.position.minScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      });
-    }
+  @override
+  void dispose() {
+    cb.add(Closechat());
+    super.dispose();
+  }
 
+  /// 🔥 Scroll helper
+  void _scrollToIndex(int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.isAttached) {
+        _scrollController.scrollTo(
+          index: index,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
 
   void _send() {
     final text = controller.text.trim();
@@ -73,36 +88,98 @@ class _ChatPageState extends State<ChatPage> {
     final user = context.read<AppUserCubit>().state;
 
     context.read<ChatBloc>().add(
-      SendMessageEvent(
-        userId: widget.currentUserId,
-        receiverId: widget.receiverId,
-        content: text,
-        userName:(user is AppUserIsSignedin) ? user.user.name : "Unknown",
-        userProfile:(user is AppUserIsSignedin) ? user.user.profilePic : "Unknown"
-      )
-    );
+          SendMessageEvent(
+            userId: widget.currentUserId,
+            receiverId: widget.receiverId,
+            content: text,
+            userName:
+                (user is AppUserIsSignedin) ? user.user.name : "Unknown",
+            userProfile:
+                (user is AppUserIsSignedin) ? user.user.profilePic : "Unknown",
+          ),
+        );
 
     controller.clear();
   }
 
-  final ScrollController _scrollController = ScrollController();
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked =
+        await picker.pickImage(source: ImageSource.gallery);
+
+    if (picked == null) return;
+
+    final file = File(picked.path);
+
+    final user = context.read<AppUserCubit>().state;
+
+    if (user is AppUserIsSignedin) {
+      cb.add(
+        SendImageEvent(
+          userName: user.user.name,
+          userProfile: user.user.profilePic,
+          userId: user.user.id,
+          file: file,
+          receiverId: widget.receiverId,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.receiverName),
+        actions: [IconButton(
+          onPressed: () async {
+            int index = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TimelinePage(
+                  receiverName: widget.receiverName,
+                  userId: widget.currentUserId,
+                  receiverId: widget.receiverId,
+                ),
+              ),
+            );
+
+            if (cb.state is ChatLoaded) {
+              final cl = cb.state as ChatLoaded;
+
+              final reversedIndex = cl.messages.length - 1 - index;
+
+              setState(() {
+                highlightedIndex = reversedIndex;
+              });
+
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _scrollToIndex(reversedIndex);
+              });
+
+              /// remove highlight after animation
+              Future.delayed(const Duration(milliseconds: 800), () {
+                if (mounted) {
+                  setState(() {
+                    highlightedIndex = null;
+                  });
+                }
+              });
+            }
+          },
+          icon: const Icon(Icons.favorite,color: Color.fromARGB(255, 255, 102, 0),),
+        )],
       ),
       body: Column(
         children: [
-
+          /// =======================
           /// MESSAGES
+          /// =======================
           Expanded(
             child: BlocBuilder<ChatBloc, ChatState>(
               builder: (context, state) {
-
-                if(state is ChatError){
-                  return Center(child: Text(state.message),);
+                if (state is ChatError) {
+                  return Center(child: Text(state.message));
                 }
 
                 if (state is ChatLoading) {
@@ -113,30 +190,42 @@ class _ChatPageState extends State<ChatPage> {
                 if (state is ChatLoaded) {
                   final List<Message> messages = state.messages;
 
-                  _scrollToBottom();
+                  /// 🔥 Handle scrolling
+                  if (widget.scrolltoIndex != null) {
+                    print(widget.scrolltoIndex);
+                    _scrollToIndex(widget.scrolltoIndex!);
+                    widget.scrolltoIndex = null;
+                  }
 
-                  return ListView.builder(
-                    addAutomaticKeepAlives: true,
-                    cacheExtent: 2000,
-                    addRepaintBoundaries: true,
+                  return ScrollablePositionedList.builder(
                     reverse: true,
-                    controller: _scrollController,
                     itemCount: messages.length,
+                    itemScrollController: _scrollController,
+                    itemPositionsListener: _positionsListener,
+
                     itemBuilder: (context, index) {
                       final message = messages[index];
 
-                      final isMe =
-                          message.senderId == widget.currentUserId;
+                      final isMe = message.senderId ==
+                          widget.currentUserId;
+
                       bool isAnimate = false;
 
-                      if((index==0 && message.id != lastAnimated) && !firstTime){
+                      /// Animate last message
+                      if ((index == messages.length - 1 &&
+                              message.id != lastAnimated) &&
+                          !firstTime) {
                         isAnimate = true;
                       }
-                      if(index == 0){
+
+                      if (index == messages.length - 1) {
                         lastAnimated = message.id;
                       }
+
                       firstTime = false;
-                      return buildBubble(message, isMe, isAnimate);
+
+                      return buildBubble(
+                          message, isMe, isAnimate, highlightedIndex==index);
                     },
                   );
                 }
@@ -146,17 +235,17 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
 
-         Padding(
+          /// =======================
+          /// INPUT
+          /// =======================
+          Padding(
             padding: const EdgeInsets.all(8),
             child: Row(
               children: [
-                // 📸 IMAGE BUTTON
                 IconButton(
                   icon: const Icon(Icons.image),
                   onPressed: _pickImage,
                 ),
-
-                // ✏️ TEXT FIELD
                 Expanded(
                   child: TextField(
                     controller: controller,
@@ -166,10 +255,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
                 ),
-
                 const SizedBox(width: 5),
-
-                // 📤 SEND BUTTON
                 IconButton(
                   icon: const Icon(Icons.send),
                   onPressed: _send,
@@ -182,39 +268,29 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Future<void> _pickImage() async {
-      final picker = ImagePicker();
-
-      final picked =
-          await picker.pickImage(source: ImageSource.gallery);
-
-      if (picked == null) return;
-
-      final file = File(picked.path);
-
-      final user = context.read<AppUserCubit>().state;
-
-      if(user is AppUserIsSignedin){
-        cb.add(
-            SendImageEvent(
-              userName: user.user.name,
-              userProfile: user.user.profilePic,
-              userId: user.user.id,
-              file: file,
-              receiverId: widget.receiverId,
-            ),
-          );
-      }
-  }
-
-  Widget buildBubble(Message msg, bool isMe, bool? isAnimate){
-    switch(msg.type){
+  /// =======================
+  /// MESSAGE BUILDER
+  /// =======================
+  Widget buildBubble(Message msg, bool isMe, bool? isAnimate, bool flash) {
+    switch (msg.type) {
       case "text":
-        return MessageBubble(key: ValueKey(msg.id),message: msg, isMe: isMe, animate: isAnimate!);
+        return MessageBubble(
+          key: ValueKey(msg.id),
+          message: msg,
+          isMe: isMe,
+          animate: isAnimate!,
+          highlight: flash,
+        );
       case "image":
-        return ImageMessageTile(key: ValueKey(msg.id),message: msg, cacheService: widget.cacheService!, isMe: isMe);
-      default :
-        return SizedBox();
+        return ImageMessageTile(
+          key: ValueKey(msg.id),
+          message: msg,
+          cacheService: widget.cacheService!,
+          isMe: isMe,
+          flash: flash,
+        );
+      default:
+        return const SizedBox();
     }
   }
 }

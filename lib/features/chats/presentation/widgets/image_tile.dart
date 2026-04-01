@@ -10,12 +10,14 @@ class ImageMessageTile extends StatefulWidget {
   final Message message;
   final CacheService cacheService;
   final bool isMe;
+  final bool flash;
 
   const ImageMessageTile({
     super.key,
     required this.message,
     required this.cacheService,
     required this.isMe,
+    this.flash = false,
   });
 
   @override
@@ -23,17 +25,40 @@ class ImageMessageTile extends StatefulWidget {
 }
 
 class _ImageMessageTileState extends State<ImageMessageTile>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   @override
   bool get wantKeepAlive => true;
 
   Uint8List? imageBytes;
   bool isLoading = true;
 
+  /// 🔥 Animation
+  late AnimationController _controller;
+  late Animation<double> _scale;
+
   @override
   void initState() {
     super.initState();
-    _loadImage(); // ✅ ONLY HERE
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
+    _scale = TweenSequence([
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 1.15)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.15, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 50,
+      ),
+    ]).animate(_controller);
+
+    _loadImage();
   }
 
   @override
@@ -43,12 +68,23 @@ class _ImageMessageTileState extends State<ImageMessageTile>
     if (oldWidget.message.id != widget.message.id) {
       _loadImage();
     }
+
+    /// 🔥 Trigger zoom animation
+    if (widget.flash && !oldWidget.flash) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _loadImage() async {
     final msg = widget.message;
 
-    // 🧠 MEMORY CACHE
+    /// 🧠 MEMORY CACHE
     if (widget.cacheService.cache.containsKey(msg.id)) {
       imageBytes = widget.cacheService.cache[msg.id];
       isLoading = false;
@@ -56,7 +92,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
       return;
     }
 
-    // 🟢 LOCAL
+    /// 🟢 LOCAL FILE
     if (msg.localPath != null) {
       final bytes = await File(msg.localPath!).readAsBytes();
       widget.cacheService.cache[msg.id] = bytes;
@@ -66,7 +102,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
       return;
     }
 
-    // 🔵 NETWORK
+    /// 🔵 NETWORK
     if (msg.content.isNotEmpty) {
       await widget.cacheService.getOrDownload(msg.content, msg.id);
 
@@ -81,25 +117,32 @@ class _ImageMessageTileState extends State<ImageMessageTile>
   Widget build(BuildContext context) {
     super.build(context);
 
-    return Align(
-      alignment:
-          widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-        padding: const EdgeInsets.all(4),
-        constraints: const BoxConstraints(
-          maxWidth: 250,
-          maxHeight: 300,
-        ),
-        decoration: BoxDecoration(
-          color: widget.isMe
-              ? const Color.fromARGB(255, 246, 152, 11)
-              : Colors.grey[300],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: _buildContent(context),
+    return ScaleTransition(
+      scale: _scale,
+      child: Align(
+        alignment:
+            widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin:
+              const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(
+            maxWidth: 250,
+            maxHeight: 300,
+          ),
+          decoration: BoxDecoration(
+            color: widget.flash
+                ? Colors.yellow.withOpacity(0.3) // 🔥 highlight glow
+                : (widget.isMe
+                    ? const Color.fromARGB(255, 246, 152, 11)
+                    : Colors.grey[300]),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: _buildContent(context),
+          ),
         ),
       ),
     );
@@ -144,7 +187,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
           Positioned(
             bottom: 5,
             right: 5,
-            child: _buildStatus(msg.status,widget.isMe),
+            child: _buildStatus(msg.status, widget.isMe),
           ),
         ],
       );
@@ -154,9 +197,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
   }
 
   Widget _buildStatus(String status, bool isMe) {
-    if(!isMe){
-      return SizedBox();
-    }
+    if (!isMe) return const SizedBox();
 
     IconData icon;
     Color color;
@@ -172,7 +213,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
         break;
       case "seen":
         icon = Icons.done_all;
-        color = Colors.blue; // 🔥 like WhatsApp
+        color = Colors.blue;
         break;
       case "failed":
         icon = Icons.error;
