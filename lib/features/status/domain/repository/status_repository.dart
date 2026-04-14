@@ -11,6 +11,7 @@ abstract interface class StatusRepository {
     required String caption,
     required String userId,
     required String userName,
+    required String profilepic
   });
 
   Future<Either<Failure, List<Status>>> getAllStatus();

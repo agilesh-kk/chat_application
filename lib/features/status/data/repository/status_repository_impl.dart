@@ -1,6 +1,8 @@
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
+import 'package:chat_application/features/status/data/datasources/status_local_data_source.dart';
 import 'package:chat_application/features/status/data/datasources/status_remote_data_source.dart';
+import 'package:chat_application/features/status/data/model/status_hive_model.dart';
 import 'package:chat_application/features/status/data/model/status_model.dart';
 import 'package:chat_application/features/status/data/model/status_view_model.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
@@ -13,14 +15,16 @@ import 'package:uuid/uuid.dart';
 
 class StatusRepositoryImpl implements StatusRepository {
   final StatusRemoteDataSource statusRemoteDataSource;
+  final StatusLocalDataSource statusLocalDataSource;
 
-  StatusRepositoryImpl({required this.statusRemoteDataSource});
+  StatusRepositoryImpl({required this.statusRemoteDataSource, required this.statusLocalDataSource});
   @override
   Future<Either<Failure, Status>> uploadStatus({
     required XFile image,
     required String caption,
     required String userId,
     required String userName,
+    required String profilepic
   }) async {
     try {
       final now = DateTime.now().toUtc();
@@ -32,6 +36,7 @@ class StatusRepositoryImpl implements StatusRepository {
         createdAt: now,
         expiresAt: now.add(const Duration(hours: 24)),
         userName: userName,
+        profilepic: profilepic
       );
 
       //Upload Image
@@ -60,10 +65,21 @@ class StatusRepositoryImpl implements StatusRepository {
   @override
   Future<Either<Failure, List<Status>>> getAllStatus() async {
     try {
+
       final status = await statusRemoteDataSource.getAllStatus();
+      statusLocalDataSource.updateStatuses(status.map((e)=>StatusHiveModel.fromEntity(e)).toList());
+
       return right(status);
-    } on ServerExceptions catch (e) {
-      return left(Failure(e.toString()));
+
+    } on ServerExceptions catch (_) {
+
+      try{
+        final status = await statusLocalDataSource.getAllStatuses();
+        return right(status);
+      }catch(e){
+        return left(Failure(e.toString()));
+      }
+
     }
   }
 

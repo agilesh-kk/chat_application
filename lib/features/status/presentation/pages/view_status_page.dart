@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
@@ -7,12 +8,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ViewStatusPage extends StatefulWidget {
   final List<Status> statuses;
+  final String userProfilePic;
   final bool isUserStatus;
+  final bool hasInternet;
 
   const ViewStatusPage({
     super.key,
     required this.statuses,
     required this.isUserStatus,
+    required this.hasInternet,
+    required this.userProfilePic
   });
 
   @override
@@ -35,7 +40,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
 
   void startStoryTimer() {
     timer?.cancel();
-    progress = 0;
+    progress = progress <= 1 ? progress : 0;
     timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       setState(() {
         progress += 0.01;
@@ -211,6 +216,11 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: widget.statuses.length,
                   itemBuilder: (context, index) {
+                    //Load Local Image
+                    if(widget.statuses[index].localPath != null){
+                      return Image.file(File(widget.statuses[index].localPath!));
+                    }
+                    //Load Image From Cloud
                     return Image.network(
                       widget.statuses[index].imageUrl,
                       fit: BoxFit.contain,
@@ -257,8 +267,9 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                         Row(
                           children: [
 
-                            const CircleAvatar(
+                            CircleAvatar(
                               radius: 20,
+                              backgroundImage: AssetImage(widget.userProfilePic),
                               backgroundColor: Colors.grey,
                             ),
 
@@ -315,7 +326,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                   ),
 
                 /// VIEW COUNT BUTTON
-                if (widget.isUserStatus)
+                if (widget.isUserStatus && widget.hasInternet)
                   Positioned(
                     bottom: 40,
                     right: 20,

@@ -27,7 +27,10 @@ import 'package:chat_application/features/profile/domain/usecase/update_bio.dart
 import 'package:chat_application/features/profile/domain/usecase/update_profile.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
+import 'package:chat_application/features/status/data/datasources/status_local_data_source.dart';
 import 'package:chat_application/features/status/data/datasources/status_remote_data_source.dart';
+import 'package:chat_application/features/status/data/hiveAdapters/hive_model_adapter.dart';
+import 'package:chat_application/features/status/data/model/status_hive_model.dart';
 import 'package:chat_application/features/status/data/repository/status_repository_impl.dart';
 import 'package:chat_application/features/status/domain/repository/status_repository.dart';
 import 'package:chat_application/features/status/domain/usecase/get_all_status.dart';
@@ -45,6 +48,8 @@ import 'package:chat_application/features/timeline/features/timeline/presentatio
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final serviceLocator = GetIt.instance;
@@ -83,9 +88,17 @@ Future<void> initDependencies() async {
 
 }
 
-void _initStatus() {
+void _initStatus() async{
+  await Hive.initFlutter();
+  Hive.registerAdapter(StatusHiveModelAdapter());
+
+  final statusBox = await Hive.openBox<StatusHiveModel>("status");
+
+  serviceLocator.registerLazySingleton<Box<StatusHiveModel>>(()=>statusBox);
+
   //data source
   serviceLocator
+  ..registerFactory<StatusLocalDataSource>(() => StatusLocalDataSourceImpl(serviceLocator()))
   ..registerFactory<StatusRemoteDataSource>(
     () => StatusRemoteDataSourceImpl(
       supabaseClient: serviceLocator<SupabaseClient>(),
@@ -96,6 +109,7 @@ void _initStatus() {
   ..registerFactory<StatusRepository>(
     () => StatusRepositoryImpl(
       statusRemoteDataSource: serviceLocator<StatusRemoteDataSource>(),
+      statusLocalDataSource: serviceLocator<StatusLocalDataSource>()
     )
   )
 

@@ -97,7 +97,8 @@ class _StatusPageState extends State<StatusPage> {
                       hasStatus: hasStatus,
 
                       //to view the user's status
-                      onViewStatus: () {
+                      onViewStatus: ()async {
+                        bool hasInternet = await HelperFunctions.hasInternet();
                         if (myStatuses.isNotEmpty) {
                           Navigator.push(
                             context,
@@ -105,6 +106,8 @@ class _StatusPageState extends State<StatusPage> {
                               builder: (_) => ViewStatusPage(
                                 statuses: myStatuses,
                                 isUserStatus: true,
+                                hasInternet: hasInternet,
+                                userProfilePic: pfp!,
                                 //isUserStatus: true,
                               ),
                             ),
@@ -114,6 +117,13 @@ class _StatusPageState extends State<StatusPage> {
 
                       // adding status
                       onAddStatus: () async {
+
+                        bool hasInternet = await HelperFunctions.hasInternet();
+
+                        if(!hasInternet && context.mounted){
+                          showSnackbar(context, "Need Internet to Upload Status");
+                          return;
+                        }
 
                         XFile? res = await HelperFunctions.showImageSourceBottomSheet(
                           currentUserId,
@@ -180,11 +190,12 @@ class _StatusPageState extends State<StatusPage> {
                                     builder: (context) => ViewStatusPage(
                                       statuses: userStatuses,
                                       isUserStatus: false,
+                                      hasInternet: false,
+                                      userProfilePic: firstStatus.profilepic,
                                     ),
                                   ),
                                 );
                               },
-                              displayPicUrl: userStatuses.first.imageUrl,
                               latestStatusTime: userStatuses.first.createdAt.toString(),
                             );
                           },
