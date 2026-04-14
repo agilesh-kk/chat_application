@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:chat_application/features/status/data/model/status_hive_model.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:dio/dio.dart';
-import 'package:fpdart/fpdart.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
