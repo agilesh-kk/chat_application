@@ -92,7 +92,7 @@ class _MessageBubbleState extends State<MessageBubble>
   @override
   Widget build(BuildContext context) {
     final time =
-        DateFormat('h:mm a').format(DateTime.parse(widget.message.createdAt));
+        DateFormat('h:mm a').format(widget.message.createdAt); //createdAt is changed to DateTime
 
     return ScaleTransition(
       scale: scale,

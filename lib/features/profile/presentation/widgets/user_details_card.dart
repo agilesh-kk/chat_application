@@ -80,43 +80,59 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
   Widget build(BuildContext context) {
     final isEditable = widget.onEditBio != null;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return PopScope(
+      canPop: !isEditing,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
 
-          /// EMAIL
-          _buildNormalSection(
-            title: "Email",
-            value: widget.email,
-          ),
+        if (isEditing) {
+          setState(() {
+            isEditing = false;
+            _controller.text = widget.bio;
+          });
 
-          const SizedBox(height: 16),
-
-          /// 🔥 BIO (INLINE EDIT)
-          _buildBioSection(isEditable),
-
-          const SizedBox(height: 16),
-
-          /// BIRTHDATE
-          _buildNormalSection(
-            title: "Birthday",
-            value: DateFormat('MMM dd, yyyy').format(widget.birthDate),
-          ),
-
-          const SizedBox(height: 16),
-
-          /// GENDER
-          _buildNormalSection(
-            title: "Gender",
-            value: widget.gender,
-          ),
-        ],
+          /// close keyboard
+          FocusScope.of(context).unfocus();
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+      
+            //EMAIL
+            _buildNormalSection(
+              title: "Email",
+              value: widget.email,
+            ),
+      
+            const SizedBox(height: 16),
+      
+            //BIO 
+            _buildBioSection(isEditable),
+      
+            const SizedBox(height: 16),
+      
+            //BIRTHDATE
+            _buildNormalSection(
+              title: "Birthday",
+              value: DateFormat('MMM dd, yyyy').format(widget.birthDate),
+            ),
+      
+            const SizedBox(height: 16),
+      
+            //GENDER
+            _buildNormalSection(
+              title: "Gender",
+              value: widget.gender,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -171,14 +187,11 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
                   onSubmitted: (_) => _saveBio(),
                 )
               else
-                GestureDetector(
-                  onTap: isEditable ? _startEditing : null,
-                  child: Text(
-                    widget.bio,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                Text(
+                  widget.bio,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
 

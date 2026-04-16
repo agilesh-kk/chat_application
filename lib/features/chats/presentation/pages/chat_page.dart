@@ -2,8 +2,11 @@ import 'dart:io';
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
+import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
+import 'package:chat_application/features/chats/presentation/widgets/send_options_dialog.dart';
+import 'package:chat_application/features/chats/presentation/widgets/time_capsule_picker.dart';
 import 'package:chat_application/features/timeline/features/timeline/presentation/pages/timeline_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -102,6 +105,40 @@ class _ChatPageState extends State<ChatPage> {
     controller.clear();
   }
 
+  Future<void> _handleTimeCapsule() async {
+    final selectedTime = await TimeCapsulePicker.pick(context);
+
+    if (selectedTime == null) return;
+
+    _sendTimeCapsule(selectedTime);
+  }
+
+  void _sendTimeCapsule(DateTime scheduledTime) {
+    final text = controller.text.trim();
+    //print("printing......"+scheduledTime.toIso8601String());
+    if (text.isEmpty) return;
+
+    final user = context.read<AppUserCubit>().state;
+
+    context.read<ChatBloc>().add(
+          SendMessageEvent(
+            userId: widget.currentUserId,
+            receiverId: widget.receiverId,
+            content: text,
+            userName:
+                (user is AppUserIsSignedin) ? user.user.name : "Unknown",
+            userProfile:
+                (user is AppUserIsSignedin) ? user.user.profilePic : "Unknown",
+
+            /// 🔥 NEW FIELD
+            sendAt: scheduledTime,
+            isScheduled: true,
+          ),
+        );
+
+    controller.clear();
+  }
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final picked =
@@ -131,44 +168,61 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.receiverName),
-        actions: [IconButton(
-          onPressed: () async {
-            int index = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TimelinePage(
-                  receiverName: widget.receiverName,
-                  userId: widget.currentUserId,
-                  receiverId: widget.receiverId,
+        actions: [
+          IconButton(
+            onPressed: () async {
+              int index = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TimelinePage(
+                    receiverName: widget.receiverName,
+                    userId: widget.currentUserId,
+                    receiverId: widget.receiverId,
+                  ),
                 ),
-              ),
-            );
+              );
 
-            if (cb.state is ChatLoaded) {
-              final cl = cb.state as ChatLoaded;
+              if (cb.state is ChatLoaded) {
+                final cl = cb.state as ChatLoaded;
 
-              final reversedIndex = cl.messages.length - 1 - index;
+                final reversedIndex = cl.messages.length - 1 - index;
 
-              setState(() {
-                highlightedIndex = reversedIndex;
-              });
+                setState(() {
+                  highlightedIndex = reversedIndex;
+                });
 
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _scrollToIndex(reversedIndex);
-              });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _scrollToIndex(reversedIndex);
+                });
 
-              /// remove highlight after animation
-              Future.delayed(const Duration(milliseconds: 800), () {
-                if (mounted) {
-                  setState(() {
-                    highlightedIndex = null;
-                  });
-                }
-              });
-            }
-          },
-          icon: const Icon(Icons.favorite,color: Color.fromARGB(255, 255, 102, 0),),
-        )],
+                /// remove highlight after animation
+                Future.delayed(const Duration(milliseconds: 800), () {
+                  if (mounted) {
+                    setState(() {
+                      highlightedIndex = null;
+                    });
+                  }
+                });
+              }
+            },
+            icon: const Icon(
+              Icons.favorite,
+              color: Color.fromARGB(255, 255, 102, 0),
+            ),
+          ),
+          IconButton(
+            onPressed: (){
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (_) => TimeCapsuleMessages(),)
+              );
+            }, 
+            icon: Icon(
+              Icons.lock_clock,
+              color: Color.fromARGB(255, 255, 102, 0),
+            )
+          )
+        ],
       ),
       body: Column(
         children: [
@@ -192,7 +246,7 @@ class _ChatPageState extends State<ChatPage> {
 
                   /// 🔥 Handle scrolling
                   if (widget.scrolltoIndex != null) {
-                    print(widget.scrolltoIndex);
+                    //print(widget.scrolltoIndex);
                     _scrollToIndex(widget.scrolltoIndex!);
                     widget.scrolltoIndex = null;
                   }
@@ -235,9 +289,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
 
-          /// =======================
           /// INPUT
-          /// =======================
           Padding(
             padding: const EdgeInsets.all(8),
             child: Row(
@@ -256,10 +308,22 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ),
                 const SizedBox(width: 5),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _send,
+
+                //long press to acces time capsule
+                GestureDetector(
+                  onTap: _send,
+                  onLongPress: () {
+                    showDialog(
+                      context: context, 
+                      builder: (_) => SendOptionsDialog(
+                        onSendNormally: _send, 
+                        onTimeCapsule: _handleTimeCapsule,
+                      )
+                    );
+                  },
+                  child: Icon(Icons.send),
                 ),
+
               ],
             ),
           )

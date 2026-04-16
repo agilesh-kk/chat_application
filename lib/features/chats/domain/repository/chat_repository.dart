@@ -22,7 +22,11 @@ abstract interface class ChatRepository{
     required String content,
     required String msgId,
     String? userName,
-    String? userProfile
+    String? userProfile,
+
+    //for time capsule
+    DateTime? sendAt,
+    bool isScheduled = false,
   });
 
   Future<Either<Failure, void>> sendImage({

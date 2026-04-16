@@ -40,7 +40,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         // ✅ 1. Create LOCAL MESSAGE
         final localMessage = Message(
           senderId: event.userId,
-          createdAt: DateTime.now().toString(),
+          createdAt: DateTime.now(),
           deletedfor: [],
           id: msgId,
           content: "",
@@ -93,50 +93,88 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
     on<SendMessageEvent>((event, emit) async {
 
-    final currentState = state as ChatLoaded;
+      final currentState = state as ChatLoaded;
 
-     var uid = Uuid();
+      var uid = Uuid();
 
-    // 1️ Create temporary message
-    final tempMessage = MessageModel(
-      id: uid.v1(),
-      status: "uploading",
-      senderId: event.userId,
-      content: event.content,
-      createdAt: DateTime.now().toString(),
-      deletedfor: const [],
-      isLocal: true
-    );
+      //deciding whether it is a scheduled message or not and assigning the createdAt time.
+      //use it in future
+      // final DateTime createdTime =
+      //   event.isScheduled && event.sendAt != null
+      //   ? event.sendAt!
+      //   : DateTime.now();
 
-    // 2️ Add to current list immediately
-    final updatedMessages = List<Message>.from(currentState.messages)
-      ..insert(0,tempMessage);
+      // 1️ Create temporary message
+      final tempMessage = MessageModel(
+        id: uid.v1(),
+        status: "uploading",
+        senderId: event.userId,
+        content: event.content,
+        createdAt: DateTime.now(),
+        deletedfor: const [],
+        isLocal: true,
+        isScheduled: event.isScheduled,
+      );
 
-    emit(ChatLoaded(updatedMessages));
-  
+      // 2️ Add to current list immediately (UI) if it is a normal message
+      // once the shceduled message is sent or pushed it will be updated to the chat UI.
+      if(!event.isScheduled){
+        final updatedMessages = List<Message>.from(currentState.messages)
+          ..insert(0,tempMessage);
+        emit(ChatLoaded(updatedMessages));
+      }
 
-  // 3️ Send to Firestore in background
-  final res = await sendMessage(
-    SendMessageParams(
-      msgId: tempMessage.id,
-      receiverId: event.receiverId,
-      userId: event.userId,
-      content: event.content,
-      userName: event.userName,
-      userProfile: event.userProfile
-    ),
-  );
+      //if the message is scheduled
+      if(event.isScheduled){
+        final res = await sendMessage(
+          SendMessageParams(
+            msgId: tempMessage.id,
+            receiverId: event.receiverId,
+            userId: event.userId,
+            content: event.content,
+            userName: event.userName,
+            userProfile: event.userProfile,
 
-  res.fold(
-    (failure) {
-      emit(ChatError(failure.message));
-    },
-    (_) {
-      // Do nothing
-      // Stream will update automatically
-    },
-  );
-});
+            //time capsule
+            sendAt: event.sendAt,
+            isScheduled: true,
+          )
+        );
+
+        res.fold(
+          (failure) => emit(ChatError(failure.message)),
+          (_) {},
+        );
+
+        return; 
+      }
+    
+
+      // 3️ Send to Firestore in background
+      final res = await sendMessage(
+        SendMessageParams(
+          msgId: tempMessage.id,
+          receiverId: event.receiverId,
+          userId: event.userId,
+          content: event.content,
+          userName: event.userName,
+          userProfile: event.userProfile,
+          //time capsule
+          sendAt: event.sendAt,
+          isScheduled: event.isScheduled,
+        ),
+      );
+
+      res.fold(
+        (failure) {
+          emit(ChatError(failure.message));
+        },
+        (_) {
+          // Do nothing
+          // Stream will update automatically
+        },
+      );
+    });
 
     on<MessagesUpdatedEvent>((event, emit) {
       emit(ChatLoaded(event.messages));

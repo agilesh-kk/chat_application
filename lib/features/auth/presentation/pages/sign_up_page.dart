@@ -6,7 +6,7 @@ import 'package:chat_application/features/auth/presentation/pages/sign_in_page.d
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_dropdown_selector.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
-import 'package:chat_application/features/auth/presentation/widgets/date_picker.dart';
+import 'package:chat_application/core/utils/date_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -101,7 +101,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           SizedBox(height: 20),
                           
                           AuthDropdownSelector(
-                            items: ['Male','Female'], 
+                            items: ['Male','Female','Other'], 
                             hintText: 'Select your gender', 
                             selectedValue: selectedGender,
                             onChanged: (value){

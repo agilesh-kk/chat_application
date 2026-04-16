@@ -64,6 +64,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         gender: gender,
         profilePic: '',
         friends: [],
+        bio: '',
       );
 
       //Saving user to Firestore
@@ -75,6 +76,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'birthDate': birthDate,
         'friends': [],
         'gender' : gender,
+        'bio' : "",
       });
 
       if(firebaseUser.emailVerified){

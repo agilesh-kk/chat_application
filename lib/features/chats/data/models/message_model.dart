@@ -11,7 +11,9 @@ class MessageModel extends Message {
     required super.deletedfor,
     required super.status,
     super.type,
-    super.isLocal
+    super.isLocal,
+    super.sendAt,
+    super.isScheduled,
   });
 
   factory MessageModel.fromJson(
@@ -23,39 +25,31 @@ class MessageModel extends Message {
       senderId: map['senderId'],
       content: map['content'],
       status: map['status'] ?? "read",
-      createdAt: parseCreatedAt(map["createdAt"]),
+      createdAt: (map['createdAt'] as Timestamp).toDate(),
       type: map['type'] ?? "text",
-      deletedfor:
-        List<String>.from(map['deletedFor'] ?? []),
+      deletedfor: List<String>.from(map['deletedFor'] ?? []),
+      sendAt: map['sendAt'] != null
+        ? (map['sendAt'] as Timestamp).toDate()
+        : null,
+      isScheduled: map['isScheduled'] ?? false,
     );
   }
 
-static String parseCreatedAt(dynamic value) {
-  if (value == null) return DateTime.now().toString();
-
-  if (value is Timestamp) {
-    return value.toDate().toString();
-  }
-
-  if (value is String) {
-    return DateTime.tryParse(value).toString();
-  }
-
-  if (value is DateTime) {
-    return value.toString();
-  }
-
-  return "Time Error";
-}
-
-  Map<String,dynamic> toMap(){
-    return {
+  Map<String, dynamic> toMap() {
+    final data = {
       "senderId": senderId,
       "content": content,
-      "createdAt": createdAt,
+      "createdAt": Timestamp.fromDate(createdAt),
       "status": status,
       "deletedFor": deletedfor,
-      "type":type
+      "type": type,
+      "isScheduled": sendAt != null,
     };
+
+    if (sendAt != null) {
+      data["sendAt"] = Timestamp.fromDate(sendAt!);
+    }
+
+    return data;
   }
 }

@@ -15,7 +15,9 @@ class SendMessage implements UseCase<void,SendMessageParams>{
       content: params.content,
       msgId: params.msgId,
       userName: params.userName,
-      userProfile: params.userProfile
+      userProfile: params.userProfile,
+      sendAt: params.sendAt,
+      isScheduled: params.isScheduled,
     );
   }
 }
@@ -28,12 +30,18 @@ class SendMessageParams{
   String? userName;
   String? userProfile;
 
+  //for time capsule
+  final DateTime? sendAt;
+  final bool isScheduled;
+
   SendMessageParams({
     required this.receiverId,
     required this.userId,
     required this.content,
     required this.msgId,
     this.userName,
-    this.userProfile
+    this.userProfile,
+    this.sendAt,
+    this.isScheduled = false,
   });
 }

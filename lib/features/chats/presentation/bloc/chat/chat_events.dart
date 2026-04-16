@@ -19,12 +19,18 @@ class SendMessageEvent extends ChatEvent{
   final String content;
   String? userName;
   String? userProfile;
+
+  final DateTime? sendAt;
+  final bool isScheduled;
+
   SendMessageEvent({
     required this.userId,
     required this.receiverId,
     required this.content,
     this.userName,
-    this.userProfile
+    this.userProfile,
+    this.sendAt,
+    this.isScheduled=false,
   });
 }
 

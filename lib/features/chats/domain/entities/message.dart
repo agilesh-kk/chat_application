@@ -2,12 +2,14 @@ class Message{
   final String id;
   final String senderId;
   final String content;
-  final String createdAt;
+  final DateTime createdAt;
   final String type;
   final List<String> deletedfor;
   final bool isLocal;
   final String status; 
   final String? localPath;
+  final DateTime? sendAt;
+  final bool? isScheduled;
 
   Message({
     required this.id,
@@ -18,6 +20,8 @@ class Message{
     required this.status,
     this.isLocal = false,
     this.type = "text",
-    this.localPath
+    this.localPath,
+    this.sendAt,
+    this.isScheduled,
   });
 }
