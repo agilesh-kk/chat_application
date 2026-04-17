@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:flutter/material.dart';
@@ -5,13 +7,11 @@ import 'package:flutter/material.dart';
 class FriendsStatusCard extends StatelessWidget {
   final Status status;
   final VoidCallback onstatusTap;
-  final String displayPicUrl;
   final String latestStatusTime;
   const FriendsStatusCard({
     super.key, 
     required this.status,
     required this.onstatusTap,
-    required this.displayPicUrl,
     required this.latestStatusTime,
   });
 
@@ -32,7 +32,7 @@ class FriendsStatusCard extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundImage: NetworkImage(displayPicUrl),
+              backgroundImage: displayImage(status),
               radius: 30,
             ),
             SizedBox(width:20),
@@ -60,5 +60,13 @@ class FriendsStatusCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  ImageProvider displayImage(Status s){
+    if(s.localPath != null){
+      return FileImage(File(s.localPath!));
+    }else{
+      return NetworkImage(s.imageUrl);
+    }
   }
 }

@@ -6,6 +6,8 @@ class Status {
   final DateTime createdAt;
   final DateTime expiresAt;
   final String userName;
+  final String profilepic;
+  String? localPath;
 
   Status({
     required this.id,
@@ -15,5 +17,7 @@ class Status {
     required this.createdAt,
     required this.expiresAt,
     required this.userName, 
+    required this.profilepic,
+    this.localPath
   });
 }

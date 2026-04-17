@@ -15,7 +15,7 @@ class ProfileRepositoryImpl implements ProfileRepository{
     required String imageUrl
   }) async{
     try{
-      await profileRemoteDataSource.updateProfilePic(userId, imageUrl);
+      profileRemoteDataSource.updateProfilePic(userId, imageUrl);
       return right(null);
     }
     on ServerExceptions catch(e){

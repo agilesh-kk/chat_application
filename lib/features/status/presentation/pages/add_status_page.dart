@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
@@ -21,6 +22,8 @@ class AddStatusPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final captionController = TextEditingController();
+
+    final userProfile = (context.read<AppUserCubit>().state as AppUserIsSignedin).user.profilePic!;
 
     return Scaffold(
       appBar: AppBar(
@@ -68,7 +71,8 @@ class AddStatusPage extends StatelessWidget {
                         userId: userId,
                         image: image,
                         caption: captionController.text.trim(),
-                        userName: userName
+                        userName: userName,
+                        profilepic: userProfile
                       ),
                     );
                   },

@@ -44,6 +44,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
         caption: event.caption, 
         userId: event.userId,
         userName: event.userName,
+        profilepic: event.profilepic
       ),
     );
 
@@ -55,7 +56,10 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
 
   //fetches the statuses
   FutureOr<void> _onGetAllStatusEvent(GetAllStatusEvent event, Emitter<StatusState> emit) async{
-    emit(StatusLoading());
+    if(state is! StatusDisplaySuccess){
+      emit(StatusLoading());
+    }
+
     final res = await _getAllStatus(NoParams());
 
     return res.fold(
