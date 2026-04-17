@@ -125,4 +125,17 @@ class ChatRepositoryImpl implements ChatRepository {
       return left(Failure(e.message));
     }
   }
+  
+  @override
+  Future<Either<Failure, Stream<List<Message>>>> getScheduledMessages({required String receiverId, required String userId}) async{
+    try {
+      Stream<List<Message>> res = await chatRemoteDataSources.getScheduledMessages(
+        receiverId: receiverId,
+        userId: userId,
+      );
+      return right(res);
+    } on ServerExceptions catch (e) {
+      return left(Failure(e.message));
+    }
+  }
 }

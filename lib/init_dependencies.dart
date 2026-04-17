@@ -14,10 +14,12 @@ import 'package:chat_application/features/chats/data/repository/chat_repository_
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
+import 'package:chat_application/features/chats/domain/usecase/get_scheduled_messages.dart';
 import 'package:chat_application/features/chats/domain/usecase/search_user.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
+import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
 import 'package:chat_application/features/profile/data/datasources/profile_remote_data_source.dart';
@@ -232,12 +234,23 @@ void _initChat()async {
       chatRepository: serviceLocator<ChatRepository>(),
     )
   )
+  ..registerFactory(
+    () => GetScheduledMessages(
+      chatRepository: serviceLocator<ChatRepository>(),
+    )
+  )
 
   ..registerLazySingleton(
     () => ChatBloc(
       sendImage: serviceLocator(),
       getMessages: serviceLocator(),
       sendMessage: serviceLocator()
+    )
+  )
+
+  ..registerFactory(
+    () => TimeCapsuleBloc(
+      getScheduledMessages: serviceLocator<GetScheduledMessages>()
     )
   )
 

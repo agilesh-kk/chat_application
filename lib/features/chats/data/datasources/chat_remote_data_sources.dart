@@ -33,6 +33,11 @@ abstract interface class ChatRemoteDataSources {
     required String userId,
   });
 
+  Future<Stream<List<MessageModel>>> getScheduledMessages({
+    required String receiverId,
+    required String userId,
+  });
+
   Future<User?> searchUser({required String receiverName});
 }
 
@@ -66,6 +71,25 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .collection("Conversations")
         .doc(generateConversationId(userId, receiverId))
         .collection("messages")
+        .orderBy("createdAt", descending: true)
+        .snapshots()
+        .map((snapshot) {
+          markMessagesDelivered(userId, receiverId);
+          return snapshot.docs.map((doc) {
+            return MessageModel.fromJson(doc.data(), doc.id);
+          }).toList();
+        });
+  }
+
+  @override
+  Future<Stream<List<MessageModel>>> getScheduledMessages({
+    required String receiverId,
+    required String userId,
+  }) async {
+    return firestore
+        .collection("Conversations")
+        .doc(generateConversationId(userId, receiverId))
+        .collection("scheduled_messages")
         .orderBy("createdAt", descending: true)
         .snapshots()
         .map((snapshot) {

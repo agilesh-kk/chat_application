@@ -27,7 +27,7 @@ class ConversationModel extends Conversation{
       lastupdateTime: map['lastupdateTime'].toDate().toString(),
       receiverName: receiverDetails["receiverName"] ?? "unknown",
       profilepicLink: receiverDetails["receiverProfile"] ?? "not found",
-      unread: receiverDetails["unread"] ?? 0
+      unread: map[userId]?['unread'] ?? 0,
     );
   }
 

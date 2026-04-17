@@ -49,4 +49,9 @@ abstract interface class ChatRepository{
     required String receiverName
   });
 
+  Future<Either<Failure,Stream<List<Message>>>> getScheduledMessages({
+    required String receiverId,
+    required String userId,
+  });
+
 }

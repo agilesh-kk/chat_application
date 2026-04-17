@@ -4,6 +4,7 @@ import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
@@ -35,6 +36,9 @@ void main() async {
         //chat bloc
         BlocProvider(
           create: (_) => serviceLocator<ChatBloc>(), 
+        ),
+        BlocProvider(
+          create: (_)=> serviceLocator<TimeCapsuleBloc>()
         ),
         BlocProvider(
           create: (_) => serviceLocator<ConversationBloc>(), 
