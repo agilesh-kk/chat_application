@@ -1,7 +1,8 @@
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/core/usecase/usecase.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/entities/event.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/repositories/timeline_repository.dart';
+import 'package:chat_application/features/timeline/domain/entities/event.dart';
+import 'package:chat_application/features/timeline/domain/repositories/timeline_repository.dart';
+
 import 'package:fpdart/src/either.dart';
 
 class LoadEvents implements UseCase<List<Event>,LoadEventsParams>{

@@ -1,6 +1,5 @@
 import 'package:chat_application/core/errors/failure.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/entities/event.dart';
-import 'package:flutter/material.dart';
+import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract interface class TimelineRepository {

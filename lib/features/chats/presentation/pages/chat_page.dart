@@ -7,15 +7,13 @@ import 'package:chat_application/features/chats/presentation/widgets/image_tile.
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
 import 'package:chat_application/features/chats/presentation/widgets/send_options_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/time_capsule_picker.dart';
-import 'package:chat_application/features/timeline/features/timeline/presentation/pages/timeline_page.dart';
+import 'package:chat_application/features/timeline/presentation/pages/timeline_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
-import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
-import 'package:chat_application/init_dependencies.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ChatPage extends StatefulWidget {

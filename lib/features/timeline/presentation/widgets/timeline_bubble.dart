@@ -1,5 +1,6 @@
 import 'package:chat_application/core/utils/moments_ago.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/entities/event.dart';
+import 'package:chat_application/features/timeline/domain/entities/event.dart';
+
 import 'package:flutter/material.dart';
 
 class TimelineBubble extends StatefulWidget {

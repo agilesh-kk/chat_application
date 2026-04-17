@@ -1,7 +1,8 @@
 import 'package:bloc/bloc.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/entities/event.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/usecases/load_events.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/usecases/refresh_events.dart';
+import 'package:chat_application/features/timeline/domain/entities/event.dart';
+import 'package:chat_application/features/timeline/domain/usecases/load_events.dart';
+import 'package:chat_application/features/timeline/domain/usecases/refresh_events.dart';
+
 
 part 'timeline_event.dart';
 part 'timeline_state.dart';

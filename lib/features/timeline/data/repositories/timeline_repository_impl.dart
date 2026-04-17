@@ -1,7 +1,8 @@
 import 'package:chat_application/core/errors/failure.dart';
-import 'package:chat_application/features/timeline/features/timeline/data/datasources/timeline_remote_data_sources.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/entities/event.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/repositories/timeline_repository.dart';
+import 'package:chat_application/features/timeline/data/datasources/timeline_remote_data_sources.dart';
+import 'package:chat_application/features/timeline/domain/entities/event.dart';
+import 'package:chat_application/features/timeline/domain/repositories/timeline_repository.dart';
+
 import 'package:fpdart/src/either.dart';
 
 class TimelineRepositoryImpl implements TimelineRepository{

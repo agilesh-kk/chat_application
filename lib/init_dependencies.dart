@@ -41,16 +41,16 @@ import 'package:chat_application/features/status/domain/usecase/update_view.dart
 import 'package:chat_application/features/status/domain/usecase/upload_status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
-import 'package:chat_application/features/timeline/features/timeline/data/datasources/timeline_remote_data_sources.dart';
-import 'package:chat_application/features/timeline/features/timeline/data/repositories/timeline_repository_impl.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/repositories/timeline_repository.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/usecases/load_events.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/usecases/refresh_events.dart';
-import 'package:chat_application/features/timeline/features/timeline/presentation/bloc/timeline_bloc.dart';
+import 'package:chat_application/features/timeline/data/datasources/timeline_remote_data_sources.dart';
+import 'package:chat_application/features/timeline/data/repositories/timeline_repository_impl.dart';
+import 'package:chat_application/features/timeline/domain/repositories/timeline_repository.dart';
+import 'package:chat_application/features/timeline/domain/usecases/load_events.dart';
+import 'package:chat_application/features/timeline/domain/usecases/refresh_events.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

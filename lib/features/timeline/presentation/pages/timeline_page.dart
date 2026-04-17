@@ -1,10 +1,12 @@
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
-import 'package:chat_application/features/timeline/features/timeline/domain/entities/event.dart';
-import 'package:chat_application/features/timeline/features/timeline/presentation/widgets/timeline_bubble.dart';
+import 'package:chat_application/features/timeline/domain/entities/event.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
+import 'package:chat_application/features/timeline/presentation/widgets/timeline_bubble.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:chat_application/features/timeline/features/timeline/presentation/bloc/timeline_bloc.dart';
+
 import 'package:chat_application/init_dependencies.dart';
 
 class TimelinePage extends StatelessWidget {

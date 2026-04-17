@@ -1,4 +1,5 @@
-import 'package:chat_application/features/timeline/features/timeline/domain/entities/event.dart';
+
+import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EventModel extends Event{
