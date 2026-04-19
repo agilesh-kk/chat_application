@@ -1,3 +1,4 @@
+import 'package:chat_application/features/chats/presentation/widgets/message_options_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
@@ -7,6 +8,7 @@ class MessageBubble extends StatefulWidget {
   final bool isMe;
   final bool animate;
   final bool highlight; // 🔥 NEW
+  final VoidCallback? onDelete;
 
   const MessageBubble({
     super.key,
@@ -14,6 +16,7 @@ class MessageBubble extends StatefulWidget {
     required this.isMe,
     required this.animate,
     this.highlight = false,
+    this.onDelete,
   });
 
   @override
@@ -94,63 +97,82 @@ class _MessageBubbleState extends State<MessageBubble>
     final time =
         DateFormat('h:mm a').format(widget.message.createdAt); //createdAt is changed to DateTime
 
-    return ScaleTransition(
-      scale: scale,
-      child: FadeTransition(
-        opacity: fade,
-        child: SlideTransition(
-          position: slide,
-          child: Align(
-            alignment:
-                widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              margin:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              constraints: const BoxConstraints(maxWidth: 500),
-              decoration: BoxDecoration(
-                color: widget.highlight
-                    ? Colors.yellow.withOpacity(0.3) // 🔥 glow
-                    : (widget.isMe
-                        ? const Color.fromARGB(255, 246, 152, 11)
-                        : Colors.grey[300]),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.end,
-                spacing: 6,
-                children: [
-                  /// MESSAGE TEXT
-                  Text(
-                    widget.message.content,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color:
-                          widget.isMe ? Colors.white : Colors.black,
-                    ),
-                  ),
-          
-                  /// TIME + STATUS
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        time,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: widget.isMe
-                              ? Colors.white70
-                              : Colors.black54,
-                        ),
+    return GestureDetector(
+      onLongPressStart: (details) {
+        MessageOptionsTray.show(
+          context: context,
+          position: details.globalPosition,
+          messageId: widget.message.id,
+          content: widget.message.content,
+          isMe: widget.isMe,
+          msgType: "text",
+
+          onDelete: widget.onDelete,
+
+          onAddToTimeline: () {
+            //print("Timeline: ${widget.message.id}");
+            
+          },
+        );
+      },
+      child: ScaleTransition(
+        scale: scale,
+        child: FadeTransition(
+          opacity: fade,
+          child: SlideTransition(
+            position: slide,
+            child: Align(
+              alignment:
+                  widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                constraints: const BoxConstraints(maxWidth: 500),
+                decoration: BoxDecoration(
+                  color: widget.highlight
+                      ? Colors.yellow.withValues(alpha: 0.3) // 🔥 glow
+                      : (widget.isMe
+                          ? const Color.fromARGB(255, 246, 152, 11)
+                          : Colors.grey[300]),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  spacing: 6,
+                  children: [
+                    /// MESSAGE TEXT
+                    Text(
+                      widget.message.content,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color:
+                            widget.isMe ? Colors.white : Colors.black,
                       ),
-                      const SizedBox(width: 5),
-                      buildReceipt(widget.message.status, widget.isMe),
-                    ],
-                  ),
-                ],
+                    ),
+            
+                    /// TIME + STATUS
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          time,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: widget.isMe
+                                ? Colors.white70
+                                : Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        buildReceipt(widget.message.status, widget.isMe),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

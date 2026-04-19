@@ -55,4 +55,18 @@ class MessagesUpdatedEvent extends ChatEvent {
   MessagesUpdatedEvent(this.messages);
 }
 
+class DeleteMessageEvent extends ChatEvent{
+  final String msgId;
+  final String userId;
+  final String receiverId;
+  final bool deleteForEveryone;
+
+  DeleteMessageEvent({
+    required this.msgId, 
+    required this.userId, 
+    required this.receiverId, 
+    required this.deleteForEveryone
+  });
+}
+
 class Closechat extends ChatEvent{}

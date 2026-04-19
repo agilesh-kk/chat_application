@@ -39,6 +39,13 @@ abstract interface class ChatRemoteDataSources {
   });
 
   Future<User?> searchUser({required String receiverName});
+
+  Future<void> deleteMessage({
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    bool deleteForEveryone = false,
+  });
 }
 
 class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
@@ -55,11 +62,78 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .where("participantsId", arrayContains: userId)
         .orderBy("lastupdateTime", descending: true)
         .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            return ConversationModel.fromJson(doc.data(), doc.id, userId);
+        .asyncMap((snapshot) async {
+          final convoFutures = snapshot.docs.map((doc) async {
+            final convoData = doc.data();
+            final convoId = doc.id;
+
+            // Find the correct last message for this user in parallel
+            final lastMessageData = await _getLastVisibleMessageForUser(convoId, userId);
+            final modifiedData = Map<String, dynamic>.from(convoData);
+
+            if (lastMessageData != null) {
+              modifiedData['lastMessage'] = (lastMessageData['type'] == 'text')
+                  ? lastMessageData['content']
+                  : '📷Image';
+              modifiedData['lastupdateTime'] = lastMessageData['createdAt'];
+              modifiedData['lastSender'] = lastMessageData['senderId'];
+            }
+
+            return ConversationModel.fromJson(modifiedData, convoId, userId);
           }).toList();
+
+          return await Future.wait(convoFutures);
         });
+  }
+
+  Future<Map<String, dynamic>?> _getLastVisibleMessageForUser(String convoId, String userId) async {
+    final convoRef = firestore.collection("Conversations").doc(convoId);
+
+    final visibleMessage = await _findLastVisibleMessageInCollection(
+      convoRef.collection("messages"),
+      userId,
+    );
+
+    if (visibleMessage != null) {
+      return visibleMessage;
+    }
+
+    return await _findLastVisibleMessageInCollection(
+      convoRef.collection("scheduled_messages"),
+      userId,
+    );
+  }
+
+  Future<Map<String, dynamic>?> _findLastVisibleMessageInCollection(
+    CollectionReference collection,
+    String userId, {
+    int batchSize = 20,
+  }) async {
+    Query query = collection.orderBy("createdAt", descending: true).limit(batchSize);
+    while (true) {
+      final snapshot = await query.get();
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final deletedFor = List<String>.from(data['deletedFor'] ?? []);
+        if (!deletedFor.contains(userId)) {
+          return data;
+        }
+      }
+
+      if (snapshot.docs.length < batchSize) {
+        return null;
+      }
+
+      final lastDoc = snapshot.docs.last;
+      query = collection
+          .orderBy("createdAt", descending: true)
+          .startAfterDocument(lastDoc)
+          .limit(batchSize);
+    }
   }
 
   @override
@@ -75,9 +149,16 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .snapshots()
         .map((snapshot) {
           markMessagesDelivered(userId, receiverId);
-          return snapshot.docs.map((doc) {
-            return MessageModel.fromJson(doc.data(), doc.id);
-          }).toList();
+          //returns the messages which are not deleted for the user
+          return snapshot.docs
+              .where((doc) {
+                final data = doc.data();
+                final deletedFor = List<String>.from(data['deletedFor'] ?? []);
+                return !deletedFor.contains(userId);
+              })
+              .map((doc) {
+                return MessageModel.fromJson(doc.data(), doc.id);
+              }).toList();
         });
   }
 
@@ -94,9 +175,16 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .snapshots()
         .map((snapshot) {
           markMessagesDelivered(userId, receiverId);
-          return snapshot.docs.map((doc) {
-            return MessageModel.fromJson(doc.data(), doc.id);
-          }).toList();
+          //returns the messages which are not deleted for the user
+          return snapshot.docs
+              .where((doc) {
+                final data = doc.data();
+                final deletedFor = List<String>.from(data['deletedFor'] ?? []);
+                return !deletedFor.contains(userId);
+              })
+              .map((doc) {
+                return MessageModel.fromJson(doc.data(), doc.id);
+              }).toList();
         });
   }
 
@@ -260,5 +348,110 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       batch.update(doc.reference, {"status": "seen"});
     }
     await batch.commit();
+  }
+  
+  //deleting message
+  @override
+  Future<void> deleteMessage({
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    bool deleteForEveryone = false,
+  }) async {
+    try {
+      final convoId = generateConversationId(userId, receiverId);
+      final convoRef = firestore.collection("Conversations").doc(convoId);
+
+      // Try regular messages first
+      final messageRef = convoRef.collection("messages").doc(msgId);
+      final messageDoc = await messageRef.get();
+      final scheduledRef = convoRef.collection("scheduled_messages").doc(msgId);
+      final scheduledDoc = await scheduledRef.get();
+
+      if (messageDoc.exists) {
+        if (deleteForEveryone) {
+          await messageRef.delete();
+          await _updateLastMessageAfterDeletion(convoRef, userId, receiverId);
+        } else {
+          await messageRef.update({
+            "deletedFor": FieldValue.arrayUnion([userId]),
+          });
+          // For soft delete, update counter to trigger conversation refresh without changing order
+          await convoRef.update({
+            "softDeleteCount": FieldValue.increment(1),
+          });
+        }
+      } else if (scheduledDoc.exists) {
+        if (deleteForEveryone) {
+          await scheduledRef.delete();
+          await _updateLastMessageAfterDeletion(convoRef, userId, receiverId);
+        } else {
+          await scheduledRef.update({
+            "deletedFor": FieldValue.arrayUnion([userId]),
+          });
+          // For soft delete, update counter to trigger conversation refresh without changing order
+          await convoRef.update({
+            "softDeleteCount": FieldValue.increment(1),
+          });
+        }
+      } else {
+        throw ServerExceptions("Message not found");
+      }
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
+
+  Future<void> _updateLastMessageAfterDeletion(
+    DocumentReference convoRef,
+    String userId,
+    String receiverId,
+  ) async {
+    try {
+      // Get the most recent message from regular messages
+      final messagesQuery = await convoRef
+          .collection("messages")
+          .orderBy("createdAt", descending: true)
+          .limit(1)
+          .get();
+
+      MessageModel? lastMessage;
+
+      if (messagesQuery.docs.isNotEmpty) {
+        final doc = messagesQuery.docs.first;
+        lastMessage = MessageModel.fromJson(doc.data(), doc.id);
+      } else {
+        // If no regular messages, check scheduled messages
+        final scheduledQuery = await convoRef
+            .collection("scheduled_messages")
+            .orderBy("createdAt", descending: true)
+            .limit(1)
+            .get();
+
+        if (scheduledQuery.docs.isNotEmpty) {
+          final doc = scheduledQuery.docs.first;
+          lastMessage = MessageModel.fromJson(doc.data(), doc.id);
+        }
+      }
+
+      if (lastMessage != null) {
+        // Update only the last message related fields
+        await convoRef.update({
+          "lastMessage": (lastMessage.type == "text") ? lastMessage.content : "📷Image",
+          "lastupdateTime": Timestamp.fromDate(lastMessage.createdAt),
+          "lastSender": lastMessage.senderId,
+        });
+      } else {
+        // No messages left, we could clear the last message
+        await convoRef.update({
+          "lastMessage": "",
+          "lastupdateTime": FieldValue.serverTimestamp(),
+          "lastSender": "",
+        });
+      }
+    } catch (e) {
+      // Don't throw here, just log the error
+      //print("Error updating last message: $e");
+    }
   }
 }

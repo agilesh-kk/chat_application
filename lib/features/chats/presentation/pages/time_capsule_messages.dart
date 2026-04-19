@@ -1,5 +1,7 @@
 import 'package:chat_application/features/chats/domain/entities/message.dart';
+import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
+import 'package:chat_application/features/chats/presentation/widgets/delete_message_confirmation_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -119,6 +121,33 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
           isMe: isMe,
           animate: false,
           highlight: false,
+          onDelete: () {
+            DeleteMessageConfirmationDialog.show(
+              context,
+              messageContent: message.content,
+              onDeleteForMe: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: message.id,
+                        userId: widget.currentUserId,
+                        receiverId: widget.receiverId,
+                        deleteForEveryone: false,
+                      ),
+                    );
+              },
+              onDeleteForEveryone: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: message.id,
+                        userId: widget.currentUserId,
+                        receiverId: widget.receiverId,
+                        deleteForEveryone: true,
+                      ),
+                    );
+              },
+            );
+          },
+       
         );
       // case 'image':
       //   return ImageMessageTile(

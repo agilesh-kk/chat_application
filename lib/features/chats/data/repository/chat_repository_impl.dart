@@ -138,4 +138,23 @@ class ChatRepositoryImpl implements ChatRepository {
       return left(Failure(e.message));
     }
   }
+  
+  @override
+  Future<void> deleteMessage({
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    bool deleteForEveryone = false,
+  }) async {
+    try {
+      await chatRemoteDataSources.deleteMessage(
+        msgId: msgId,
+        userId: userId,
+        receiverId: receiverId,
+        deleteForEveryone: deleteForEveryone,
+      );
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
 }

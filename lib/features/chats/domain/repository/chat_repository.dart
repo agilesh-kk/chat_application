@@ -54,4 +54,10 @@ abstract interface class ChatRepository{
     required String userId,
   });
 
+  Future<void> deleteMessage({
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    bool deleteForEveryone = false,
+  });
 }

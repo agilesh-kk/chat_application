@@ -1,6 +1,7 @@
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ConversationModel extends Conversation{
+class ConversationModel extends Conversation {
   
 
   ConversationModel({
@@ -25,12 +26,32 @@ class ConversationModel extends Conversation{
       convoId: id,
       receiverId: receiverDetails["receiverId"],
       lastMessage: map['lastMessage'],
-      lastupdateTime: map['lastupdateTime'].toDate().toString(),
+      lastupdateTime: _parseLastUpdateTime(map['lastupdateTime']),
       receiverName: receiverDetails["receiverName"] ?? "unknown",
       profilepicLink: receiverDetails["receiverProfile"] ?? "not found",
       unread: map[userId]?['unread'] ?? 0,
       lastSender: map['lastSender'] ?? receiverDetails["receiverId"] ?? "",
     );
+  }
+
+  static String _parseLastUpdateTime(dynamic raw) {
+    if (raw == null) {
+      return "";
+    }
+
+    if (raw is String && raw.isNotEmpty) {
+      return raw;
+    }
+
+    if (raw is Timestamp) {
+      return raw.toDate().toString();
+    }
+
+    try {
+      return raw.toString();
+    } catch (_) {
+      return "";
+    }
   }
 
   Map<String,dynamic> toMap(String userId){

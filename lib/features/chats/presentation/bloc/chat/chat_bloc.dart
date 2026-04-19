@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
+import 'package:chat_application/features/chats/domain/usecase/delete_message.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
@@ -14,16 +15,24 @@ part "chat_states.dart";
 
 class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
-  final  GetMessages getMessages;
-  final  SendMessage sendMessage;
-  final SendImage sendImage;
+  final  GetMessages _getMessages;
+  final  SendMessage _sendMessage;
+  final SendImage _sendImage;
+  final DeleteMessage _deleteMessage;
   StreamSubscription<List<Message>>? _messageSub;
 
   ChatBloc({
-    required this.getMessages,
-    required this.sendMessage,
-    required this.sendImage
-  }) : super(ChatInitial()) {
+    required GetMessages getMessages,
+    required SendMessage sendMessage,
+    required SendImage sendImage,
+    required DeleteMessage deleteMessage,
+  })
+   :
+   _getMessages = getMessages,
+   _sendMessage = sendMessage,
+   _sendImage = sendImage,
+   _deleteMessage = deleteMessage, 
+   super(ChatInitial()) {
 
     on<Closechat>((event, emit)async {
       await _messageSub!.cancel();
@@ -54,7 +63,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         emit(ChatLoaded([localMessage, ...current.messages]));
 
         // ✅ 3. Call usecase (async)
-        await sendImage(
+        await _sendImage(
           SendImageParams(
             receiverId: event.receiverId,
             userId: event.userId,
@@ -73,8 +82,9 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       if(_messageSub!=null) {
         await _messageSub?.cancel();
       }
-
-      final stream = await getMessages(
+      
+      //getting messages
+      final stream = await _getMessages(
         GetMessageParams(
           receiverId: event.receiverId,
           userId: event.userId,
@@ -126,7 +136,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
       //if the message is scheduled
       if(event.isScheduled){
-        final res = await sendMessage(
+        final res = await _sendMessage(
           SendMessageParams(
             msgId: tempMessage.id,
             receiverId: event.receiverId,
@@ -151,7 +161,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     
 
       // 3️ Send to Firestore in background
-      final res = await sendMessage(
+      final res = await _sendMessage(
         SendMessageParams(
           msgId: tempMessage.id,
           receiverId: event.receiverId,
@@ -180,37 +190,39 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       emit(ChatLoaded(event.messages));
     });
 
+    on<DeleteMessageEvent>(_onDeleteMessageEvent);
+
   }
 
   void updateMessages(List<Message> received, emit) {
-  if (state is ChatLoaded) {
-    final currentState = state as ChatLoaded;
+    if (state is ChatLoaded) {
+      final currentState = state as ChatLoaded;
 
-    final Map<String, Message> messageMap = {};
+      final Map<String, Message> messageMap = {};
 
-    for (var msg in received) {
-      messageMap[msg.id] = msg;
-    }
-
-    for (var msg in currentState.messages) {
-      if (msg.isLocal && !messageMap.containsKey(msg.id)) {
+      for (var msg in received) {
         messageMap[msg.id] = msg;
       }
+
+      for (var msg in currentState.messages) {
+        if (msg.isLocal && !messageMap.containsKey(msg.id)) {
+          messageMap[msg.id] = msg;
+        }
+      }
+
+      List<Message> updated = messageMap.values.toList();
+
+      updated.sort((a, b) {
+        final aTime = a.createdAt;
+        final bTime = b.createdAt;
+        return bTime.compareTo(aTime);
+      });
+
+      add(MessagesUpdatedEvent(updated));
+    } else {
+      add(MessagesUpdatedEvent(received));
     }
-
-    List<Message> updated = messageMap.values.toList();
-
-    updated.sort((a, b) {
-      final aTime = a.createdAt;
-      final bTime = b.createdAt;
-      return bTime.compareTo(aTime);
-    });
-
-    add(MessagesUpdatedEvent(updated));
-  } else {
-    add(MessagesUpdatedEvent(received));
   }
-}
 
   String generateConversationId(String user1,String user2){
     final sorted = [user1, user2]..sort();
@@ -221,5 +233,27 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   Future<void> close() {
     _messageSub?.cancel();
     return super.close();
+  }
+
+  //event function for deleteMessage
+  FutureOr<void> _onDeleteMessageEvent(DeleteMessageEvent event, Emitter<ChatState> emit) async {
+    final res = await _deleteMessage(
+      DeleteMessageParams(
+        msgId: event.msgId,
+        userId: event.userId,
+        receiverId: event.receiverId,
+        deleteForEveryone: event.deleteForEveryone,
+      ),
+    );
+
+    res.fold(
+      (failure) {
+        emit(ChatError(failure.message));
+      },
+      (_) {
+        // If delete succeeds, the message stream should update automatically.
+        // No immediate state change is required here unless you want optimistic UI.
+      },
+    );
   }
 }

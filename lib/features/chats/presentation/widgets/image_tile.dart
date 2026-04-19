@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
+import 'package:chat_application/features/chats/presentation/widgets/message_options_helper.dart';
 import 'package:chat_application/features/chats/presentation/pages/image_page.dart';
 import 'package:flutter/material.dart';
 
@@ -11,6 +12,7 @@ class ImageMessageTile extends StatefulWidget {
   final CacheService cacheService;
   final bool isMe;
   final bool flash;
+  final VoidCallback? onDelete;
 
   const ImageMessageTile({
     super.key,
@@ -18,6 +20,7 @@ class ImageMessageTile extends StatefulWidget {
     required this.cacheService,
     required this.isMe,
     this.flash = false,
+    this.onDelete
   });
 
   @override
@@ -117,31 +120,50 @@ class _ImageMessageTileState extends State<ImageMessageTile>
   Widget build(BuildContext context) {
     super.build(context);
 
-    return ScaleTransition(
-      scale: _scale,
-      child: Align(
-        alignment:
-            widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin:
-              const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-          padding: const EdgeInsets.all(4),
-          constraints: const BoxConstraints(
-            maxWidth: 250,
-            maxHeight: 300,
-          ),
-          decoration: BoxDecoration(
-            color: widget.flash
-                ? Colors.yellow.withOpacity(0.3) // 🔥 highlight glow
-                : (widget.isMe
-                    ? const Color.fromARGB(255, 246, 152, 11)
-                    : Colors.grey[300]),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: _buildContent(context),
+    return GestureDetector(
+      onLongPressStart: (details) {
+        MessageOptionsTray.show(
+          context: context,
+          position: details.globalPosition,
+          messageId: widget.message.id,
+          content: widget.message.content,
+          isMe: widget.isMe,
+          msgType: "image",
+
+          onDelete: widget.onDelete,
+
+          onAddToTimeline: () {
+            print("Timeline: ${widget.message.id}");
+            // 🔥 time capsule logic
+          },
+        );
+      },
+      child: ScaleTransition(
+        scale: _scale,
+        child: Align(
+          alignment:
+              widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin:
+                const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(
+              maxWidth: 250,
+              maxHeight: 300,
+            ),
+            decoration: BoxDecoration(
+              color: widget.flash
+                  ? Colors.yellow.withOpacity(0.3) // 🔥 highlight glow
+                  : (widget.isMe
+                      ? const Color.fromARGB(255, 246, 152, 11)
+                      : Colors.grey[300]),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: _buildContent(context),
+            ),
           ),
         ),
       ),

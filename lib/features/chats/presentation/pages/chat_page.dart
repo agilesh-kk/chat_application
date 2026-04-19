@@ -5,6 +5,7 @@ import 'package:chat_application/features/chats/presentation/helper/cacheservice
 import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
+import 'package:chat_application/features/chats/presentation/widgets/delete_message_confirmation_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/send_options_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/time_capsule_picker.dart';
 import 'package:chat_application/features/timeline/presentation/pages/timeline_page.dart';
@@ -350,6 +351,32 @@ class _ChatPageState extends State<ChatPage> {
           isMe: isMe,
           animate: isAnimate!,
           highlight: flash,
+          onDelete: () {
+            DeleteMessageConfirmationDialog.show(
+              context,
+              messageContent: msg.content,
+              onDeleteForMe: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: msg.id,
+                        userId: widget.currentUserId,
+                        receiverId: widget.receiverId,
+                        deleteForEveryone: false,
+                      ),
+                    );
+              },
+              onDeleteForEveryone: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: msg.id,
+                        userId: widget.currentUserId,
+                        receiverId: widget.receiverId,
+                        deleteForEveryone: true,
+                      ),
+                    );
+              },
+            );
+          },
         );
       case "image":
         return ImageMessageTile(
@@ -358,6 +385,32 @@ class _ChatPageState extends State<ChatPage> {
           cacheService: widget.cacheService!,
           isMe: isMe,
           flash: flash,
+          onDelete: () {
+            DeleteMessageConfirmationDialog.show(
+              context,
+              messageContent: "📷 Image", // Since images don't have text content
+              onDeleteForMe: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: msg.id,
+                        userId: widget.currentUserId,
+                        receiverId: widget.receiverId,
+                        deleteForEveryone: false,
+                      ),
+                    );
+              },
+              onDeleteForEveryone: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: msg.id,
+                        userId: widget.currentUserId,
+                        receiverId: widget.receiverId,
+                        deleteForEveryone: true,
+                      ),
+                    );
+              },
+            );
+          },
         );
       default:
         return const SizedBox();

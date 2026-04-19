@@ -12,6 +12,7 @@ import 'package:chat_application/features/chats/data/datasources/chat_local_data
 import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources.dart';
 import 'package:chat_application/features/chats/data/repository/chat_repository_impl.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
+import 'package:chat_application/features/chats/domain/usecase/delete_message.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_scheduled_messages.dart';
@@ -253,12 +254,18 @@ void _initChat()async {
       chatRepository: serviceLocator<ChatRepository>(),
     )
   )
+  ..registerFactory(
+    ()=> DeleteMessage(
+      chatRepository: serviceLocator<ChatRepository>()
+    )
+  )
 
   ..registerLazySingleton(
     () => ChatBloc(
       sendImage: serviceLocator(),
       getMessages: serviceLocator(),
-      sendMessage: serviceLocator()
+      sendMessage: serviceLocator(),
+      deleteMessage: serviceLocator(),
     )
   )
 
