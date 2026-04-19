@@ -54,6 +54,7 @@ class ConversationPage extends StatelessWidget {
                   lastMessage: convo.lastMessage, 
                   profilePic: convo.profilepicLink, 
                   lastUpdateTime: convo.lastupdateTime,
+                  lastSender: convo.lastSender == userId ? "you" : "",
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
 

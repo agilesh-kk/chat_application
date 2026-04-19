@@ -10,7 +10,8 @@ class ConversationModel extends Conversation{
     required super.lastMessage,
     required super.lastupdateTime,
     required super.receiverName,
-    required super.profilepicLink
+    required super.profilepicLink,
+    required super.lastSender,
   });
 
   factory ConversationModel.fromJson(
@@ -28,6 +29,7 @@ class ConversationModel extends Conversation{
       receiverName: receiverDetails["receiverName"] ?? "unknown",
       profilepicLink: receiverDetails["receiverProfile"] ?? "not found",
       unread: map[userId]?['unread'] ?? 0,
+      lastSender: map['lastSender'] ?? receiverDetails["receiverId"] ?? "",
     );
   }
 
@@ -41,6 +43,7 @@ class ConversationModel extends Conversation{
       },
       "lastMessage": lastMessage,
       "lastupdateTime": lastupdateTime,
+      "lastSender": lastSender,
     };
   }
 }

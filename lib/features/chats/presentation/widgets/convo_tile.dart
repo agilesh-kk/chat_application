@@ -7,6 +7,7 @@ class ConvoTile extends StatelessWidget {
   final String lastUpdateTime;
   final String lastMessage;
   final int unread;
+  final String lastSender;
   final GestureTapCallback onTap;
 
   const ConvoTile({
@@ -16,6 +17,7 @@ class ConvoTile extends StatelessWidget {
     required this.lastMessage,
     required this.profilePic,
     required this.lastUpdateTime,
+    required this.lastSender,
     required this.onTap,
   });
 
@@ -57,7 +59,8 @@ class ConvoTile extends StatelessWidget {
                   const SizedBox(height: 4),
 
                   Text(
-                    lastMessage,
+                    //"$lastSender: $lastMessage",
+                    lastSender.isEmpty? lastMessage : "you: $lastMessage",//if user shows you, others empty string
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

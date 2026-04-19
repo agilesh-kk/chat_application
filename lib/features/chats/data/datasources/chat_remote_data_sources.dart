@@ -170,6 +170,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           "participantsId": [userId, receiverId],
           "lastMessage": (type == "text") ? content : "📷Image",
           "lastupdateTime": FieldValue.serverTimestamp(),
+          "lastSender": userId, //updates which user sends the last message
 
           // sender view
           userId: {
