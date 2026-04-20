@@ -30,7 +30,7 @@ class ConversationModel extends Conversation {
       receiverName: receiverDetails["receiverName"] ?? "unknown",
       profilepicLink: receiverDetails["receiverProfile"] ?? "not found",
       unread: map[userId]?['unread'] ?? 0,
-      lastSender: map['lastSender'] ?? receiverDetails["receiverId"] ?? "",
+      lastSender: map['lastSender'] ?? "",
     );
   }
 

@@ -47,7 +47,7 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scheduled Messages'),
+        title: const Text('Time capsules'),
       ),
       body: BlocBuilder<TimeCapsuleBloc, TimeCapsuleState>(
         builder: (context, state) {

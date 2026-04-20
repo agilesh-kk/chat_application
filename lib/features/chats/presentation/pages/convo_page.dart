@@ -6,16 +6,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 
-class ConversationPage extends StatelessWidget {
+class ConversationPage extends StatefulWidget {
   final String userId;
 
   const ConversationPage({super.key, required this.userId});
 
   @override
+  State<ConversationPage> createState() => _ConversationPageState();
+}
+
+class _ConversationPageState extends State<ConversationPage> {
+  @override
   Widget build(BuildContext context) {
 
     context.read<ConversationBloc>()
-        .add(LoadConversationsEvent(userId));
+        .add(LoadConversationsEvent(widget.userId));
 
     return Scaffold(
       appBar: AppBar(
@@ -54,9 +59,9 @@ class ConversationPage extends StatelessWidget {
                   lastMessage: convo.lastMessage, 
                   profilePic: convo.profilepicLink, 
                   lastUpdateTime: convo.lastupdateTime,
-                  lastSender: convo.lastSender == userId ? "you" : "",
+                  lastSender: convo.lastSender == widget.userId ? "you" : "",
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
+                    Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
 
                   },
                 );
