@@ -27,7 +27,7 @@ class MessageModel extends Message {
       status: map['status'] ?? "read",
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       type: map['type'] ?? "text",
-      deletedfor: List<String>.from(map['deletedFor'] ?? []),
+      deletedfor: List<String>.from(map['deletedfor'] ?? []),
       sendAt: map['sendAt'] != null
         ? (map['sendAt'] as Timestamp).toDate()
         : null,
@@ -41,7 +41,7 @@ class MessageModel extends Message {
       "content": content,
       "createdAt": Timestamp.fromDate(createdAt),
       "status": status,
-      "deletedFor": deletedfor,
+      "deletedfor": deletedfor,
       "type": type,
       "isScheduled": sendAt != null,
     };

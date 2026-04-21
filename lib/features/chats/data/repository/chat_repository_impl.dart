@@ -58,7 +58,7 @@ class ChatRepositoryImpl implements ChatRepository {
     String? userProfile,
   }) async {
     try {
-      final localPath = chatLocalDataSource.saveImage(file, msgId);
+      //final localPath = chatLocalDataSource.saveImage(file, msgId);
 
       final imageUrl = await chatRemoteDataSources.uploadImage(
         file: file,

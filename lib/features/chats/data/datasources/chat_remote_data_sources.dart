@@ -82,9 +82,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .snapshots()
         .map((snapshot) {
           markMessagesDelivered(userId, receiverId);
-          return snapshot.docs.map((doc) {
-            return MessageModel.fromJson(doc.data(), doc.id);
-          }).toList();
+
+          //filtering out the deleted for messages.
+          return snapshot.docs
+            .map((doc) => MessageModel.fromJson(doc.data(), doc.id))
+            .where((msg) => !msg.deletedfor.contains(userId))
+            .toList();
         });
   }
 
@@ -100,10 +103,11 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .orderBy("createdAt", descending: true)
         .snapshots()
         .map((snapshot) {
-          markMessagesDelivered(userId, receiverId);
-          return snapshot.docs.map((doc) {
-            return MessageModel.fromJson(doc.data(), doc.id);
-          }).toList();
+          //shows only the messages scheduled by the user.
+          return snapshot.docs
+            .map((doc) => MessageModel.fromJson(doc.data(), doc.id))
+            .where((msg) => msg.senderId == userId)
+            .toList();
         });
   }
 
@@ -176,7 +180,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       if (!isScheduled) {
         batch.set(convoRef, {
           "participantsId": [userId, receiverId],
-          "lastMessage": (type == "text") ? content : "📷Image",
+          "lastMessage": (type == "text") ? content : "📷Image", 
+          "lastMessageId": msgId, //adding the last message ID
           "lastupdateTime": FieldValue.serverTimestamp(),
           "lastSender": userId,
 
@@ -272,11 +277,111 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
   
   @override
   Future<void> deleteMessage({
-    required String msgId, 
-    required String userId, 
-    required String receiverId, 
-    bool deleteForEveryone = false
-  }) {
-    throw UnimplementedError();
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    bool deleteForEveryone = false,
+  }) async {
+    try {
+      final convoId = generateConversationId(userId, receiverId);
+
+      final convoRef =
+          firestore.collection("Conversations").doc(convoId);
+
+      final messageRef =
+          convoRef.collection("messages").doc(msgId);
+
+      final scheduledRef =
+          convoRef.collection("scheduled_messages").doc(msgId);
+
+      final messageSnap = await messageRef.get();
+      final scheduledSnap = await scheduledRef.get();
+
+      final isMessage = messageSnap.exists;
+      final isScheduled = scheduledSnap.exists;
+
+      if (!isMessage && !isScheduled) return;
+
+      final docRef = isMessage ? messageRef : scheduledRef;
+
+      WriteBatch batch = firestore.batch();
+
+      // 🔵 DELETE FOR ME (ONLY UPDATE THIS USER VIEW)
+      if (!deleteForEveryone) {
+        batch.update(docRef, {
+          "deletedfor": FieldValue.arrayUnion([userId]),
+        });
+
+        await batch.commit();
+        return; // 🚀 EXIT EARLY → no convo updates
+      }
+
+      // 🔴 DELETE FOR EVERYONE
+      batch.delete(docRef);
+
+      // ❗ Only handle conversation for NORMAL messages
+      if (isMessage) {
+        final convoSnap = await convoRef.get();
+
+        if (!convoSnap.exists) {
+          await batch.commit();
+          return;
+        }
+
+        final convoData = convoSnap.data()!;
+        final messageData = messageSnap.data()!;
+
+        final isLastMessage =
+            convoData["lastMessageId"] == msgId;
+
+        // ✅ 1. Update conversation ONLY if latest message
+        if (isLastMessage) {
+          final prevMessages = await convoRef
+              .collection("messages")
+              .orderBy("createdAt", descending: true)
+              .limit(2)
+              .get();
+
+          if (prevMessages.docs.length > 1) {
+            final newLast = prevMessages.docs[1];
+
+            batch.update(convoRef, {
+              "lastMessage":
+                  newLast["type"] == "text"
+                      ? newLast["content"]
+                      : "📷Image",
+              "lastMessageId": newLast.id,
+              "lastSender": newLast["senderId"],
+              "lastupdateTime": newLast["createdAt"],
+            });
+          } else {
+            // ❌ No messages left
+            batch.update(convoRef, {
+              "lastMessage": "",
+              "lastMessageId": "",
+              "lastSender": "",
+              "lastupdateTime": FieldValue.serverTimestamp(),
+            });
+          }
+        }
+
+        // ✅ 2. FIX unread count (ONLY if needed)
+        final isSender = messageData["senderId"] == userId;
+        final receiverUnread =
+            (convoData[receiverId]?["unread"] ?? 0);
+
+        final isUnread = messageData["status"] != "seen";
+
+        if (isSender && isUnread && receiverUnread > 0) {
+          batch.update(convoRef, {
+            "$receiverId.unread": FieldValue.increment(-1),
+          });
+        }
+      }
+
+      await batch.commit();
+    } catch (e) {
+      //print("Delete message error: $e");
+    }
   }
 }
