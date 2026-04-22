@@ -107,7 +107,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           //shows only the messages scheduled by the user.
           return snapshot.docs
             .map((doc) => MessageModel.fromJson(doc.data(), doc.id))
-            .where((msg) => msg.senderId == userId)
+            .where((msg) => msg.senderId == userId && (!msg.deletedfor.contains(userId) && !msg.deletedForEveryone))
             .toList();
         });
   }
@@ -388,7 +388,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       // =========================================================
       // 🔴 DELETE FOR EVERYONE
       // =========================================================
-      batch.delete(docRef);
+      //batch.delete(docRef);
+      batch.update(docRef, {
+        //"isDeleted": true,
+        "deletedForEveryone": true,
+        //"content": "This message was deleted",
+      });
 
       if (isMessage) {
         final convoSnap = await convoRef.get();
@@ -438,33 +443,41 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           batch.update(convoRef, {
             "lastupdateTime": FieldValue.serverTimestamp(),
 
-            // 🔵 USER VIEW
-            "$userId.lastMessage":
-                lastForUser != null
-                    ? (lastForUser.type == "text"
-                        ? lastForUser.content
-                        : "📷Image")
-                    : "",
-            "$userId.lastMessageId": lastForUser?.id ?? "",
-            "$userId.lastSender": lastForUser?.senderId ?? "",
-            "$userId.lastupdateTime":
-                lastForUser != null
-                    ? Timestamp.fromDate(lastForUser.createdAt)
-                    : FieldValue.serverTimestamp(),
+            //these codes are before adding deletedForEveryone field
+            // // 🔵 USER VIEW
+            // "$userId.lastMessage":
+            //     lastForUser != null
+            //         ? (lastForUser.type == "text"
+            //             ? lastForUser.content
+            //             : "📷Image")
+            //         : "",
+            // "$userId.lastMessageId": lastForUser?.id ?? "",
+            // "$userId.lastSender": lastForUser?.senderId ?? "",
+            // "$userId.lastupdateTime":
+            //     lastForUser != null
+            //         ? Timestamp.fromDate(lastForUser.createdAt)
+            //         : FieldValue.serverTimestamp(),
 
-            // 🔴 RECEIVER VIEW
-            "$receiverId.lastMessage":
-                lastForReceiver != null
-                    ? (lastForReceiver.type == "text"
-                        ? lastForReceiver.content
-                        : "📷Image")
-                    : "",
-            "$receiverId.lastMessageId": lastForReceiver?.id ?? "",
-            "$receiverId.lastSender": lastForReceiver?.senderId ?? "",
-            "$receiverId.lastupdateTime":
-                lastForReceiver != null
-                    ? Timestamp.fromDate(lastForReceiver.createdAt)
-                    : FieldValue.serverTimestamp(),
+            // // 🔴 RECEIVER VIEW
+            // "$receiverId.lastMessage":
+            //     lastForReceiver != null
+            //         ? (lastForReceiver.type == "text"
+            //             ? lastForReceiver.content
+            //             : "📷Image")
+            //         : "",
+            // "$receiverId.lastMessageId": lastForReceiver?.id ?? "",
+            // "$receiverId.lastSender": lastForReceiver?.senderId ?? "",
+            // "$receiverId.lastupdateTime":
+            //     lastForReceiver != null
+            //         ? Timestamp.fromDate(lastForReceiver.createdAt)
+            //         : FieldValue.serverTimestamp(),
+
+            //after adding deletedForEveryone field
+            "$userId.lastMessage": "This message was deleted",
+            "$userId.lastSender": messageData["senderId"],
+
+            "$receiverId.lastMessage": "This message was deleted",
+            "$receiverId.lastSender": messageData["senderId"],
           });
         }
 

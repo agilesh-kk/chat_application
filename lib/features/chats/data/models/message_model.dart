@@ -29,7 +29,7 @@ class MessageModel extends Message {
       createdAt: map['createdAt'] != null
         ? (map['createdAt'] as Timestamp).toDate()
         : DateTime.now(),
-      //deletedForEveryone: ,
+      deletedForEveryone: map['deletedForEveryone'] ?? false,
       type: map['type'] ?? "text",
       deletedfor: List<String>.from(map['deletedfor'] ?? []),
       sendAt: map['sendAt'] != null
@@ -46,6 +46,7 @@ class MessageModel extends Message {
       "createdAt": Timestamp.fromDate(createdAt),
       "status": status,
       "deletedfor": deletedfor,
+      "deletedForEveryone": deletedForEveryone ?? false, //delted for everyone parameter
       "type": type,
       "isScheduled": sendAt != null,
     };

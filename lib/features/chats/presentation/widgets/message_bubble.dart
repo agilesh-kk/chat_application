@@ -99,6 +99,7 @@ class _MessageBubbleState extends State<MessageBubble>
 
     return GestureDetector(
       onLongPressStart: (details) {
+        if (widget.message.deletedForEveryone == true) return ;
         MessageOptionsTray.show(
           context: context,
           position: details.globalPosition,
@@ -113,7 +114,7 @@ class _MessageBubbleState extends State<MessageBubble>
             //print("Timeline: ${widget.message.id}");
             
           },
-        );
+        );  
       },
       child: ScaleTransition(
         scale: scale,
@@ -145,12 +146,27 @@ class _MessageBubbleState extends State<MessageBubble>
                   spacing: 6,
                   children: [
                     /// MESSAGE TEXT
+                    //before deletedForEveryone Field
+                    // Text(
+                    //   widget.message.content,
+                    //   style: TextStyle(
+                    //     fontSize: 15,
+                    //     color:
+                    //         widget.isMe ? Colors.white : Colors.black,
+                    //   ),
+                    // ),
+
+                    //after deletedForEveryone Field
                     Text(
-                      widget.message.content,
+                      widget.message.deletedForEveryone
+                          ? "This message was deleted"
+                          : widget.message.content,
                       style: TextStyle(
                         fontSize: 15,
-                        color:
-                            widget.isMe ? Colors.white : Colors.black,
+                        fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
+                        color: widget.message.deletedForEveryone
+                            ? Colors.grey
+                            : (widget.isMe ? Colors.white : Colors.black),
                       ),
                     ),
             

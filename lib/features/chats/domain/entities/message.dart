@@ -5,7 +5,7 @@ class Message{
   final DateTime createdAt;
   final String type;
   final List<String> deletedfor;
-  final bool? deletedForEveryone;
+  final bool deletedForEveryone;
   final bool isLocal;
   final String status; 
   final String? localPath;
@@ -18,7 +18,7 @@ class Message{
     required this.content,
     required this.createdAt,
     required this.deletedfor,
-    this.deletedForEveryone,
+    this.deletedForEveryone = false,
     required this.status,
     this.isLocal = false,
     this.type = "text",

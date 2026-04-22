@@ -352,7 +352,7 @@ class _ChatPageState extends State<ChatPage> {
           isMe: isMe,
           animate: isAnimate!,
           highlight: flash,
-          onDelete: () {
+          onDelete: () { 
             DeleteMessageConfirmationDialog.show(
               context,
               messageContent: msg.content,
@@ -376,7 +376,7 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                     );
               },
-            );
+            ); 
           },
         );
       case "image":
