@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'conversation_events.dart';
@@ -9,45 +10,71 @@ part 'conversation_states.dart';
 
 class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   final GetConversations getConversations;
+
   StreamSubscription<List<Conversation>>? _convoSub;
 
-  ConversationBloc(
-    {
-      required this.getConversations
-    }
-  ) : super(ConversationInitial()) {
+  ConversationBloc({
+    required this.getConversations,
+  }) : super(ConversationInitial()) {
 
-    // Load all conversations
+    // =========================================================
+    // 🔥 LOAD CONVERSATIONS
+    // =========================================================
     on<LoadConversationsEvent>((event, emit) async {
-  emit(ConversationLoading());
+      emit(ConversationLoading());
 
-  try {
-    final conversationsStreamEither = await getConversations(event.userId);
+      // Cancel previous stream if exists
+      await _convoSub?.cancel();
 
-    // Use fold synchronously
-    await conversationsStreamEither.fold(
-      (failure) async {
-        // Left (failure)
-        emit(ConversationError(failure.message));
-      },
-      (convoStream) async {
-        // Right (Stream<List<Conversation>>)
-        await emit.forEach<List<Conversation>>(
-          convoStream,
-          onData: (convos) => ConversationLoaded(conversations: convos),
-          onError: (error, stackTrace) => ConversationError(error.toString()),
+      try {
+        final result = await getConversations(event.userId);
+
+        result.fold(
+          (failure) {
+            emit(ConversationError(failure.message));
+          },
+          (convoStream) {
+            _convoSub = convoStream.listen(
+              (convos) {
+                //print("📦 BLOC RECEIVED: ${convos.length}");
+                
+                add(_ConversationUpdated(convos));
+              },
+              onError: (error) {
+                add(_ConversationErrorEvent(error.toString()));
+              },
+            );
+          },
         );
-      },
-    );
+      } catch (e) {
+        emit(ConversationError(e.toString()));
+      }
+    });
 
-  } catch (e) {
-    emit(ConversationError(e.toString()));
-  }
-});
+    // =========================================================
+    // 🔥 HANDLE STREAM DATA
+    // =========================================================
+    on<_ConversationUpdated>((event, emit) {
+      //print("🚀 EMITTING STATE");
+      emit(ConversationLoaded(
+        
+        conversations: List.from(event.convos), // 🔥 IMPORTANT
+      ));
+    });
 
-    // Select a conversation
+    // =========================================================
+    // 🔥 HANDLE STREAM ERROR
+    // =========================================================
+    on<_ConversationErrorEvent>((event, emit) {
+      emit(ConversationError(event.message));
+    });
+
+    // =========================================================
+    // 🔥 SELECT CONVERSATION
+    // =========================================================
     on<ConversationSelectedEvent>((event, emit) {
       final currentState = state;
+
       if (currentState is ConversationLoaded) {
         emit(ConversationLoaded(
           conversations: currentState.conversations,
@@ -55,5 +82,14 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         ));
       }
     });
-}
+  }
+
+  // =========================================================
+  // 🔥 CLEANUP
+  // =========================================================
+  @override
+  Future<void> close() {
+    _convoSub?.cancel();
+    return super.close();
+  }
 }

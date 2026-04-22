@@ -17,10 +17,18 @@ class ConversationPage extends StatefulWidget {
 
 class _ConversationPageState extends State<ConversationPage> {
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
 
     context.read<ConversationBloc>()
         .add(LoadConversationsEvent(widget.userId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+
+    // context.read<ConversationBloc>()
+    //     .add(LoadConversationsEvent(widget.userId));
 
     return Scaffold(
       appBar: AppBar(
@@ -36,6 +44,8 @@ class _ConversationPageState extends State<ConversationPage> {
       ),
       body: BlocBuilder<ConversationBloc, ConversationState>(
         builder: (context, state) {
+          //print("🖥 UI REBUILD: ${state.runtimeType}");
+          
 
           if (state is ConversationLoading) {
             return const Loader();
@@ -43,7 +53,7 @@ class _ConversationPageState extends State<ConversationPage> {
 
           if (state is ConversationLoaded) {
             final conversations = state.conversations;
-
+            print(conversations.first.receiverName);
             if (conversations.isEmpty) {
               return const Center(child: Text("No chats yet"));
             }
@@ -61,9 +71,12 @@ class _ConversationPageState extends State<ConversationPage> {
                   lastUpdateTime: convo.lastupdateTime,
                   lastSender: convo.lastSender == widget.userId ? "you" : "",
                   onTap: () {
+                    // print("LAST MESSAGE: ${convo.lastMessage}");
+                    // print("TIME: ${convo.lastupdateTime}");
                     Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
 
                   },
+                  
                 );
               },
             );

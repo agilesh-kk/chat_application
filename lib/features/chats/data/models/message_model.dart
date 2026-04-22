@@ -9,6 +9,7 @@ class MessageModel extends Message {
     required super.content,
     required super.createdAt,
     required super.deletedfor,
+    super.deletedForEveryone,
     required super.status,
     super.type,
     super.isLocal,
@@ -25,7 +26,10 @@ class MessageModel extends Message {
       senderId: map['senderId'],
       content: map['content'],
       status: map['status'] ?? "read",
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      createdAt: map['createdAt'] != null
+        ? (map['createdAt'] as Timestamp).toDate()
+        : DateTime.now(),
+      //deletedForEveryone: ,
       type: map['type'] ?? "text",
       deletedfor: List<String>.from(map['deletedfor'] ?? []),
       sendAt: map['sendAt'] != null

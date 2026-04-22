@@ -16,21 +16,22 @@ class ConversationModel extends Conversation {
   });
 
   factory ConversationModel.fromJson(
-    Map<String,dynamic> map,
+    Map<String, dynamic> map,
     String id,
-    String userId
-  ){
-    final receiverDetails = map[userId];
+    String userId,
+  ) {
+    final userData = map[userId] ?? {};
 
     return ConversationModel(
       convoId: id,
-      receiverId: receiverDetails["receiverId"],
-      lastMessage: map['lastMessage'],
-      lastupdateTime: _parseLastUpdateTime(map['lastupdateTime']),
-      receiverName: receiverDetails["receiverName"] ?? "unknown",
-      profilepicLink: receiverDetails["receiverProfile"] ?? "not found",
-      unread: map[userId]?['unread'] ?? 0,
-      lastSender: map['lastSender'] ?? "",
+      receiverId: userData["receiverId"] ?? "",
+      lastMessage: userData["lastMessage"] ?? "",
+      lastupdateTime:
+          _parseLastUpdateTime(userData["lastupdateTime"]),
+      receiverName: userData["receiverName"] ?? "unknown",
+      profilepicLink: userData["receiverProfile"] ?? "",
+      unread: userData["unread"] ?? 0,
+      lastSender: userData["lastSender"] ?? "",
     );
   }
 

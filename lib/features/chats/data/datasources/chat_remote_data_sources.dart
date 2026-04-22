@@ -64,6 +64,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
+            //print("🔥 SNAPSHOT TRIGGERED: ${snapshot.docs.length}");
             return ConversationModel.fromJson(doc.data(), doc.id, userId);
           }).toList();
         });
@@ -180,25 +181,34 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       if (!isScheduled) {
         batch.set(convoRef, {
           "participantsId": [userId, receiverId],
-          "lastMessage": (type == "text") ? content : "📷Image", 
-          "lastMessageId": msgId, //adding the last message ID
-          "lastupdateTime": FieldValue.serverTimestamp(),
-          "lastSender": userId,
 
-          // sender view
+          // 🔥 ROOT (for sorting)
+          "lastupdateTime": FieldValue.serverTimestamp(),
+
+          //per-user conversation model
           userId: {
             "receiverId": receiverId,
-            "receiverName": receiverData["name"] ?? "Unknown",
-            "receiverProfile": receiverData["profilePic"] ?? "Not Found",
+            "receiverName": receiverData["name"],
+            "receiverProfile": receiverData["profilePic"],
             "unread": 0,
+
+            // ✅ per-user last message
+            "lastMessage": content,
+            "lastMessageId": msgId,
+            "lastSender": userId,
+            "lastupdateTime": FieldValue.serverTimestamp(),
           },
 
-          // receiver view
           receiverId: {
             "receiverId": userId,
-            "receiverName": userName ?? "Unknown",
-            "receiverProfile": userProfile ?? "Not Found",
+            "receiverName": userName,
+            "receiverProfile": userProfile,
             "unread": FieldValue.increment(1),
+
+            "lastMessage": content,
+            "lastMessageId": msgId,
+            "lastSender": userId,
+            "lastupdateTime": FieldValue.serverTimestamp(),
           },
         }, SetOptions(merge: true));
       }
@@ -304,25 +314,84 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       final docRef = isMessage ? messageRef : scheduledRef;
 
-      WriteBatch batch = firestore.batch();
+      final batch = firestore.batch();
 
-      // 🔵 DELETE FOR ME (ONLY UPDATE THIS USER VIEW)
+      // =========================================================
+      // 🔵 DELETE FOR ME
+      // =========================================================
       if (!deleteForEveryone) {
         batch.update(docRef, {
           "deletedfor": FieldValue.arrayUnion([userId]),
         });
 
+        // Only normal messages affect conversation UI
+        if (isMessage) {
+          final convoSnap = await convoRef.get();
+          if (!convoSnap.exists) {
+            await batch.commit();
+            return;
+          }
+
+          final convoData = convoSnap.data()!;
+
+          final isLastMessage =
+              convoData[userId]?["lastMessageId"] == msgId;
+
+          if (isLastMessage) {
+            final messages = await convoRef
+                .collection("messages")
+                .orderBy("createdAt", descending: true)
+                .get();
+
+            MessageModel? newLast;
+
+            for (final doc in messages.docs) {
+              final msg =
+                  MessageModel.fromJson(doc.data(), doc.id);
+
+              if (!msg.deletedfor.contains(userId) &&
+                  msg.id != msgId) {
+                newLast = msg;
+                break;
+              }
+            }
+
+            if (newLast != null) {
+              batch.update(convoRef, {
+                "lastupdateTime": FieldValue.serverTimestamp(),
+                "$userId.lastMessage":
+                    newLast.type == "text"
+                        ? newLast.content
+                        : "📷Image",
+                "$userId.lastMessageId": newLast.id,
+                "$userId.lastSender": newLast.senderId,
+                "$userId.lastupdateTime":
+                    Timestamp.fromDate(newLast.createdAt),
+              });
+            } else {
+              batch.update(convoRef, {
+                "lastupdateTime": FieldValue.serverTimestamp(),
+                "$userId.lastMessage": "",
+                "$userId.lastMessageId": "",
+                "$userId.lastSender": "",
+                "$userId.lastupdateTime":
+                    FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        }
+
         await batch.commit();
-        return; // 🚀 EXIT EARLY → no convo updates
+        return;
       }
 
+      // =========================================================
       // 🔴 DELETE FOR EVERYONE
+      // =========================================================
       batch.delete(docRef);
 
-      // ❗ Only handle conversation for NORMAL messages
       if (isMessage) {
         final convoSnap = await convoRef.get();
-
         if (!convoSnap.exists) {
           await batch.commit();
           return;
@@ -332,49 +401,87 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         final messageData = messageSnap.data()!;
 
         final isLastMessage =
-            convoData["lastMessageId"] == msgId;
+            convoData[userId]?["lastMessageId"] == msgId ||
+            convoData[receiverId]?["lastMessageId"] == msgId;
 
-        // ✅ 1. Update conversation ONLY if latest message
+        // ✅ Update last message for BOTH users
         if (isLastMessage) {
-          final prevMessages = await convoRef
+          final messages = await convoRef
               .collection("messages")
               .orderBy("createdAt", descending: true)
-              .limit(2)
               .get();
 
-          if (prevMessages.docs.length > 1) {
-            final newLast = prevMessages.docs[1];
+          MessageModel? lastForUser;
+          MessageModel? lastForReceiver;
 
-            batch.update(convoRef, {
-              "lastMessage":
-                  newLast["type"] == "text"
-                      ? newLast["content"]
-                      : "📷Image",
-              "lastMessageId": newLast.id,
-              "lastSender": newLast["senderId"],
-              "lastupdateTime": newLast["createdAt"],
-            });
-          } else {
-            // ❌ No messages left
-            batch.update(convoRef, {
-              "lastMessage": "",
-              "lastMessageId": "",
-              "lastSender": "",
-              "lastupdateTime": FieldValue.serverTimestamp(),
-            });
+          for (final doc in messages.docs) {
+            final msg = MessageModel.fromJson(doc.data(), doc.id);
+
+            // 🔵 For current user
+            if (lastForUser == null &&
+                !msg.deletedfor.contains(userId) &&
+                msg.id != msgId) {
+              lastForUser = msg;
+            }
+
+            // 🔴 For receiver
+            if (lastForReceiver == null &&
+                !msg.deletedfor.contains(receiverId) &&
+                msg.id != msgId) {
+              lastForReceiver = msg;
+            }
+
+            if (lastForUser != null && lastForReceiver != null) break;
           }
+
+          // 🔥 Update conversation correctly
+          batch.update(convoRef, {
+            "lastupdateTime": FieldValue.serverTimestamp(),
+
+            // 🔵 USER VIEW
+            "$userId.lastMessage":
+                lastForUser != null
+                    ? (lastForUser.type == "text"
+                        ? lastForUser.content
+                        : "📷Image")
+                    : "",
+            "$userId.lastMessageId": lastForUser?.id ?? "",
+            "$userId.lastSender": lastForUser?.senderId ?? "",
+            "$userId.lastupdateTime":
+                lastForUser != null
+                    ? Timestamp.fromDate(lastForUser.createdAt)
+                    : FieldValue.serverTimestamp(),
+
+            // 🔴 RECEIVER VIEW
+            "$receiverId.lastMessage":
+                lastForReceiver != null
+                    ? (lastForReceiver.type == "text"
+                        ? lastForReceiver.content
+                        : "📷Image")
+                    : "",
+            "$receiverId.lastMessageId": lastForReceiver?.id ?? "",
+            "$receiverId.lastSender": lastForReceiver?.senderId ?? "",
+            "$receiverId.lastupdateTime":
+                lastForReceiver != null
+                    ? Timestamp.fromDate(lastForReceiver.createdAt)
+                    : FieldValue.serverTimestamp(),
+          });
         }
 
-        // ✅ 2. FIX unread count (ONLY if needed)
+        // 🔥 ADD THIS BLOCK HERE
+        batch.update(convoRef, {
+          "lastupdateTime": FieldValue.serverTimestamp(),
+        });
+
+        // ✅ Fix unread count safely
         final isSender = messageData["senderId"] == userId;
         final receiverUnread =
             (convoData[receiverId]?["unread"] ?? 0);
 
-        final isUnread = messageData["status"] != "seen";
-
-        if (isSender && isUnread && receiverUnread > 0) {
+        if (isSender && receiverUnread > 0) {
           batch.update(convoRef, {
-            "$receiverId.unread": FieldValue.increment(-1),
+            "$receiverId.unread":
+                FieldValue.increment(-1),
           });
         }
       }
