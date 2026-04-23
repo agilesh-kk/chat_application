@@ -58,7 +58,7 @@ class ChatRepositoryImpl implements ChatRepository {
     String? userProfile,
   }) async {
     try {
-      //final localPath = chatLocalDataSource.saveImage(file, msgId);
+      chatLocalDataSource.saveImage(file, msgId);
 
       final imageUrl = await chatRemoteDataSources.uploadImage(
         file: file,
@@ -77,7 +77,7 @@ class ChatRepositoryImpl implements ChatRepository {
 
       return right(null);
     } catch (e) {
-      print(e.toString());
+      //print(e.toString());
       return left(Failure(e.toString()));
     }
   }
@@ -144,6 +144,7 @@ class ChatRepositoryImpl implements ChatRepository {
     required String msgId,
     required String userId,
     required String receiverId,
+    required String type,
     bool deleteForEveryone = false,
   }) async {
     try {
@@ -153,6 +154,12 @@ class ChatRepositoryImpl implements ChatRepository {
         receiverId: receiverId,
         deleteForEveryone: deleteForEveryone,
       );
+
+      if(type == "image"){
+        //print(type);
+        await chatLocalDataSource.deleteImage(msgId);
+      }
+      
     } catch (e) {
       throw ServerExceptions(e.toString());
     }

@@ -171,6 +171,9 @@ class _ImageMessageTileState extends State<ImageMessageTile>
   }
 
   Widget _buildContent(BuildContext context) {
+    if (widget.message.deletedForEveryone == true) {
+      return _buildDeletedMessage();
+    }
     final msg = widget.message;
 
     if (isLoading) {
@@ -247,5 +250,27 @@ class _ImageMessageTileState extends State<ImageMessageTile>
     }
 
     return Icon(icon, size: 16, color: color);
+  }
+  
+  Widget _buildDeletedMessage() {
+    return Container(
+      height: 40,
+      width: 250,
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.block, size: 14, color: Colors.grey),
+          SizedBox(width: 4),
+          Text(
+            "This message was deleted",
+            style: TextStyle(
+              fontStyle: FontStyle.italic,
+              color: Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

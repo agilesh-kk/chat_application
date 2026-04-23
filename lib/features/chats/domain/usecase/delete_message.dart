@@ -15,6 +15,7 @@ class DeleteMessage implements UseCase<void, DeleteMessageParams>{
         userId: params.userId,
         receiverId: params.receiverId,
         deleteForEveryone: params.deleteForEveryone,
+        type: params.type,
       );
       return right(null);
     } catch (e) {
@@ -27,12 +28,14 @@ class DeleteMessageParams {
   final String msgId;
   final String userId;
   final String receiverId;
+  final String type;
   final bool deleteForEveryone;
 
   DeleteMessageParams({
     required this.msgId, 
     required this.userId, 
     required this.receiverId,
+    required this.type,
     required this.deleteForEveryone,
   });
 }

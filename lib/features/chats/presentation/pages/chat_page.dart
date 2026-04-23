@@ -361,6 +361,7 @@ class _ChatPageState extends State<ChatPage> {
                       DeleteMessageEvent(
                         msgId: msg.id,
                         userId: widget.currentUserId,
+                        type: msg.type,
                         receiverId: widget.receiverId,
                         deleteForEveryone: false,
                       ),
@@ -371,6 +372,7 @@ class _ChatPageState extends State<ChatPage> {
                       DeleteMessageEvent(
                         msgId: msg.id,
                         userId: widget.currentUserId,
+                        type: msg.type,
                         receiverId: widget.receiverId,
                         deleteForEveryone: true,
                       ),
@@ -395,6 +397,7 @@ class _ChatPageState extends State<ChatPage> {
                       DeleteMessageEvent(
                         msgId: msg.id,
                         userId: widget.currentUserId,
+                        type: msg.type,
                         receiverId: widget.receiverId,
                         deleteForEveryone: false,
                       ),
@@ -406,6 +409,7 @@ class _ChatPageState extends State<ChatPage> {
                         msgId: msg.id,
                         userId: widget.currentUserId,
                         receiverId: widget.receiverId,
+                        type: msg.type,
                         deleteForEveryone: true,
                       ),
                     );

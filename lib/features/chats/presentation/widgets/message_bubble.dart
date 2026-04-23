@@ -157,17 +157,26 @@ class _MessageBubbleState extends State<MessageBubble>
                     // ),
 
                     //after deletedForEveryone Field
-                    Text(
-                      widget.message.deletedForEveryone
-                          ? "This message was deleted"
-                          : widget.message.content,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
-                        color: widget.message.deletedForEveryone
-                            ? Colors.grey
-                            : (widget.isMe ? Colors.white : Colors.black),
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (widget.message.deletedForEveryone == true) ...[
+                          Icon(Icons.block, size: 14, color: Colors.grey),
+                          SizedBox(width: 4),
+                        ],
+                        Text(
+                          widget.message.deletedForEveryone
+                              ? "This message was deleted "
+                              : widget.message.content,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
+                            color: widget.message.deletedForEveryone
+                                ? Colors.grey
+                                : (widget.isMe ? Colors.white : Colors.black),
+                          ),
+                        ),
+                      ],
                     ),
             
                     /// TIME + STATUS

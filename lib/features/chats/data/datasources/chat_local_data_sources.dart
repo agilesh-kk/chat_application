@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 abstract interface class ChatLocalDataSource {
   Future<String> saveImage(File file, String msgId);
   Future<String?> getImage(String msgId);
+  Future<void> deleteImage(String msgId);
 }
 
 class ChatLocalDataSourceImpl implements ChatLocalDataSource {
@@ -33,5 +34,15 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
     if (await file.exists()) return path;
     return null;
+  }
+
+  @override
+  Future<void> deleteImage(String msgId) async {
+    final path = await _getPath(msgId);
+    final file = File(path);
+
+    if (await file.exists()) {
+      await file.delete();
+    }
   }
 }

@@ -59,12 +59,14 @@ class DeleteMessageEvent extends ChatEvent{
   final String msgId;
   final String userId;
   final String receiverId;
+  final String type;
   final bool deleteForEveryone;
 
   DeleteMessageEvent({
     required this.msgId, 
     required this.userId, 
-    required this.receiverId, 
+    required this.receiverId,
+    required this.type, 
     required this.deleteForEveryone
   });
 }

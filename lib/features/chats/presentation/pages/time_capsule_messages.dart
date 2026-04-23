@@ -130,6 +130,7 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
                       DeleteMessageEvent(
                         msgId: message.id,
                         userId: widget.currentUserId,
+                        type: message.type,
                         receiverId: widget.receiverId,
                         deleteForEveryone: false,
                       ),
@@ -140,6 +141,7 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
                       DeleteMessageEvent(
                         msgId: message.id,
                         userId: widget.currentUserId,
+                        type: message.type,
                         receiverId: widget.receiverId,
                         deleteForEveryone: true,
                       ),

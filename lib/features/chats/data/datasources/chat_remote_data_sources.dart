@@ -193,7 +193,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             "unread": 0,
 
             // ✅ per-user last message
-            "lastMessage": content,
+            "lastMessage": type == "text" ? content : "📷 Image",
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),
@@ -205,7 +205,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             "receiverProfile": userProfile,
             "unread": FieldValue.increment(1),
 
-            "lastMessage": content,
+            "lastMessage": type == "text" ? content : "📷 Image",
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),

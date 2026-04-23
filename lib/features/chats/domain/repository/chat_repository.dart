@@ -58,6 +58,7 @@ abstract interface class ChatRepository{
     required String msgId,
     required String userId,
     required String receiverId,
+    required String type,
     bool deleteForEveryone = false,
   });
 }

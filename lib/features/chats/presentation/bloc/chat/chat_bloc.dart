@@ -242,6 +242,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         msgId: event.msgId,
         userId: event.userId,
         receiverId: event.receiverId,
+        type: event.type,
         deleteForEveryone: event.deleteForEveryone,
       ),
     );
