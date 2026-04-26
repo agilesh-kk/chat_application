@@ -45,7 +45,7 @@ abstract interface class ChatRepository{
   });
 
   //Contract to fetch receiverName
-  Future<Either<Failure,User?>> searchUser({
+  Future<Either<Failure,List<User>>> searchUser({
     required String receiverName
   });
 

@@ -8,7 +8,7 @@ class SearchInitial extends SearchState {}
 class Searching extends SearchState {}
 
 class SearchFound extends SearchState {
-  final User? user;
+  final List<User> user;
   SearchFound({
     required this.user,
   });

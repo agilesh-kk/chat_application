@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_options_helper.dart';
 import 'package:chat_application/features/chats/presentation/pages/image_page.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ImageMessageTile extends StatefulWidget {
   final Message message;
@@ -14,13 +17,19 @@ class ImageMessageTile extends StatefulWidget {
   final bool flash;
   final VoidCallback? onDelete;
 
+  final String currentUserId;
+  final String receiverId;
+
   const ImageMessageTile({
     super.key,
     required this.message,
     required this.cacheService,
     required this.isMe,
     this.flash = false,
-    this.onDelete
+    this.onDelete,
+
+    required this.currentUserId,
+    required this.receiverId,
   });
 
   @override
@@ -132,10 +141,11 @@ class _ImageMessageTileState extends State<ImageMessageTile>
 
           onDelete: widget.onDelete,
 
-          onAddToTimeline: () {
-            print("Timeline: ${widget.message.id}");
-            // 🔥 time capsule logic
-          },
+          onAddToTimeline: !widget.message.inTimeline
+            ? () {
+                _showAddToTimelineDialog(widget.message);
+              }
+            : null,
         );
       },
       child: ScaleTransition(
@@ -166,6 +176,54 @@ class _ImageMessageTileState extends State<ImageMessageTile>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _showAddToTimelineDialog(Message msg) async {
+    final controller = TextEditingController();
+
+    final user = context.read<AppUserCubit>().state;
+
+    String userName = "Unknown";
+
+    if (user is AppUserIsSignedin) {
+      userName = user.user.name;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text("Add to Timeline"),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: "Add a note (optional)",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              //print("add event triggred");
+              Navigator.pop(context);
+
+              dialogContext.read<TimelineBloc>().add(
+                AddEvent(
+                  message: msg,
+                  userId: widget.currentUserId,
+                  receiverId: widget.receiverId,
+                  customTitle: controller.text.trim(),
+                  addedByName: userName,
+                ),
+              );
+            },
+            child: Text("Save"),
+          ),
+        ],
       ),
     );
   }
@@ -214,6 +272,14 @@ class _ImageMessageTileState extends State<ImageMessageTile>
             right: 5,
             child: _buildStatus(msg.status, widget.isMe),
           ),
+          Positioned(
+            bottom: 7,
+            right:20,
+            child: (widget.message.inTimeline) ?
+              Icon(Icons.favorite, size: 12, color: Colors.red) :
+              SizedBox(width: 4),
+              
+          )
         ],
       );
     }

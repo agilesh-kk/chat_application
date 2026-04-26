@@ -116,6 +116,8 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
     switch (message.type) {
       case 'text':
         return MessageBubble(
+          currentUserId: widget.currentUserId,
+          receiverId: widget.receiverId,
           key: ValueKey(message.id),
           message: message,
           isMe: isMe,

@@ -1,16 +1,27 @@
+import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
+import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/timeline/data/models/event_model.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fpdart/fpdart.dart';
 
 abstract interface class TimelineRemoteDataSources {
-    Future<List<Event>> getEvents({
+  Future<List<Event>> getEvents({
     required String userId,
     required String receiverId,
   });
 
-  Future<List<Event>> refreshAndfetchEvents({
+  Future<void> addEvent({
+    required Message message,
+    required String userId,
+    required String receiverId,
+    required String customTitle,
+    required String addedByName,
+  });
+
+  Future<void> removeEvent({
+    required String eventId,
+    required String messageId,
     required String userId,
     required String receiverId,
   });
@@ -42,230 +53,106 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources{
            
   }
 
-  Future<void> migrateIndexes({
-  required String userId,
-  required String receiverId,
-}) async {
-  final convoId = generateConversationId(userId, receiverId);
-
-  final messagesRef = FirebaseFirestore.instance
-      .collection("Conversations")
-      .doc(convoId)
-      .collection("messages");
-
-  const int limit = 200;
-
-  DocumentSnapshot? lastDoc;
-  int index = 1;
-
-  while (true) {
-    Query query = messagesRef
-        .orderBy("createdAt")
-        .limit(limit);
-
-    if (lastDoc != null) {
-      query = query.startAfterDocument(lastDoc);
-    }
-
-    final snapshot = await query.get();
-
-    if (snapshot.docs.isEmpty) break;
-
-    final batch = FirebaseFirestore.instance.batch();
-
-    for (var doc in snapshot.docs) {
-      batch.update(doc.reference, {
-        "index": index,
-      });
-      index++;
-    }
-
-    await batch.commit();
-
-    lastDoc = snapshot.docs.last;
-
-    if (snapshot.docs.length < limit) break;
+  String generateConversationId(String user1,String user2){
+    final sorted = [user1, user2]..sort();
+    return "${sorted[0]}_${sorted[1]}";
   }
-}
-
-  @override
-Future<List<Event>> refreshAndfetchEvents({
-  required String userId,
-  required String receiverId,
-}) async {
-  await migrateIndexes(userId: userId, receiverId: receiverId);
-
-  try{
-  final convoId = generateConversationId(userId, receiverId);
   
-
-    final messagesRef = firebaseFirestore
-        .collection("Conversations")
-        .doc(convoId)
-        .collection("messages");
+  @override
+  Future<void> addEvent({
+    required Message message,
+    required String userId,
+    required String receiverId,
+    required String customTitle,
+    required String addedByName,
+  }) async {
+    final convoId = generateConversationId(userId, receiverId);
 
     final timelineRef = firebaseFirestore
         .collection("Conversations")
         .doc(convoId)
         .collection("timeline");
 
-    await firebaseFirestore.runTransaction((transaction) async {
-      try{
-      final unIndexedQuery = await messagesRef
-          .where("index", isNull: true)
-          .orderBy("createdAt")
-          .get();
+    final eventId = "${message.id}_manual";
 
-      if (unIndexedQuery.docs.isEmpty) return;
+    await timelineRef.doc(eventId).set({
+      "id": eventId,
+      "messageId": message.id,
 
-      final lastIndexedQuery = await messagesRef
-          .orderBy("index", descending: true)
-          .limit(1)
-          .get();
+      // 🔥 USER INPUT
+      "title": customTitle.isEmpty
+          ? "Saved a memory ❤️"
+          : customTitle,
 
-      int currentIndex = lastIndexedQuery.docs.isEmpty
-          ? 0
-          : (lastIndexedQuery.docs.first.data()["index"] ?? 0);
+      "content": message.content,
+      "type": message.type,
+      "time": message.createdAt,
 
-      for (var doc in unIndexedQuery.docs) {
-        currentIndex++;
-        transaction.update(doc.reference, {
-          "index": currentIndex,
-        });
-      }
-      }catch(e){
-        print(e.toString());
-      }
+      // 🔥 NEW FIELDS
+      "addedBy": userId,
+      "addedByName": addedByName,
+      "isManual": true,
     });
 
-    await deleteCollection(timelineRef);
+    final messageRef = firebaseFirestore
+      .collection("Conversations")
+      .doc(convoId)
+      .collection("messages")
+      .doc(message.id);
 
-    final tr = firebaseFirestore
-        .collection("Conversations")
-        .doc(convoId)
-        .collection("timeline");
-
-    await event_generator(messagesRef, tr);
-
-
-  }catch(e){
-    rethrow;
-  }
-
-
-    return await getEvents(
-      userId: userId,
-      receiverId: receiverId,
-    );
-}
-
-Future<void> deleteCollection(CollectionReference collection) async {
-  const int batchSize = 100;
-
-  QuerySnapshot snapshot = await collection.limit(batchSize).get();
-
-  while (snapshot.docs.isNotEmpty) {
-    final batch = FirebaseFirestore.instance.batch();
-
-    for (var doc in snapshot.docs) {
-      batch.delete(doc.reference);
-    }
-
-    await batch.commit();
-
-    snapshot = await collection.limit(batchSize).get();
-  }
-}
-
-
-  Future<void> event_generator(final messagesRef, final timelineRef)async {
-    final messagesSnapshot =
-    await messagesRef.orderBy("index").get();
-
-    final rulesSnapshot = await firebaseFirestore
-        .collection("timeline_rules")
-        .where("enabled", isEqualTo: true)
-        .get();
-
-    final batch = firebaseFirestore.batch();
-
-    Map<String, int> counters = {};
-
-    for (var doc in messagesSnapshot.docs) {
-      final data = doc.data();
-      final int index = data["index"];
-      final DateTime time =
-          (data["createdAt"] as Timestamp).toDate();
-
-      for (var ruleDoc in rulesSnapshot.docs) {
-        final rule = ruleDoc.data();
-        final String ruleId = ruleDoc.id;
-
-        final conditions = rule["conditions"] ?? {};
-        print(conditions);
-
-        bool shouldCreate = true;
-
-        // messageType filter
-        if (conditions.containsKey("messageType")) {
-          if (data["type"] != conditions["messageType"]) {
-            shouldCreate = false;
-          }
-        }
-
-        if (!shouldCreate) continue;
-
-        // counter per rule
-        counters[ruleId] = (counters[ruleId] ?? 0) + 1;
-
-        // interval condition
-        if (conditions.containsKey("interval")) {
-          final int interval = conditions["interval"];
-
-          if (counters[ruleId]! % interval != 0) {
-            shouldCreate = false;
-          }
-        }
-
-        // occurrence condition
-        if (conditions.containsKey("occurrence")) {
-          if (counters[ruleId] != conditions["occurrence"]) {
-            shouldCreate = false;
-          }
-        }
-
-        if (!shouldCreate) continue;
-
-        final eventId = "${doc.id}_$ruleId";
-
-          String title = rule["title"] ?? "";
-          String content = rule["content"] ?? data["content"];
-
-          title = title.replaceAll("{index}", index.toString());
-          content = content.replaceAll("{index}", index.toString());
-
-          final event = EventModel(
-            id: eventId,
-            title: title,
-            content: content,
-            type: data["type"],
-            time: time,
-            index: index,
-          );
-
-          batch.set(
-            timelineRef.doc(eventId),
-            event.toJson(),
-          );
-      }
-    }
-
-    await batch.commit();
-  }
-
-  String generateConversationId(String user1,String user2){
-    final sorted = [user1, user2]..sort();
-    return "${sorted[0]}_${sorted[1]}";
+    await messageRef.update({
+      "inTimeline": true, // 🔥 NEW FIELD
+    });
   }
   
+  @override
+  Future<void> removeEvent({
+    required String eventId, 
+    required String messageId, 
+    required String userId, 
+    required String receiverId
+  }) async {
+    try{
+      final convoId = generateConversationId(userId, receiverId);
+
+      final convoRef = firebaseFirestore
+        .collection("Conversations")
+        .doc(convoId);
+
+      final timelineRef = convoRef
+        .collection("timeline")
+        .doc(eventId);
+      
+      final messageRef = convoRef
+        .collection("messages")
+        .doc(messageId);
+
+      await firebaseFirestore.runTransaction((transaction) async {
+        // 🔹 1. Delete timeline event
+        final eventSnap = await transaction.get(timelineRef);
+
+        if (!eventSnap.exists) return;
+
+        transaction.delete(timelineRef);
+
+        // 🔹 2. Check if message still has OTHER timeline events
+        final timelineQuery = await convoRef
+            .collection("timeline")
+            .where("messageId", isEqualTo: messageId)
+            .get();
+
+        // ❗ If only 1 event existed → now removed → set false
+        if (timelineQuery.docs.length <= 1) {
+          transaction.set(
+            messageRef,
+            {"inTimeline": false},
+            SetOptions(merge: true),
+          );
+        }
+      });
+    }
+    catch(e){
+      throw ServerExceptions(e.toString());
+    }
+  }
 }

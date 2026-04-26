@@ -38,9 +38,15 @@ class MessageOptionsTray {
           ),
 
         //adding to timeline
-        const PopupMenuItem(
+        // ✅ ONLY show if callback exists
+        PopupMenuItem(
           value: 'timeline',
-          child: Text('Add to Timeline'),
+          enabled: onAddToTimeline != null, // 🔥 key line
+          child: Text(
+            onAddToTimeline != null
+                ? 'Add to Timeline'
+                : 'Already in Timeline',
+          ),
         ),
       ],
     );

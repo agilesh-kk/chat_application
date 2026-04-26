@@ -1,17 +1,21 @@
-
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EventModel extends Event{
-  EventModel(
-    {
+  EventModel({
     required super.id,
     required super.title, 
     required super.content, 
     required super.type, 
     required super.time, 
-    required super.index
-    });
+    required super.index,
+
+    //manual adding
+    required super.messageId,
+    required super.addedBy,
+    required super.addedByName,
+    required super.isManual,
+  });
 
   factory EventModel.fromJson(
     Map<String,dynamic> map,
@@ -20,10 +24,15 @@ class EventModel extends Event{
     return EventModel(
       id: id,
       title: map["title"],
-      index: map["index"],
+      index: (map["index"] ?? 0) as int,
       content: map["content"],
       type: map["type"],
-      time: (map["time"] as Timestamp).toDate()
+      time: (map["time"] as Timestamp).toDate(),
+
+      messageId: map["messageId"] ?? "",
+      addedBy: map["addedBy"] ?? "",
+      addedByName: map["addedByName"] ?? "",
+      isManual: map["isManual"] ?? false,
     );
   }
 
@@ -35,7 +44,12 @@ class EventModel extends Event{
       "index" : index,
       "content" : content,
       "type" : type,
-      "time" : time
+      "time" : time,
+
+      "messageId": messageId,
+      "addedBy": addedBy,
+      "addedByName": addedByName,
+      "isManual": isManual,
     };
   }
   

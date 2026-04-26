@@ -11,6 +11,7 @@ class Message{
   final String? localPath;
   final DateTime? sendAt;
   final bool? isScheduled;
+  final bool inTimeline;
 
   Message({
     required this.id,
@@ -25,5 +26,6 @@ class Message{
     this.localPath,
     this.sendAt,
     this.isScheduled,
+    this.inTimeline=false,
   });
 }

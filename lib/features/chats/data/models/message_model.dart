@@ -15,6 +15,7 @@ class MessageModel extends Message {
     super.isLocal,
     super.sendAt,
     super.isScheduled,
+    super.inTimeline,
   });
 
   factory MessageModel.fromJson(
@@ -36,6 +37,7 @@ class MessageModel extends Message {
         ? (map['sendAt'] as Timestamp).toDate()
         : null,
       isScheduled: map['isScheduled'] ?? false,
+      inTimeline: map["inTimeline"] ?? false,
     );
   }
 
@@ -49,6 +51,7 @@ class MessageModel extends Message {
       "deletedForEveryone": deletedForEveryone ?? false, //delted for everyone parameter
       "type": type,
       "isScheduled": sendAt != null,
+      "inTimeline": inTimeline,
     };
 
     if (sendAt != null) {

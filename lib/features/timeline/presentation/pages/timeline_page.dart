@@ -1,8 +1,7 @@
-import 'package:chat_application/core/utils/moments_ago.dart';
-import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_bubble.dart';
+import 'package:chat_application/features/timeline/presentation/widgets/timeline_options_tray.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,70 +23,64 @@ class TimelinePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: ()async {
-        if(tb.state is TimelineLoaded) {
-          tb.add(RefreshTimelineEvent(userId: userId, receiverId: receiverId));
-        }
-        
-        await tb.stream.firstWhere(
-          (state) => state is TimelineLoaded || state is TimelineError,
-        );
-      },
-      child: Scaffold(
-        appBar: AppBar(title: const Text("Timeline")),
-        floatingActionButton: FloatingActionButton(
-          shape: CircleBorder(),
-          backgroundColor: const Color.fromARGB(255, 246, 144, 11),
-          foregroundColor: Colors.white,
-          onPressed: () {
-            tb.add(
-              RefreshTimelineEvent(
-                userId: userId,
-                receiverId: receiverId,
-              ),
-            );
+    return Scaffold(
+      appBar: AppBar(title: const Text("Timeline")),
+      // floatingActionButton: FloatingActionButton(
+      //   shape: CircleBorder(),
+      //   backgroundColor: const Color.fromARGB(255, 246, 144, 11),
+      //   foregroundColor: Colors.white,
+      //   onPressed: () {
+      //     tb.add(
+      //       RefreshTimelineEvent(
+      //         userId: userId,
+      //         receiverId: receiverId,
+      //       ),
+      //     );
+      //   },
+      //   child: const Icon(Icons.refresh),
+      // ),
+      body: BlocProvider(
+        create: (context) { tb = serviceLocator<TimelineBloc>()
+          ..add(
+            FetchTimelineEvent(
+              userId: userId,
+              receiverId: receiverId,
+            ),
+          );
+          return tb;
+        },
+        child: BlocBuilder<TimelineBloc, TimelineState>(
+          builder: (context, state) {
+            if (state is TimelineLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+    
+            if (state is TimelineLoaded) {
+              return ListView.builder(
+                cacheExtent: 100,
+                itemCount: state.events.length,
+                itemBuilder: (context, index) {
+                  final event = state.events[index];
+    
+                  /// IMPORTANT: requires senderId in model
+                  final isMe = index%2 == 0;
+    
+                  return _timelineItem(
+                    event, 
+                    isMe, 
+                    index == state.events.length-1,
+                    context)
+                  ;
+                },
+              );
+            }
+    
+            if (state is TimelineError) {
+              return Center(child: Text(state.message));
+            }
+    
+            return const SizedBox();
           },
-          child: const Icon(Icons.refresh),
-        ),
-        body: BlocProvider(
-          create: (context) { tb = serviceLocator<TimelineBloc>()
-            ..add(
-              FetchTimelineEvent(
-                userId: userId,
-                receiverId: receiverId,
-              ),
-            );
-            return tb;
-          },
-          child: BlocBuilder<TimelineBloc, TimelineState>(
-            builder: (context, state) {
-              if (state is TimelineLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-      
-              if (state is TimelineLoaded) {
-                return ListView.builder(
-                  cacheExtent: 100,
-                  itemCount: state.events.length,
-                  itemBuilder: (context, index) {
-                    final event = state.events[index];
-      
-                    /// IMPORTANT: requires senderId in model
-                    final isMe = index%2 == 0;
-      
-                    return _timelineItem(event, isMe, index == state.events.length-1,context);
-                  },
-                );
-              }
-      
-              if (state is TimelineError) {
-                return Center(child: Text(state.message));
-              }
-      
-              return const SizedBox();
-            },
-          ),
         ),
       ),
     );
@@ -154,12 +147,39 @@ class TimelinePage extends StatelessWidget {
   /// =======================
   /// MESSAGE BUBBLE
   /// =======================
-  Widget _bubble(dynamic event, bool isMe, BuildContext c) {
+  Widget _bubble(dynamic event, bool isMe, BuildContext context) {
     return GestureDetector(
       onDoubleTap: () {
-        Navigator.pop(c,(event as Event).index);
+        final fullId = (event as Event).id;
+        final messageId = fullId.split("_")[0];
+        // print("Timeline ID: ${event.id}");
+        // print("Extracted messageId: $messageId");
+
+        Navigator.pop(context, messageId);
+        //Navigator.pop(c,(event as Event).id);
       },
-      child: TimelineBubble(event: event, isMe: isMe)
+      onLongPressStart: (details){
+        TimelineOptionsTray.show(
+          context: context,
+          position: details.globalPosition,
+          onDelete: (){
+            context.read<TimelineBloc>().add(
+              RemoveEvent(
+                eventId: event.id, 
+                messageId: event.messageId, 
+                userId: userId, 
+                receiverId: receiverId,
+              )
+            );
+          }
+        );
+      },
+      child: TimelineBubble(
+        event: event, 
+        isMe: isMe,
+        receiverId: receiverId,
+        userId: userId,
+      )
       );
   }
 

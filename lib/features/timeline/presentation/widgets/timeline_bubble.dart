@@ -7,10 +7,16 @@ class TimelineBubble extends StatefulWidget {
   final Event event;
   final bool isMe;
 
+  final String userId;
+  final String receiverId;
+
   const TimelineBubble({
     super.key,
     required this.event,
     required this.isMe,
+    
+    required this.userId,
+    required this.receiverId,
   });
 
   @override
@@ -108,6 +114,17 @@ class _TimelineBubbleState extends State<TimelineBubble>
                 Text(
                   widget.event.content,
                   softWrap: true,
+                ),
+              
+              /// 🔥 ADDED BY
+              if (widget.event.isManual)
+                Text(
+                  "Added by ${widget.event.addedByName}",
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.black,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
             ],
           ),

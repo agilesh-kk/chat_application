@@ -45,8 +45,9 @@ import 'package:chat_application/features/status/presentation/bloc/status_view/s
 import 'package:chat_application/features/timeline/data/datasources/timeline_remote_data_sources.dart';
 import 'package:chat_application/features/timeline/data/repositories/timeline_repository_impl.dart';
 import 'package:chat_application/features/timeline/domain/repositories/timeline_repository.dart';
+import 'package:chat_application/features/timeline/domain/usecases/add_timeline_event.dart';
 import 'package:chat_application/features/timeline/domain/usecases/load_events.dart';
-import 'package:chat_application/features/timeline/domain/usecases/refresh_events.dart';
+import 'package:chat_application/features/timeline/domain/usecases/remove_timeline_event.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -334,19 +335,33 @@ void _initProfile() async{
 
 void _initTimeline(){
   serviceLocator
+  //data source
   ..registerFactory<TimelineRemoteDataSources>(
     () => TimelineRemoteDataSourcesImpl(firebaseFirestore: serviceLocator<FirebaseFirestore>())
   )
+
+  //repository
   ..registerFactory<TimelineRepository>(
     () => TimelineRepositoryImpl(timelineRemoteDataSources: serviceLocator<TimelineRemoteDataSources>())
   )
+
+  //usecases
   ..registerFactory(
     () => LoadEvents(timelineRepository: serviceLocator<TimelineRepository>())
   )
   ..registerFactory(
-    () => RefreshEvents(timelineRepository: serviceLocator<TimelineRepository>())
+    () => AddTimeLineEvent(timelineRepository: serviceLocator<TimelineRepository>()),
   )
   ..registerFactory(
-    () => TimelineBloc(loadEvents: serviceLocator(),refreshEvents: serviceLocator())
+    () => RemoveTimelineEvent(timelineRepository: serviceLocator<TimelineRepository>())
+  )
+  
+  //bloc
+  ..registerFactory(
+    () => TimelineBloc(
+      loadEvents: serviceLocator(),
+      addTimeLineEvent: serviceLocator(),
+      removeTimelineEvent: serviceLocator(),
+    )
   );
 }

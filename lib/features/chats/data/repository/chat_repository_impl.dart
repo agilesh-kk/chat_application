@@ -113,7 +113,7 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, User?>> searchUser({
+  Future<Either<Failure, List<User>>> searchUser({
     required String receiverName,
   }) async {
     try {

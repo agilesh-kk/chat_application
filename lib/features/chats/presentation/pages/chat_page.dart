@@ -173,7 +173,7 @@ class _ChatPageState extends State<ChatPage> {
         actions: [
           IconButton(
             onPressed: () async {
-              int index = await Navigator.push(
+              String? messageId = await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => TimelinePage(
@@ -187,7 +187,15 @@ class _ChatPageState extends State<ChatPage> {
               if (cb.state is ChatLoaded) {
                 final cl = cb.state as ChatLoaded;
 
-                final reversedIndex = cl.messages.length - 1 - index;
+                final index = cl.messages.indexWhere((m) => m.id == messageId);
+
+                if (index == -1) {
+                  //print("❌ Message not found");
+                  return;
+                }
+
+                //final reversedIndex = cl.messages.length - 1 - index;
+                final reversedIndex = index;
 
                 setState(() {
                   highlightedIndex = reversedIndex;
@@ -197,7 +205,6 @@ class _ChatPageState extends State<ChatPage> {
                   _scrollToIndex(reversedIndex);
                 });
 
-                /// remove highlight after animation
                 Future.delayed(const Duration(milliseconds: 800), () {
                   if (mounted) {
                     setState(() {
@@ -347,6 +354,8 @@ class _ChatPageState extends State<ChatPage> {
     switch (msg.type) {
       case "text":
         return MessageBubble(
+          currentUserId: widget.currentUserId,
+          receiverId: widget.receiverId,
           key: ValueKey(msg.id),
           message: msg,
           isMe: isMe,
@@ -383,6 +392,8 @@ class _ChatPageState extends State<ChatPage> {
         );
       case "image":
         return ImageMessageTile(
+          currentUserId: widget.currentUserId,
+          receiverId: widget.receiverId,
           key: ValueKey(msg.id),
           message: msg,
           cacheService: widget.cacheService!,

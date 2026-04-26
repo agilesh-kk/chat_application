@@ -1,4 +1,5 @@
 import 'package:chat_application/core/errors/failure.dart';
+import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:fpdart/fpdart.dart';
 
@@ -8,8 +9,18 @@ abstract interface class TimelineRepository {
     required String receiverId,
   });
 
-  Future<Either<Failure,List<Event>>> refreshAndfetchEvents({
+  Future<void> addEvent({
+    required Message message,
     required String userId,
+    required String receiverId,
+    required String customTitle,
+    required String addedByName,
+  });
+
+  Future<void> removeEvent({
+    required String eventId, 
+    required String messageId, 
+    required String userId, 
     required String receiverId,
   });
 }

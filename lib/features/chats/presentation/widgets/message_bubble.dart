@@ -1,5 +1,8 @@
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_options_helper.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 
@@ -10,6 +13,9 @@ class MessageBubble extends StatefulWidget {
   final bool highlight; // 🔥 NEW
   final VoidCallback? onDelete;
 
+  final String currentUserId;
+  final String receiverId;
+
   const MessageBubble({
     super.key,
     required this.message,
@@ -17,6 +23,9 @@ class MessageBubble extends StatefulWidget {
     required this.animate,
     this.highlight = false,
     this.onDelete,
+
+    required this.currentUserId,
+    required this.receiverId,
   });
 
   @override
@@ -110,10 +119,10 @@ class _MessageBubbleState extends State<MessageBubble>
 
           onDelete: widget.onDelete,
 
-          onAddToTimeline: () {
-            //print("Timeline: ${widget.message.id}");
-            
-          },
+          onAddToTimeline: !widget.message.inTimeline ? (){
+            _showAddToTimelineDialog(widget.message);
+          }: null,
+            //print("Timeline: ${widget.message.id}");    
         );  
       },
       child: ScaleTransition(
@@ -193,6 +202,11 @@ class _MessageBubbleState extends State<MessageBubble>
                           ),
                         ),
                         const SizedBox(width: 5),
+                        if (widget.message.inTimeline) ...[
+                          Icon(Icons.favorite, size: 12, color: Colors.red),
+                          SizedBox(width: 4),
+                        ],
+                        if(!widget.message.deletedForEveryone)
                         buildReceipt(widget.message.status, widget.isMe),
                       ],
                     ),
@@ -222,6 +236,54 @@ class _MessageBubbleState extends State<MessageBubble>
       default:
         return const SizedBox();
     }
+  }
+
+  Future<void> _showAddToTimelineDialog(Message msg) async {
+    final controller = TextEditingController();
+
+    final user = context.read<AppUserCubit>().state;
+
+    String userName = "Unknown";
+
+    if (user is AppUserIsSignedin) {
+      userName = user.user.name;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text("Add to Timeline"),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: "Add a note (optional)",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              print("add event triggred");
+              Navigator.pop(context);
+
+              dialogContext.read<TimelineBloc>().add(
+                AddEvent(
+                  message: msg,
+                  userId: widget.currentUserId,
+                  receiverId: widget.receiverId,
+                  customTitle: controller.text.trim(),
+                  addedByName: userName,
+                ),
+              );
+            },
+            child: Text("Save"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

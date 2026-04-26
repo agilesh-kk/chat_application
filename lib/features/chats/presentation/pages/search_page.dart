@@ -15,13 +15,6 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   final controller = TextEditingController();
 
-  void _search() {
-    final name = controller.text.trim();
-    if (name.isNotEmpty) {
-      context.read<SearchBloc>().add(SearchStart(name: name));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final sender  = context.read<AppUserCubit>().state;
@@ -33,7 +26,9 @@ class _SearchPageState extends State<SearchPage> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: controller,
-              onSubmitted: (_) => _search(),
+              onChanged: (value) {
+                context.read<SearchBloc>().add(SearchStart(name: value.trim()));
+              },
               decoration: const InputDecoration(
                 hintText: "Enter username",
               ),
@@ -49,35 +44,35 @@ class _SearchPageState extends State<SearchPage> {
                 }
 
                 if (state is SearchFound) {
-                  final user = state.user;
+                  final users = state.user;
 
-                  // Prevent showing existing chats
-                  // if (widget.existingUserIds.contains(user!.id)) {
-                  //   return const Center(
-                  //       child: Text("Already in chat"));
-                  // }
+                  if (users.isEmpty) {
+                    return const Center(child: Text("No users found"));
+                  }
 
-                  return ListView(
-                    children: [
-                      ListTile(
-                        title: Text(user!.name),
+                  return ListView.builder(
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final user = users[index];
+
+                      return ListTile(
+                        title: Text(user.name),
                         subtitle: Text(user.email),
                         onTap: () {
-                          if(sender is AppUserIsSignedin){
-                            //Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: sender.user.id, receiverId: user.id, receiverName: user.name)));
+                          if (sender is AppUserIsSignedin) {
                             Navigator.push(
-                              context, 
+                              context,
                               MaterialPageRoute(
                                 builder: (_) => ProfilePage(
                                   isUser: false,
                                   user: user,
-                                )
-                              )
+                                ),
+                              ),
                             );
                           }
                         },
-                      )
-                    ],
+                      );
+                    },
                   );
                 }
 

@@ -38,7 +38,7 @@ abstract interface class ChatRemoteDataSources {
     required String userId,
   });
 
-  Future<User?> searchUser({required String receiverName});
+  Future<List<User>> searchUser({required String receiverName});
 
   Future<void> deleteMessage({
     required String msgId,
@@ -225,6 +225,17 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       }, SetOptions(merge: true));
 
       await batch.commit();
+
+      if (!isScheduled) {
+        await processTimelineEvent(
+          messageId: msgId,
+          senderId: userId,
+          receiverId: receiverId,
+          type: type,
+          content: content,
+          createdAt: Timestamp.now(),
+        );
+      }
     } catch (e) {
       //print("Send message error: $e");
     }
@@ -235,33 +246,32 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     return "${sorted[0]}_${sorted[1]}";
   }
 
+  //refactored search user
   @override
-  Future<User?> searchUser({required String receiverName}) async {
-    final result =
-        await firestore
-            .collection("users")
-            .where("name", isEqualTo: receiverName)
-            .get();
+  Future<List<User>> searchUser({required String receiverName}) async {
+    final result = await firestore
+      .collection("users")
+      .where("name", isGreaterThanOrEqualTo: receiverName)
+      .where("name", isLessThanOrEqualTo: receiverName + '\uf8ff')
+      .limit(10)
+      //.where("id", isNotEqualTo: currentUserId)
+      .get();
 
-    if (result.size > 0) {
-      final user = result.docs[0].data();
-      if (user.isNotEmpty) {
-        return User(
-          email: user["email"],
-          name: user["name"],
-          id: user["id"],
-          birthDate:
-              user["birthDate"] != null
-                  ? (user["birthDate"] as Timestamp).toDate()
-                  : DateTime.now(),
-          profilePic: user['profilePic'],
-          bio: user['bio'],
-          gender: user['gender'],
-        );
-      }
-    }
+    return result.docs.map((doc) {
+      final user = doc.data();
 
-    throw ServerExceptions("User Not Found");
+      return User(
+        email: user["email"],
+        name: user["name"],
+        id: user["id"],
+        birthDate: user["birthDate"] != null
+            ? (user["birthDate"] as Timestamp).toDate()
+            : DateTime.now(),
+        profilePic: user['profilePic'],
+        bio: user['bio'],
+        gender: user['gender'],
+      );
+    }).toList();
   }
 
   Future<void> markMessagesDelivered(String userId, String receiverId) async {
@@ -270,7 +280,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .doc(generateConversationId(userId, receiverId))
       ..update({"$userId.unread": 0});
 
-    final snapshot =
+    final snapshot = 
         await convoRef
             .collection("messages")
             .where("senderId", isEqualTo: receiverId)
@@ -502,6 +512,154 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       await batch.commit();
     } catch (e) {
       //print("Delete message error: $e");
+    }
+  }
+
+  Future<void> processTimelineEvent({
+    required String messageId,
+    required String senderId,
+    required String receiverId,
+    required String type,
+    required String content,
+    required Timestamp createdAt,
+  }) async {
+    final convoId = generateConversationId(senderId, receiverId);
+
+    final convoRef =
+        firestore.collection("Conversations").doc(convoId);
+
+    final rulesSnapshot = await firestore
+        .collection("timeline_rules")
+        .where("enabled", isEqualTo: true)
+        .get();
+
+    bool created = false;
+
+    await firestore.runTransaction((transaction) async {
+
+      // 🔥 PHASE 1: READ + CALCULATE COUNTS
+      Map<String, int> counts = {};
+
+      for (var ruleDoc in rulesSnapshot.docs) {
+        final rule = ruleDoc.data();
+        final ruleId = ruleDoc.id;
+        final conditions = rule["conditions"] ?? {};
+
+        final counterRef =
+            convoRef.collection("rule_counters").doc(ruleId);
+
+        final counterSnap = await transaction.get(counterRef);
+
+        int count = 0;
+        if (counterSnap.exists) {
+          count = (counterSnap.data() as Map<String, dynamic>)["count"] ?? 0;
+        }
+
+        bool matches = true;
+
+        // ✅ messageType filter BEFORE increment
+        if (conditions.containsKey("messageType")) {
+          if (type != conditions["messageType"]) {
+            matches = false;
+          }
+        }
+
+        // ✅ increment ONLY if matches
+        if (matches) {
+          count++;
+        }
+
+        counts[ruleId] = count;
+      }
+
+      // 🔥 PHASE 2: APPLY RULES + WRITE
+      for (var ruleDoc in rulesSnapshot.docs) {
+        final rule = ruleDoc.data();
+        final ruleId = ruleDoc.id;
+        final conditions = rule["conditions"] ?? {};
+
+        int count = counts[ruleId]!;
+
+        bool shouldCreate = true;
+
+        // 🔹 messageType filter
+        if (conditions.containsKey("messageType")) {
+          if (type != conditions["messageType"]) {
+            shouldCreate = false;
+          }
+        }
+
+        // // 🔹 interval
+        // if (conditions.containsKey("interval")) {
+        //   final interval = conditions["interval"];
+        //   if (count % interval != 0) {
+        //     shouldCreate = false;
+        //   }
+        // }
+
+        //adding milestones
+        if (conditions.containsKey("milestones")) {
+          final List milestones = conditions["milestones"];
+
+          if (!milestones.contains(count)) {
+            shouldCreate = false;
+          }
+        }
+
+        // 🔹 occurrence
+        if (conditions.containsKey("occurrence")) {
+          final occurrence = conditions["occurrence"];
+          if (count != occurrence) {
+            shouldCreate = false;
+          }
+        }
+
+        final counterRef =
+            convoRef.collection("rule_counters").doc(ruleId);
+
+        // ✅ ALWAYS update counter
+        transaction.set(counterRef, {"count": count});
+
+        if (!shouldCreate) continue;
+
+        created = true;
+
+        // 🔥 Create timeline event
+        String title = rule["title"] ?? "";
+        String eventContent = rule["content"] ?? content;
+
+        title = title.replaceAll("{index}", count.toString());
+        eventContent =
+            eventContent.replaceAll("{index}", count.toString());
+
+        final eventId = "${messageId}_$ruleId";
+
+        final timelineRef =
+            convoRef.collection("timeline").doc(eventId);
+
+        transaction.set(timelineRef, {
+          "id": eventId,
+          "title": title,
+          "content": eventContent,
+          "type": type,
+          "time": createdAt,
+          "index": count,
+          "messageId": messageId,
+        });
+      }
+    });
+
+    if (created) { // ✅ ADD
+      final messageRef = firestore
+          .collection("Conversations")
+          .doc(convoId)
+          .collection("messages")
+          .doc(messageId);
+
+      await messageRef.set(
+        {"inTimeline": true},
+        SetOptions(merge: true),
+      );
     }
   }
 }
