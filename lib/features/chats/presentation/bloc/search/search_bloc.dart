@@ -38,7 +38,12 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
 
     emit(Searching());
 
-    final res = await searchUser(query);
+    final res = await searchUser(
+      SearchUserParams(
+        receiverName: event.name, 
+        currentUserId: event.currentUserId
+      )
+    );
 
     res.fold(
       (failure) => emit(SearchError(failure.toString())),

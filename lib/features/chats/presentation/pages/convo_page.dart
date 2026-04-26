@@ -37,7 +37,7 @@ class _ConversationPageState extends State<ConversationPage> {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => SearchPage(),));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => SearchPage(currentUserId: widget.userId,),));
             },
           )
         ],

@@ -5,8 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
 
 class SearchPage extends StatefulWidget {
+  final String currentUserId;
 
-  const SearchPage({super.key});
+  const SearchPage({super.key, required this.currentUserId});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -27,7 +28,10 @@ class _SearchPageState extends State<SearchPage> {
             child: TextField(
               controller: controller,
               onChanged: (value) {
-                context.read<SearchBloc>().add(SearchStart(name: value.trim()));
+                context.read<SearchBloc>().add(SearchStart(
+                  name: value.trim(),
+                  currentUserId: widget.currentUserId,
+                ));
               },
               decoration: const InputDecoration(
                 hintText: "Enter username",

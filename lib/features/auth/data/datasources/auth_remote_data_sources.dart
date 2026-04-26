@@ -23,6 +23,10 @@ abstract interface class AuthRemoteDataSources {
 
   Future<void> signout();
 
+  Future<bool> isNameAvailable({
+    required String name
+  });
+
 }
 
 class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
@@ -97,6 +101,16 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         throw ServerExceptions(e.message ?? "Authentication failed");
       }
     }
+  }
+
+  @override
+  Future<bool> isNameAvailable({required String name}) async{
+    final doc = await firebaseFirestore
+      .collection('usernames')
+      .doc(name.trim().toLowerCase())
+      .get();
+
+    return !doc.exists;
   }
 
   @override
@@ -178,4 +192,6 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
       throw ServerExceptions("Failed to logout");
     }
   }
+  
+  
 }

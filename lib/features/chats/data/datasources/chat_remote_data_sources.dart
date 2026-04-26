@@ -38,7 +38,10 @@ abstract interface class ChatRemoteDataSources {
     required String userId,
   });
 
-  Future<List<User>> searchUser({required String receiverName});
+  Future<List<User>> searchUser({
+    required String receiverName,
+    required String currentUserId,
+  });
 
   Future<void> deleteMessage({
     required String msgId,
@@ -248,7 +251,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
   //refactored search user
   @override
-  Future<List<User>> searchUser({required String receiverName}) async {
+  Future<List<User>> searchUser({
+    required String receiverName,
+    required String currentUserId,
+  }) async {
     final result = await firestore
       .collection("users")
       .where("name", isGreaterThanOrEqualTo: receiverName)
@@ -271,7 +277,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         bio: user['bio'],
         gender: user['gender'],
       );
-    }).toList();
+    })
+    .where((user) => user.id != currentUserId)
+    .toList();
   }
 
   Future<void> markMessagesDelivered(String userId, String receiverId) async {

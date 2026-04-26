@@ -115,10 +115,12 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<Either<Failure, List<User>>> searchUser({
     required String receiverName,
+    required String currentUserId,
   }) async {
     try {
       final res = await chatRemoteDataSources.searchUser(
         receiverName: receiverName,
+        currentUserId: currentUserId,
       );
       return right(res);
     } on ServerExceptions catch (e) {
