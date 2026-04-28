@@ -20,9 +20,10 @@ class ModalBottomSheet extends StatelessWidget {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          //color: AppPallete.backgroundColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: AppPallete.cardBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border.all(color: AppPallete.divider),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -41,7 +42,7 @@ class ModalBottomSheet extends StatelessWidget {
               return ListTile(
                 leading: Icon(
                   option.icon,
-                  color: AppPallete.textColor,
+                  color: AppPallete.primaryOrange,
                 ),
                 title: Text(
                   option.label,
@@ -80,7 +81,10 @@ class ModalBottomSheet extends StatelessWidget {
   }) {
     return showModalBottomSheet<T>(
       context: context,
-      backgroundColor: AppPallete.transparentColor,
+      backgroundColor: AppPallete.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext bc) => ModalBottomSheet(
         title: title,
         options: options,

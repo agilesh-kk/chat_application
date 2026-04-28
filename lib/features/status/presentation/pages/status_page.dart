@@ -1,5 +1,6 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/widgets/loader.dart';
+import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
@@ -20,12 +21,29 @@ class StatusPage extends StatefulWidget {
   State<StatusPage> createState() => _StatusPageState();
 }
 
-class _StatusPageState extends State<StatusPage> {
-  bool hasStatus=false;
+class _StatusPageState extends State<StatusPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _animationController.forward();
     context.read<StatusBloc>().add(GetAllStatusEvent());
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -33,182 +51,268 @@ class _StatusPageState extends State<StatusPage> {
     final appUserState = context.watch<AppUserCubit>().state;
 
     if (appUserState is! AppUserIsSignedin) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: AppPallete.darkBg,
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: AppPallete.primaryOrange,
+          ),
+        ),
+      );
     }
 
     final String currentUserName = appUserState.user.name;
     final String currentUserId = appUserState.user.id;
     final String? pfp = appUserState.user.profilePic;
-    //print(appUserState.user.friends);
-    //print(username);
 
     return Scaffold(
-      appBar: AppBar(title: Text("Status")),
-      body: BlocConsumer<StatusBloc, StatusState>(
-        listener: (context, state) {
-          if(state is StatusFailure){
-            showSnackbar(context, state.error.toString());
-          }
-        },
-        builder: (context, state) {
-          if(state is StatusLoading){
-            return const Loader();
-          }
-          if(state is StatusDisplaySuccess){
-            //grouping all the status posted by the same user
-            final Map<String, List<Status>> groupedStatuses = {};
-
-            final friends = appUserState.user.friends;
-
-            for (var st in state.status) {
-              if (st.userId == currentUserId) continue;
-              // filtering non friends
-              if (!friends!.contains(st.userId)) continue;
-
-              if (!groupedStatuses.containsKey(st.userId)) {
-                groupedStatuses[st.userId] = [];
+      backgroundColor: AppPallete.darkBg,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppPallete.darkBg,
+              AppPallete.darkSecondary,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: BlocConsumer<StatusBloc, StatusState>(
+            listener: (context, state) {
+              if (state is StatusFailure) {
+                showSnackbar(context, state.error.toString());
               }
+            },
+            builder: (context, state) {
+              if (state is StatusLoading) {
+                return const Loader();
+              }
+              if (state is StatusDisplaySuccess) {
+                final Map<String, List<Status>> groupedStatuses = {};
+                final friends = appUserState.user.friends;
 
-              groupedStatuses[st.userId]!.add(st);
-            }
+                for (var st in state.status) {
+                  if (st.userId == currentUserId) continue;
+                  if (!friends!.contains(st.userId)) continue;
 
-            final users = groupedStatuses.keys.toList();
+                  if (!groupedStatuses.containsKey(st.userId)) {
+                    groupedStatuses[st.userId] = [];
+                  }
+                  groupedStatuses[st.userId]!.add(st);
+                }
 
-            final myStatuses = state.status
-              .where((st) => st.userId == currentUserId)
-              .toList();
-            final bool hasStatus = myStatuses.isNotEmpty;
-            // print(hasStatus);
-            // print(pfp);
+                final users = groupedStatuses.keys.toList();
+                final myStatuses = state.status
+                    .where((st) => st.userId == currentUserId)
+                    .toList();
+                final bool hasStatus = myStatuses.isNotEmpty;
 
-            return RefreshIndicator(
-              onRefresh: () async{ //refreshing the page.
-                context.read<StatusBloc>().add(GetAllStatusEvent());
-                context.read<AuthBloc>().add(AuthCheckRequested());
-              },
-              child: Padding(
-                padding: EdgeInsets.all(15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    UserStatusColumn(
-                      name: currentUserName,
-                      image: pfp,
-                      hasStatus: hasStatus,
-
-                      //to view the user's status
-                      onViewStatus: ()async {
-                        bool hasInternet = await HelperFunctions.hasInternet();
-                        if (myStatuses.isNotEmpty) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ViewStatusPage(
-                                statuses: myStatuses,
-                                isUserStatus: true,
-                                hasInternet: hasInternet,
-                                userProfilePic: pfp!,
-                                //isUserStatus: true,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-
-                      // adding status
-                      onAddStatus: () async {
-
-                        bool hasInternet = await HelperFunctions.hasInternet();
-
-                        if(!hasInternet && context.mounted){
-                          showSnackbar(context, "Need Internet to Upload Status");
-                          return;
-                        }
-
-                        XFile? res = await HelperFunctions.showImageSourceBottomSheet(
-                          currentUserId,
-                          context,
-                        );
-
-                        if (!context.mounted || res == null) {
-                          return;
-                        }
-
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => BlocProvider.value(
-                              value: context.read<StatusBloc>(),
-                              child: AddStatusPage(
-                                userId: currentUserId,
-                                image: res,
-                                userName: currentUserName,
-                              ),
-                            ),
-                          ),
-                        );
-                        
-                        context.read<StatusBloc>().add(GetAllStatusEvent());
-                      },
-                    ),
-                    SizedBox(height: 20),
-                    Text(
-                      "Friends",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-                    ),
-                    SizedBox(height: 10),
-                    Expanded(
-                      child: Scrollbar(
-                        child: ListView.builder(
-                          itemCount: users.length,
-                          itemBuilder: (context, index) {
-
-                            final userId = users[index];
-                            final userStatuses = groupedStatuses[userId]!;
-
-                            final firstStatus = userStatuses.first;
-
-                            return FriendsStatusCard(
-                              status: firstStatus,
-                              onstatusTap: () {
-                                userStatuses.sort(
-                                  (a, b) => a.createdAt.compareTo(b.createdAt),
-                                );
-                                for(final status in userStatuses){
-                                  context.read<StatusBloc>().add(
-                                    UpdateViewEvent(
-                                      statusId: status.id,
-                                      viewerId: currentUserId,
-                                      viewerName: currentUserName,
-                                      //viewedAt: DateTime.now().toUtc(),
-                                    )
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      context.read<StatusBloc>().add(GetAllStatusEvent());
+                      context.read<AuthBloc>().add(AuthCheckRequested());
+                    },
+                    color: AppPallete.primaryOrange,
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: _buildHeader(),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                            child: UserStatusColumn(
+                              name: currentUserName,
+                              image: pfp,
+                              hasStatus: hasStatus,
+                              onViewStatus: () async {
+                                bool hasInternet =
+                                    await HelperFunctions.hasInternet();
+                                if (myStatuses.isNotEmpty) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ViewStatusPage(
+                                        statuses: myStatuses,
+                                        isUserStatus: true,
+                                        hasInternet: hasInternet,
+                                        userProfilePic: pfp!,
+                                      ),
+                                    ),
                                   );
                                 }
-                                Navigator.push(
+                              },
+                              onAddStatus: () async {
+                                XFile? res =
+                                    await HelperFunctions.showImageSourceBottomSheet(
+                                  currentUserId,
+                                  context,
+                                );
+
+                                if (!context.mounted || res == null) {
+                                  return;
+                                }
+
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => ViewStatusPage(
-                                      statuses: userStatuses,
-                                      isUserStatus: false,
-                                      hasInternet: false,
-                                      userProfilePic: firstStatus.profilepic,
+                                    builder: (_) => BlocProvider.value(
+                                      value: context.read<StatusBloc>(),
+                                      child: AddStatusPage(
+                                        userId: currentUserId,
+                                        image: res,
+                                        userName: currentUserName,
+                                      ),
                                     ),
                                   ),
                                 );
+
+                                context
+                                    .read<StatusBloc>()
+                                    .add(GetAllStatusEvent());
                               },
-                              latestStatusTime: userStatuses.first.createdAt.toString(),
-                            );
-                          },
+                            ),
+                          ),
                         ),
-                      ),
+                        SliverToBoxAdapter(
+                          child: _buildSectionHeader('Friends'),
+                        ),
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final userId = users[index];
+                              final userStatuses = groupedStatuses[userId]!;
+                              final firstStatus = userStatuses.first;
+
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
+                                child: FriendsStatusCard(
+                                  status: firstStatus,
+                                  onstatusTap: () {
+                                    userStatuses.sort(
+                                      (a, b) =>
+                                          a.createdAt.compareTo(b.createdAt),
+                                    );
+                                    for (final status in userStatuses) {
+                                      context.read<StatusBloc>().add(
+                                            UpdateViewEvent(
+                                              statusId: status.id,
+                                              viewerId: currentUserId,
+                                              viewerName: currentUserName,
+                                            ),
+                                          );
+                                    }
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ViewStatusPage(
+                                          statuses: userStatuses,
+                                          isUserStatus: false,
+                                          hasInternet: false,
+                                          userProfilePic: firstStatus.profilepic,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  latestStatusTime:
+                                      userStatuses.first.createdAt.toString(),
+                                ),
+                              );
+                            },
+                            childCount: users.length,
+                          ),
+                        ),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 100),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                );
+              }
+              return const SizedBox();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Status',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppPallete.whiteColor,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 3,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppPallete.primaryOrange,
+                      AppPallete.lightOrange,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            );
-          }
-          return const SizedBox();
-        },
+              const SizedBox(width: 4),
+              Container(
+                width: 12,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: AppPallete.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: AppPallete.primaryOrange,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppPallete.whiteColor,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -34,3 +34,12 @@ final class UpdateViewEvent extends StatusEvent {
     //required this.viewedAt,
   });
 }
+
+final class UpdateStatusPage extends StatusEvent {
+  final List<Status> statuses;
+
+  UpdateStatusPage({
+    required this.statuses
+  });
+  
+}

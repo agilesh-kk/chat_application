@@ -1,3 +1,4 @@
+import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -97,9 +98,21 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          color: AppPallete.cardBg.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppPallete.divider.withValues(alpha: 0.5),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,17 +160,18 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
       children: [
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
+            color: AppPallete.whiteColor,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
-            color: Colors.grey,
+            color: AppPallete.greyText,
           ),
         ),
       ],
@@ -169,39 +183,49 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
         /// TEXT / TEXTFIELD
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               if (isEditing)
                 TextField(
                   controller: _controller,
                   maxLines: null,
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
+                  style: TextStyle(color: AppPallete.whiteColor),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: AppPallete.inputBg,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppPallete.primaryOrange),
+                    ),
                   ),
                   onSubmitted: (_) => _saveBio(),
                 )
               else
                 Text(
-                  widget.bio,
-                  style: const TextStyle(
+                  widget.bio.isEmpty ? "No bio yet" : widget.bio,
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
+                    color: widget.bio.isEmpty 
+                        ? AppPallete.greyText 
+                        : AppPallete.whiteColor,
                   ),
                 ),
 
               const SizedBox(height: 4),
 
-              const Text(
+              Text(
                 "Bio",
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey,
+                  color: AppPallete.greyText,
                 ),
               ),
             ],
@@ -214,6 +238,7 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
             icon: Icon(
               isEditing ? Icons.check : Icons.edit,
               size: 20,
+              color: AppPallete.primaryOrange,
             ),
             onPressed: isEditing ? _saveBio : _startEditing,
           ),

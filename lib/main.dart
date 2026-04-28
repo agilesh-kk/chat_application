@@ -5,6 +5,7 @@ import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
@@ -26,6 +27,11 @@ void main() async {
         //app user signed in cubit
         BlocProvider(
           create: (_) => serviceLocator<AppUserCubit>(), //loads the app_user_cubit contents from the dependency file
+        ),
+
+        //user friends cubit
+        BlocProvider(
+          create: (context) => serviceLocator<FriendsCubit>(),
         ),
 
         //authentication bloc
@@ -85,7 +91,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        scaffoldBackgroundColor: Color(0xFF0D0D0D),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Color(0xFFFF6B35),
+          brightness: Brightness.dark,
+        ),
       ),
       home: AuthGate(),
     );
