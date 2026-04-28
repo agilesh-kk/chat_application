@@ -8,7 +8,6 @@ part 'friends_state.dart';
 
 class FriendsCubit extends Cubit<FriendsState> {
   final FriendsRemoteDataSource repository;
-  StreamSubscription<List<FriendModel>>? _friendSub;
 
   FriendsCubit(this.repository) : super(FriendsInitial());
 
@@ -20,46 +19,12 @@ class FriendsCubit extends Cubit<FriendsState> {
     emit(FriendsLoading());
 
     try {
-      _friendSub?.cancel();
 
-      _friendSub = (await repository.getFriends(userId)).listen(onData);
-      emit(FriendsLoaded(friends));
+      final friendSub = (await repository.getFriends(userId));
+      emit(FriendsLoaded(friendSub));
+
     } catch (e) {
       emit(FriendsError(e.toString()));
-    }
-  }
-
-  /// 🔹 Refresh (no loading UI flicker)
-  Future<void> refresh(List<String> friendIds) async {
-    try {
-      final friends = await repository.getFriendsByIds(friendIds);
-      emit(FriendsLoaded(friends));
-    } catch (e) {
-      emit(FriendsError(e.toString()));
-    }
-  }
-
-  /// 🔹 Optimistic add (optional)
-  void addFriendLocal(FriendModel friend) {
-    if (state is FriendsLoaded) {
-      final current = List<FriendModel>.from(
-        (state as FriendsLoaded).friends,
-      );
-
-      current.add(friend);
-      emit(FriendsLoaded(current));
-    }
-  }
-
-  /// 🔹 Optimistic remove
-  void removeFriendLocal(String friendId) {
-    if (state is FriendsLoaded) {
-      final current = (state as FriendsLoaded)
-          .friends
-          .where((f) => f.id != friendId)
-          .toList();
-
-      emit(FriendsLoaded(current));
     }
   }
 }

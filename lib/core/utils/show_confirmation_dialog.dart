@@ -1,41 +1,136 @@
+import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:flutter/material.dart';
 
-//confimation dialog pop up
-Future<bool?> showConfirmationDialog (BuildContext context, String text, IconData icon) async {
+Future<bool?> showConfirmationDialog(
+    BuildContext context, String text, IconData icon) async {
   return showDialog(
-    context: context, 
-    builder: (BuildContext context){
-      return AlertDialog(
-        title: Row(
-          children: [
-            Icon(icon, ),
-            SizedBox(width: 10,),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 20
-              ),
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppPallete.cardBg,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppPallete.divider,
             ),
-          ],
-        ),
-        //backgroundColor: AppPallete.backgroundColor,
-        // content: Text(''),
-        actions: [
-          TextButton(
-            onPressed: (){
-              Navigator.of(context).pop(true);
-            },
-            
-            child: Text('Yes'),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: (){
-              Navigator.of(context).pop(false);
-            }, 
-            child: Text('No')
-          )
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppPallete.primaryOrange.withValues(alpha: 0.2),
+                      AppPallete.lightOrange.withValues(alpha: 0.1),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppPallete.primaryOrange.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  color: AppPallete.primaryOrange,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                text,
+                style: TextStyle(
+                  color: AppPallete.whiteColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildButton(
+                      context: context,
+                      label: "No",
+                      isPrimary: false,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildButton(
+                      context: context,
+                      label: "Yes",
+                      isPrimary: true,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       );
-    }
+    },
+  );
+}
+
+Widget _buildButton({
+  required BuildContext context,
+  required String label,
+  required bool isPrimary,
+}) {
+  return GestureDetector(
+    onTap: () => Navigator.of(context).pop(isPrimary),
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        gradient: isPrimary
+            ? LinearGradient(
+                colors: [
+                  AppPallete.primaryOrange,
+                  AppPallete.lightOrange,
+                ],
+              )
+            : null,
+        color: isPrimary ? null : AppPallete.darkTertiary,
+        borderRadius: BorderRadius.circular(14),
+        border: isPrimary
+            ? null
+            : Border.all(color: AppPallete.divider),
+        boxShadow: isPrimary
+            ? [
+                BoxShadow(
+                  color: AppPallete.primaryOrange.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isPrimary
+                ? AppPallete.whiteColor
+                : AppPallete.greyText,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ),
   );
 }

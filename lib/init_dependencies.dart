@@ -22,6 +22,8 @@ import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc
 import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/friends/data/friends_remote_data_sources.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/data/datasources/profile_remote_data_source.dart';
 import 'package:chat_application/features/profile/data/repository/profile_repository_impl.dart';
 import 'package:chat_application/features/profile/domain/repository/profile_repository.dart';
@@ -49,6 +51,7 @@ import 'package:chat_application/features/timeline/features/timeline/domain/usec
 import 'package:chat_application/features/timeline/features/timeline/presentation/bloc/timeline_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/adapters.dart';
@@ -88,69 +91,77 @@ Future<void> initDependencies() async {
   //registering core dependencies
   serviceLocator.registerLazySingleton(() => AppUserCubit());
 
+  serviceLocator.registerFactory<FriendsRemoteDataSource>(()=>FriendsRemoteDataSourceImpl(serviceLocator<FirebaseFirestore>()));
+
+  serviceLocator.registerLazySingleton(() => FriendsCubit(serviceLocator<FriendsRemoteDataSource>()));
+
 }
 
 void _initStatus() async{
-  await Hive.initFlutter();
-  Hive.registerAdapter(StatusHiveModelAdapter());
+  Box<StatusHiveModel>? statusBox;
 
-  final statusBox = await Hive.openBox<StatusHiveModel>("status");
-
-  serviceLocator.registerLazySingleton<Box<StatusHiveModel>>(()=>statusBox);
+  if (!kIsWeb) {
+    await Hive.initFlutter();
+    Hive.registerAdapter(StatusHiveModelAdapter());
+    final box = await Hive.openBox<StatusHiveModel>("status");
+    serviceLocator.registerLazySingleton<Box<StatusHiveModel>>(() => box);
+    statusBox = box;
+  }
 
   //data source
   serviceLocator
-  ..registerFactory<StatusLocalDataSource>(() => StatusLocalDataSourceImpl(serviceLocator()))
-  ..registerFactory<StatusRemoteDataSource>(
-    () => StatusRemoteDataSourceImpl(
-      supabaseClient: serviceLocator<SupabaseClient>(),
+    ..registerFactory<StatusLocalDataSource>(() => StatusLocalDataSourceImpl(statusBox))
+    ..registerFactory<StatusRemoteDataSource>(
+      () => StatusRemoteDataSourceImpl(
+        supabaseClient: serviceLocator<SupabaseClient>(),
+      ),
     )
-  )
 
-  //repository
-  ..registerFactory<StatusRepository>(
-    () => StatusRepositoryImpl(
-      statusRemoteDataSource: serviceLocator<StatusRemoteDataSource>(),
-      statusLocalDataSource: serviceLocator<StatusLocalDataSource>()
+    //repository
+    ..registerFactory<StatusRepository>(
+      () => StatusRepositoryImpl(
+        statusRemoteDataSource: serviceLocator<StatusRemoteDataSource>(),
+        statusLocalDataSource: serviceLocator<StatusLocalDataSource>()
+      )
     )
-  )
 
-  //usecase
-  ..registerFactory(
-    () => UploadStatus(
-      serviceLocator<StatusRepository>()
+    //usecase
+    ..registerFactory(
+      () => UploadStatus(
+        serviceLocator<StatusRepository>()
+      )
     )
-  )
-  ..registerFactory(
-    () => GetAllStatus(
-      serviceLocator<StatusRepository>(),
+    ..registerFactory(
+      () => GetAllStatus(
+        serviceLocator<StatusRepository>()
+      )
     )
-  )
-  ..registerFactory(
-    () => UpdateView(
-      serviceLocator<StatusRepository>(),
+    ..registerFactory(
+      () => UpdateView(
+        serviceLocator<StatusRepository>()
+      )
     )
-  )
-  ..registerFactory(
-    () => GetViews(
-      serviceLocator<StatusRepository>(),
+    ..registerFactory(
+      () => GetViews(
+        serviceLocator<StatusRepository>()
+      )
     )
-  )
 
-  //bloc
-  ..registerLazySingleton(
-    () => StatusBloc(
-      uploadStatus: serviceLocator<UploadStatus>(),
-      getAllStatus: serviceLocator<GetAllStatus>(),
-      updateView: serviceLocator<UpdateView>(),
+    //bloc
+    ..registerLazySingleton(
+      () => StatusBloc(
+        friends_cubit: serviceLocator<FriendsCubit>(),
+        uploadStatus: serviceLocator<UploadStatus>(),
+        getAllStatus: serviceLocator<GetAllStatus>(),
+        updateView: serviceLocator<UpdateView>(),
+      )
     )
-  )
-  //status views bloc
-  ..registerLazySingleton(
-    () => StatusviewBloc(
-      getViews: serviceLocator<GetViews>(),
-    )
-  );
+    //status views bloc
+    ..registerLazySingleton(
+      () => StatusviewBloc(
+        getViews: serviceLocator<GetViews>(),
+      )
+    );
 }
 
 void _initAuth() {
@@ -200,6 +211,7 @@ void _initAuth() {
       currentUser: serviceLocator<CurrentUser>(),
       userSignOut: serviceLocator<UserSignOut>(),
       appUserCubit: serviceLocator<AppUserCubit>(),
+      friendsCubit: serviceLocator<FriendsCubit>()
     ),
   );
 }

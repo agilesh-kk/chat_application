@@ -7,7 +7,7 @@ class FriendsInitial extends FriendsState {}
 class FriendsLoading extends FriendsState {}
 
 class FriendsLoaded extends FriendsState {
-  final List<FriendModel> friends;
+  final Stream<List<FriendModel>> friends;
 
   FriendsLoaded(this.friends);
 }
