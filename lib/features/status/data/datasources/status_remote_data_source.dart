@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/status/data/model/status_model.dart';
@@ -41,9 +42,13 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
   @override
   Future<String> uploadImage({required XFile image, required StatusModel status}) async{
     try{
-      final File file = File(image.path);
-      
-      await supabaseClient.storage.from('status_images').upload(status.id, file);
+      if (kIsWeb) {
+        final bytes = await image.readAsBytes();
+        await supabaseClient.storage.from('status_images').uploadBinary(status.id, bytes);
+      } else {
+        final File file = File(image.path);
+        await supabaseClient.storage.from('status_images').upload(status.id, file);
+      }
 
       return supabaseClient.storage.from('status_images').getPublicUrl(status.id);
     }

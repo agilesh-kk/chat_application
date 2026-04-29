@@ -8,15 +8,21 @@ import 'package:image_picker/image_picker.dart';
 class HelperFunctions {
   static final _imagePickerService = ImagePickerService();
 
-  static Future<bool> hasInternet()async{
+  static Future<bool> hasInternet() async {
     try {
       final response = await http
           .get(Uri.parse('https://www.google.com'))
-          .timeout(const Duration(seconds: 3));
-
+          .timeout(const Duration(seconds: 5));
       return response.statusCode == 200;
     } catch (_) {
-      return false;
+      try {
+        final response = await http
+            .get(Uri.parse('https://1.1.1.1'))
+            .timeout(const Duration(seconds: 5));
+        return response.statusCode == 200;
+      } catch (_) {
+        return true;
+      }
     }
   }
   

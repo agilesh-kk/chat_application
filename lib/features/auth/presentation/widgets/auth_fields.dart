@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:chat_application/core/theme/app_pallette.dart';
 
 class AuthFields extends StatefulWidget {
   final String hinText;
   final TextEditingController textController;
-  final bool isObscure; //to store fields like passwords and confidential infos.
+  final bool isObscure;
 
   const AuthFields({
     super.key,
@@ -18,6 +19,7 @@ class AuthFields extends StatefulWidget {
 
 class _AuthFieldsState extends State<AuthFields> {
   late bool _isObscured;
+  bool _isFocused = false;
 
   @override
   void initState() {
@@ -27,32 +29,79 @@ class _AuthFieldsState extends State<AuthFields> {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      decoration: InputDecoration(
-        hintText: widget.hinText,
-        //creating the hide/unhide icon
-        suffixIcon: widget.isObscure
-            ? IconButton(
-                icon: Icon(
-                  _isObscured ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: _isFocused ? AppPallete.inputBg : AppPallete.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isFocused 
+              ? AppPallete.primaryOrange.withValues(alpha: 0.5) 
+              : AppPallete.divider.withValues(alpha: 0.3),
+          width: _isFocused ? 1.5 : 1,
+        ),
+        boxShadow: _isFocused
+            ? [
+                BoxShadow(
+                  color: AppPallete.primaryOrange.withValues(alpha: 0.1),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isObscured = !_isObscured;
-                  });
-                },
-              )
-            : null,
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
-      controller: widget.textController,
-      obscureText: _isObscured,
-      validator: (value) {
-        if (value!.isEmpty) {
-          return "${widget.hinText} is empty";
-        }
-        return null;
-      },
+      child: Focus(
+        onFocusChange: (focused) {
+          setState(() {
+            _isFocused = focused;
+          });
+        },
+        child: TextFormField(
+          style: const TextStyle(color: AppPallete.whiteColor),
+          decoration: InputDecoration(
+            hintText: widget.hinText,
+            hintStyle: TextStyle(
+              color: AppPallete.greyText.withValues(alpha: 0.7),
+              fontSize: 14,
+            ),
+            prefixIcon: Icon(
+              widget.isObscure ? Icons.lock_outline : Icons.email_outlined,
+              color: _isFocused ? AppPallete.primaryOrange : AppPallete.greyText,
+              size: 20,
+            ),
+            suffixIcon: widget.isObscure
+                ? IconButton(
+                    icon: Icon(
+                      _isObscured ? Icons.visibility_off : Icons.visibility,
+                      color: _isFocused ? AppPallete.primaryOrange : AppPallete.greyText,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isObscured = !_isObscured;
+                      });
+                    },
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          ),
+          controller: widget.textController,
+          obscureText: _isObscured,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return "${widget.hinText} is empty";
+            }
+            return null;
+          },
+        ),
+      ),
     );
   }
 }
