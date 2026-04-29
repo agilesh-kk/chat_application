@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
-import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
@@ -14,6 +13,7 @@ import 'package:chat_application/features/timeline/presentation/pages/timeline_p
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:intl/intl.dart';
 
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
@@ -26,6 +26,7 @@ class ChatPage extends StatefulWidget {
   final String receiverName;
   int? scrolltoIndex;
   CacheService? cacheService;
+  String? highlightMessageId;
 
   ChatPage({
     super.key,
@@ -34,6 +35,7 @@ class ChatPage extends StatefulWidget {
     required this.receiverId,
     required this.receiverName,
     this.scrolltoIndex,
+    this.highlightMessageId,
   });
 
   @override
@@ -246,27 +248,12 @@ class _ChatPageState extends State<ChatPage> {
 
               if (cb.state is ChatLoaded) {
                 final cl = cb.state as ChatLoaded;
-                final index = cl.messages.indexWhere((m) => m.id == messageId);
-
-                if (index == -1) return;
-
-                final reversedIndex = index;
-
-                setState(() {
-                  highlightedIndex = reversedIndex;
-                });
-
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToIndex(reversedIndex);
-                });
-
-                Future.delayed(const Duration(milliseconds: 800), () {
-                  if (mounted) {
-                    setState(() {
-                      highlightedIndex = null;
-                    });
-                  }
-                });
+                
+                if (messageId != null && cl.messages.any((m) => m.id == messageId)) {
+                  setState(() {
+                    widget.highlightMessageId = messageId;
+                  });
+                }
               }
             },
           ),
@@ -344,6 +331,30 @@ class _ChatPageState extends State<ChatPage> {
               widget.scrolltoIndex = null;
             }
 
+            if (widget.highlightMessageId != null) {
+              final highlightIndex = messages.indexWhere((m) => m.id == widget.highlightMessageId);
+              if (highlightIndex != -1) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _scrollToIndex(highlightIndex);
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    if (mounted) {
+                      setState(() {
+                        highlightedIndex = highlightIndex;
+                      });
+                      Future.delayed(const Duration(milliseconds: 1500), () {
+                        if (mounted) {
+                          setState(() {
+                            highlightedIndex = null;
+                          });
+                        }
+                      });
+                    }
+                  });
+                });
+                widget.highlightMessageId = null;
+              }
+            }
+
             return ScrollablePositionedList.builder(
               reverse: true,
               itemCount: messages.length,
@@ -367,13 +378,105 @@ class _ChatPageState extends State<ChatPage> {
 
                 firstTime = false;
 
-                return buildBubble(message, isMe, isAnimate, highlightedIndex == index);
+                return Column(
+                  crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    if (_shouldShowDateHeader(messages, index))
+                      _buildDateHeader(message.createdAt),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      children: [
+                        buildBubble(message, isMe, isAnimate, highlightedIndex == index),
+                        if (message.inTimeline)
+                          Positioned(
+                            left: isMe ? null : -2,
+                            right: isMe ? -2 : null,
+                            bottom: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.favorite,
+                                size: 10,
+                                color: AppPallete.whiteColor,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                );
               },
             );
           }
 
           return const SizedBox();
         },
+      ),
+    );
+  }
+
+  bool _shouldShowDateHeader(List<Message> messages, int index) {
+    if (index == messages.length - 1) return true;
+    final currentMsg = messages[index];
+    final nextMsg = messages[index + 1];
+    final currentDate = DateTime(
+      currentMsg.createdAt.year,
+      currentMsg.createdAt.month,
+      currentMsg.createdAt.day,
+    );
+    final nextDate = DateTime(
+      nextMsg.createdAt.year,
+      nextMsg.createdAt.month,
+      nextMsg.createdAt.day,
+    );
+    return currentDate != nextDate;
+  }
+
+  Widget _buildDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final msgDate = DateTime(date.year, date.month, date.day);
+
+    String label;
+    if (msgDate == today) {
+      label = "Today";
+    } else if (msgDate == yesterday) {
+      label = "Yesterday";
+    } else {
+      label = DateFormat('MMMM d, y').format(date);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppPallete.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppPallete.divider),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: AppPallete.greyText,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ),
     );
   }
