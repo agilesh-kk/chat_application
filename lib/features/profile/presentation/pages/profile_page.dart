@@ -483,7 +483,7 @@ class ProfilePage extends StatelessWidget {
             ),
             _buildStatItem(
               icon: Icons.cake_outlined,
-              value: _formatDate(profileUser.birthDate),
+              value: profileUser.birthDate != null ? _formatDate(profileUser.birthDate) : "",
               label: "Born",
               color: AppPallete.lightOrange,
             ),
@@ -494,12 +494,12 @@ class ProfilePage extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 16),
             ),
             _buildStatItem(
-              icon: profileUser.gender.toLowerCase() == 'male'
+              icon: profileUser.gender != null && profileUser.gender.toLowerCase() == 'male'
                   ? Icons.male
-                  : profileUser.gender.toLowerCase() == 'female'
+                  : profileUser.gender != null && profileUser.gender.toLowerCase() == 'female'
                       ? Icons.female
                       : Icons.person_outline,
-              value: profileUser.gender,
+              value: profileUser.gender ?? "",
               label: "Gender",
               color: AppPallete.primaryOrange,
             ),

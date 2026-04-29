@@ -6,9 +6,9 @@ import 'package:intl/intl.dart';
 
 class UserDetailsCard extends StatefulWidget {
   final String email;
-  final String bio;
-  final DateTime birthDate;
-  final String gender;
+  final String? bio;
+  final DateTime? birthDate;
+  final String? gender;
   final String userId;
 
   /// if null → read only
@@ -17,9 +17,9 @@ class UserDetailsCard extends StatefulWidget {
   const UserDetailsCard({
     super.key,
     required this.email,
-    required this.bio,
-    required this.birthDate,
-    required this.gender,
+    this.bio,
+    this.birthDate,
+    this.gender,
     required this.userId,
     this.onEditBio,
   });
@@ -44,7 +44,7 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
 
     /// keep controller in sync when bloc updates UI
     if (oldWidget.bio != widget.bio) {
-      _controller.text = widget.bio;
+      _controller.text = widget.bio ?? '';
     }
   }
 
@@ -89,7 +89,7 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
         if (isEditing) {
           setState(() {
             isEditing = false;
-            _controller.text = widget.bio;
+            _controller.text = widget.bio ?? '';
           });
 
           /// close keyboard
@@ -134,7 +134,9 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
             //BIRTHDATE
             _buildNormalSection(
               title: "Birthday",
-              value: DateFormat('MMM dd, yyyy').format(widget.birthDate),
+              value: widget.birthDate != null 
+                ? DateFormat('MMM dd, yyyy').format(widget.birthDate!)
+                : "",
             ),
       
             const SizedBox(height: 16),
@@ -142,7 +144,7 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
             //GENDER
             _buildNormalSection(
               title: "Gender",
-              value: widget.gender,
+              value: widget.gender ?? "",
             ),
           ],
         ),
@@ -209,11 +211,13 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
                 )
               else
                 Text(
-                  widget.bio.isEmpty ? "No bio yet" : widget.bio,
+                  (widget.bio == null || widget.bio!.isEmpty) 
+                    ? "No bio yet" 
+                    : widget.bio!,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: widget.bio.isEmpty 
+                    color: (widget.bio == null || widget.bio!.isEmpty) 
                         ? AppPallete.greyText 
                         : AppPallete.whiteColor,
                   ),

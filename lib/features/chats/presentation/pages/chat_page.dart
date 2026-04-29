@@ -10,6 +10,9 @@ import 'package:chat_application/features/chats/presentation/widgets/delete_mess
 import 'package:chat_application/features/chats/presentation/widgets/send_options_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/time_capsule_picker.dart';
 import 'package:chat_application/features/timeline/presentation/pages/timeline_page.dart';
+import 'package:chat_application/features/friends/data/friend_model.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -199,6 +202,12 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final friendsState = context.watch<FriendsCubit>().state;
+    FriendModel? friend;
+    if (friendsState is FriendsLoaded) {
+      friend = friendsState.friends[widget.receiverId];
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -221,14 +230,63 @@ class _ChatPageState extends State<ChatPage> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              widget.receiverName,
-              style: TextStyle(
-                color: AppPallete.whiteColor,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            child: GestureDetector(
+              onTap: friend != null
+                ? () => _showFriendProfile(context, friend!)
+                : null,
+              child: Row(
+                children: [
+                  if (friend != null) ...[
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppPallete.cardBg,
+                        border: Border.all(color: AppPallete.primaryOrange),
+                      ),
+                      child: friend.profilePic.isNotEmpty
+                        ? CircleAvatar(
+                            radius: 18,
+                            backgroundImage: AssetImage(friend.profilePic),
+                            backgroundColor: AppPallete.cardBg,
+                          )
+                        : Icon(
+                            Icons.person,
+                            color: AppPallete.greyText,
+                            size: 20,
+                          ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.receiverName,
+                          style: TextStyle(
+                            color: AppPallete.whiteColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (friend != null && friend.email.isNotEmpty)
+                          Text(
+                            friend.email,
+                            style: TextStyle(
+                              color: AppPallete.greyText,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              overflow: TextOverflow.ellipsis,
             ),
           ),
           _buildHeaderButton(
@@ -297,6 +355,18 @@ class _ChatPageState extends State<ChatPage> {
           icon,
           color: color,
           size: 20,
+        ),
+      ),
+    );
+  }
+
+  void _showFriendProfile(BuildContext context, FriendModel friend) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(
+          isUser: false,
+          user: friend,
         ),
       ),
     );
