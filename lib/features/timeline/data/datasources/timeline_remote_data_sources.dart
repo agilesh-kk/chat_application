@@ -3,6 +3,7 @@ import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/timeline/data/models/event_model.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 
 abstract interface class TimelineRemoteDataSources {
   Future<List<Event>> getEvents({
@@ -24,39 +25,52 @@ abstract interface class TimelineRemoteDataSources {
     required String userId,
     required String receiverId,
   });
-}
 
-class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources{
-  final FirebaseFirestore firebaseFirestore;
-
-  TimelineRemoteDataSourcesImpl({
-    required this.firebaseFirestore
+  Future<List<Event>> getPersonalEvents({
+    required String userId
   });
 
+  Future<void> addPersonalEvent({
+    required String userId,
+    required String id,
+    required String title,
+    required String content,
+    required String type,
+    required DateTime time,
+  });
+}
+
+class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
+  final FirebaseFirestore firebaseFirestore;
+
+  TimelineRemoteDataSourcesImpl({required this.firebaseFirestore});
+
   @override
-  Future<List<Event>> getEvents({required String userId, required String receiverId}) async {
+  Future<List<Event>> getEvents({
+    required String userId,
+    required String receiverId,
+  }) async {
     String convoId = generateConversationId(userId, receiverId);
 
-    final timelineEvents =  (await firebaseFirestore
-                              .collection("Conversations")
-                              .doc(convoId)
-                              .collection("timeline")
-                              .orderBy("time")
-                              .get()).docs;
+    final timelineEvents =
+        (await firebaseFirestore
+                .collection("Conversations")
+                .doc(convoId)
+                .collection("timeline")
+                .orderBy("time")
+                .get())
+            .docs;
 
-    return timelineEvents.map(
-      (e){
-        return EventModel.fromJson(e.data(), e.id);
-      }
-    ).toList();
-           
+    return timelineEvents.map((e) {
+      return EventModel.fromJson(e.data(), e.id);
+    }).toList();
   }
 
-  String generateConversationId(String user1,String user2){
+  String generateConversationId(String user1, String user2) {
     final sorted = [user1, user2]..sort();
     return "${sorted[0]}_${sorted[1]}";
   }
-  
+
   @override
   Future<void> addEvent({
     required Message message,
@@ -79,9 +93,7 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources{
       "messageId": message.id,
 
       // 🔥 USER INPUT
-      "title": customTitle.isEmpty
-          ? "Saved a memory ❤️"
-          : customTitle,
+      "title": customTitle.isEmpty ? "Saved a memory ❤️" : customTitle,
 
       "content": message.content,
       "type": message.type,
@@ -94,37 +106,33 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources{
     });
 
     final messageRef = firebaseFirestore
-      .collection("Conversations")
-      .doc(convoId)
-      .collection("messages")
-      .doc(message.id);
+        .collection("Conversations")
+        .doc(convoId)
+        .collection("messages")
+        .doc(message.id);
 
     await messageRef.update({
       "inTimeline": true, // 🔥 NEW FIELD
     });
   }
-  
+
   @override
   Future<void> removeEvent({
-    required String eventId, 
-    required String messageId, 
-    required String userId, 
-    required String receiverId
+    required String eventId,
+    required String messageId,
+    required String userId,
+    required String receiverId,
   }) async {
-    try{
+    try {
       final convoId = generateConversationId(userId, receiverId);
 
       final convoRef = firebaseFirestore
-        .collection("Conversations")
-        .doc(convoId);
+          .collection("Conversations")
+          .doc(convoId);
 
-      final timelineRef = convoRef
-        .collection("timeline")
-        .doc(eventId);
-      
-      final messageRef = convoRef
-        .collection("messages")
-        .doc(messageId);
+      final timelineRef = convoRef.collection("timeline").doc(eventId);
+
+      final messageRef = convoRef.collection("messages").doc(messageId);
 
       await firebaseFirestore.runTransaction((transaction) async {
         // 🔹 1. Delete timeline event
@@ -135,22 +143,67 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources{
         transaction.delete(timelineRef);
 
         // 🔹 2. Check if message still has OTHER timeline events
-        final timelineQuery = await convoRef
-            .collection("timeline")
-            .where("messageId", isEqualTo: messageId)
-            .get();
+        final timelineQuery =
+            await convoRef
+                .collection("timeline")
+                .where("messageId", isEqualTo: messageId)
+                .get();
 
         // ❗ If only 1 event existed → now removed → set false
         if (timelineQuery.docs.length <= 1) {
-          transaction.set(
-            messageRef,
-            {"inTimeline": false},
-            SetOptions(merge: true),
-          );
+          transaction.set(messageRef, {
+            "inTimeline": false,
+          }, SetOptions(merge: true));
         }
       });
+    } catch (e) {
+      throw ServerExceptions(e.toString());
     }
-    catch(e){
+  }
+
+  @override
+  Future<List<Event>> getPersonalEvents({required String userId}) async {
+    try {
+      final timelineEvents =
+          (await firebaseFirestore
+                  .collection("users")
+                  .doc(userId)
+                  .collection("timeline")
+                  .orderBy("time")
+                  .get())
+              .docs;
+
+      return timelineEvents.map((e) {
+        return EventModel.fromJson(e.data(), e.id);
+      }).toList();
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
+
+  @override
+  Future<void> addPersonalEvent({
+    required String userId,
+    required String id,
+    required String title,
+    required String content,
+    required String type,
+    required DateTime time,
+  }) async{
+    try {
+      final timelineRef = firebaseFirestore
+        .collection("users")
+        .doc(userId)
+        .collection("timeline");
+
+      await timelineRef.doc(id).set({
+        "id": id,
+        "title": title.isEmpty ? "Saved a memory ❤️" : title,
+        "content": content,
+        "type": type,
+        "time": time,
+      });
+    } catch (e) {
       throw ServerExceptions(e.toString());
     }
   }
