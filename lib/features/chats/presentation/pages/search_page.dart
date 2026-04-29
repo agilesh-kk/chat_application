@@ -1,6 +1,5 @@
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
-import 'package:chat_application/features/auth/data/models/user_model.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';

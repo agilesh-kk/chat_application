@@ -1,4 +1,5 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_options_helper.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
 import 'package:flutter/material.dart';
@@ -101,10 +102,10 @@ class _MessageBubbleState extends State<MessageBubble>
     }
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     final time =
-        DateFormat('h:mm a').format(widget.message.createdAt); //createdAt is changed to DateTime
+        DateFormat('h:mm a').format(widget.message.createdAt);
 
     return GestureDetector(
       onLongPressStart: (details) {
@@ -122,7 +123,6 @@ class _MessageBubbleState extends State<MessageBubble>
           onAddToTimeline: !widget.message.inTimeline ? (){
             _showAddToTimelineDialog(widget.message);
           }: null,
-            //print("Timeline: ${widget.message.id}");    
         );  
       },
       child: ScaleTransition(
@@ -143,34 +143,25 @@ class _MessageBubbleState extends State<MessageBubble>
                 constraints: const BoxConstraints(maxWidth: 500),
                 decoration: BoxDecoration(
                   color: widget.highlight
-                      ? Colors.yellow.withValues(alpha: 0.3) // 🔥 glow
+                      ? AppPallete.primaryOrange.withValues(alpha: 0.3)
                       : (widget.isMe
-                          ? const Color.fromARGB(255, 246, 152, 11)
-                          : Colors.grey[300]),
-                  borderRadius: BorderRadius.circular(12),
+                          ? AppPallete.primaryOrange
+                          : AppPallete.cardBg),
+                  borderRadius: BorderRadius.circular(16),
+                  border: widget.isMe
+                      ? null
+                      : Border.all(color: AppPallete.divider),
                 ),
                 child: Wrap(
                   alignment: WrapAlignment.end,
                   crossAxisAlignment: WrapCrossAlignment.end,
                   spacing: 6,
                   children: [
-                    /// MESSAGE TEXT
-                    //before deletedForEveryone Field
-                    // Text(
-                    //   widget.message.content,
-                    //   style: TextStyle(
-                    //     fontSize: 15,
-                    //     color:
-                    //         widget.isMe ? Colors.white : Colors.black,
-                    //   ),
-                    // ),
-
-                    //after deletedForEveryone Field
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (widget.message.deletedForEveryone == true) ...[
-                          Icon(Icons.block, size: 14, color: Colors.grey),
+                          Icon(Icons.block, size: 14, color: AppPallete.greyText),
                           SizedBox(width: 4),
                         ],
                         Text(
@@ -181,14 +172,12 @@ class _MessageBubbleState extends State<MessageBubble>
                             fontSize: 15,
                             fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
                             color: widget.message.deletedForEveryone
-                                ? Colors.grey
-                                : (widget.isMe ? Colors.white : Colors.black),
+                                ? AppPallete.greyText
+                                : (widget.isMe ? AppPallete.whiteColor : AppPallete.whiteColor),
                           ),
                         ),
                       ],
                     ),
-            
-                    /// TIME + STATUS
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -197,13 +186,13 @@ class _MessageBubbleState extends State<MessageBubble>
                           style: TextStyle(
                             fontSize: 10,
                             color: widget.isMe
-                                ? Colors.white70
-                                : Colors.black54,
+                                ? AppPallete.whiteColor.withValues(alpha: 0.7)
+                                : AppPallete.greyText,
                           ),
                         ),
                         const SizedBox(width: 5),
                         if (widget.message.inTimeline) ...[
-                          Icon(Icons.favorite, size: 12, color: Colors.red),
+                          Icon(Icons.favorite, size: 12, color: AppPallete.primaryOrange),
                           SizedBox(width: 4),
                         ],
                         if(!widget.message.deletedForEveryone)
@@ -225,13 +214,13 @@ class _MessageBubbleState extends State<MessageBubble>
 
     switch (status) {
       case "sent":
-        return const Icon(Icons.check, size: 14, color: Colors.white70);
+        return Icon(Icons.check, size: 14, color: AppPallete.whiteColor.withValues(alpha: 0.7));
 
       case "delivered":
-        return const Icon(Icons.done_all, size: 14, color: Colors.white70);
+        return Icon(Icons.done_all, size: 14, color: AppPallete.whiteColor.withValues(alpha: 0.7));
 
       case "seen":
-        return const Icon(Icons.done_all, size: 14, color: Colors.blue);
+        return Icon(Icons.done_all, size: 14, color: AppPallete.statusGreen);
 
       default:
         return const SizedBox();
@@ -251,39 +240,109 @@ class _MessageBubbleState extends State<MessageBubble>
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text("Add to Timeline"),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: "Add a note (optional)",
+      builder: (dialogContext) => Dialog(
+        backgroundColor: AppPallete.cardBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppPallete.divider),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Add to Timeline",
+                style: TextStyle(
+                  color: AppPallete.whiteColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppPallete.inputBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppPallete.divider),
+                ),
+                child: TextField(
+                  controller: controller,
+                  style: TextStyle(color: AppPallete.whiteColor),
+                  decoration: InputDecoration(
+                    hintText: "Add a note (optional)",
+                    hintStyle: TextStyle(color: AppPallete.greyText),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppPallete.darkTertiary,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppPallete.divider),
+                      ),
+                      child: Text(
+                        "Cancel",
+                        style: TextStyle(
+                          color: AppPallete.greyText,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      dialogContext.read<TimelineBloc>().add(
+                        AddEvent(
+                          message: msg,
+                          userId: widget.currentUserId,
+                          receiverId: widget.receiverId,
+                          customTitle: controller.text.trim(),
+                          addedByName: userName,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppPallete.primaryOrange,
+                            AppPallete.lightOrange,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        "Save",
+                        style: TextStyle(
+                          color: AppPallete.whiteColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              print("add event triggred");
-              Navigator.pop(context);
-
-              dialogContext.read<TimelineBloc>().add(
-                AddEvent(
-                  message: msg,
-                  userId: widget.currentUserId,
-                  receiverId: widget.receiverId,
-                  customTitle: controller.text.trim(),
-                  addedByName: userName,
-                ),
-              );
-            },
-            child: Text("Save"),
-          ),
-        ],
       ),
-    );
+);
   }
 
   @override
