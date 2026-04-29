@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
+import 'package:chat_application/features/friends/data/friend_model.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -10,11 +12,14 @@ part 'conversation_states.dart';
 
 class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   final GetConversations getConversations;
+  final FriendsCubit friendsCubit;
 
   StreamSubscription<List<Conversation>>? _convoSub;
+  StreamSubscription? _friendsub;
 
   ConversationBloc({
     required this.getConversations,
+    required this.friendsCubit
   }) : super(ConversationInitial()) {
 
     // =========================================================
@@ -37,13 +42,55 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
             _convoSub = convoStream.listen(
               (convos) {
                 //print("📦 BLOC RECEIVED: ${convos.length}");
+                final sub = (friendsCubit.state as FriendsLoaded).friends;
+
+                final List<Conversation> updated = <Conversation>[];
+                  for(final c in convos){
+                    updated.add(
+                      Conversation(
+                      convoId: c.convoId,
+                      receiverId: c.receiverId,
+                      lastMessage: c.lastMessage,
+                      lastupdateTime: c.lastupdateTime,
+                      profilepicLink: sub[c.receiverId]!.profilePic,
+                      receiverName: sub[c.receiverId]!.name,
+                      unread: c.unread,
+                      lastSender: c.lastSender)
+                    );
+                  
+
+                  add(_ConversationUpdated(updated));
+                }
                 
-                add(_ConversationUpdated(convos));
               },
               onError: (error) {
                 add(_ConversationErrorEvent(error.toString()));
               },
             );
+
+            _friendsub?.cancel();
+
+            _friendsub = (friendsCubit).stream.listen(
+                  (d) {
+                  if(d is FriendsLoaded){
+                  final List<Conversation> updated = <Conversation>[];
+                  for(final c in (state as ConversationLoaded).conversations){
+                    updated.add(
+                      Conversation(
+                      convoId: c.convoId,
+                      receiverId: c.receiverId,
+                      lastMessage: c.lastMessage,
+                      lastupdateTime: c.lastupdateTime,
+                      profilepicLink: d.friends[c.receiverId]!.profilePic,
+                      receiverName: d.friends[c.receiverId]!.name,
+                      unread: c.unread,
+                      lastSender: c.lastSender)
+                    );
+                  }
+
+                  add(_ConversationUpdated(updated));
+                }
+                },);
           },
         );
       } catch (e) {

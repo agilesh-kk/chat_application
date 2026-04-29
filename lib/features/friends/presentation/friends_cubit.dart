@@ -8,6 +8,7 @@ part 'friends_state.dart';
 
 class FriendsCubit extends Cubit<FriendsState> {
   final FriendsRemoteDataSource repository;
+  StreamSubscription<Map<String,FriendModel>>? _friendsub;
 
   FriendsCubit(this.repository) : super(FriendsInitial());
 
@@ -21,7 +22,12 @@ class FriendsCubit extends Cubit<FriendsState> {
     try {
 
       final friendSub = (await repository.getFriends(userId));
-      emit(FriendsLoaded(friendSub));
+      _friendsub?.cancel();
+
+      _friendsub = friendSub.listen(
+        (event) {
+          emit(FriendsLoaded(event));
+      },);
 
     } catch (e) {
       emit(FriendsError(e.toString()));

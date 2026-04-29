@@ -2,7 +2,7 @@ import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 abstract class FriendsRemoteDataSource {
-  Future<Stream<List<FriendModel>>> getFriends(String userId);
+  Future<Stream<Map<String,FriendModel>>> getFriends(String userId);
 
   Future<void> addFriend(String userId, String friendId);
 
@@ -15,12 +15,12 @@ class FriendsRemoteDataSourceImpl implements FriendsRemoteDataSource {
   FriendsRemoteDataSourceImpl(this.firestore);
 
   @override
-  Future<Stream<List<FriendModel>>> getFriends(String userId) async {
+  Future<Stream<Map<String,FriendModel>>> getFriends(String userId) async {
     return firestore
         .collection('users')
         .where('friends',arrayContains: userId)
         .snapshots()
-        .map((snap)=>snap.docs.map((doc)=>FriendModel.fromJson(doc.data())).toList());
+        .map((snap)=>Map.fromEntries(snap.docs.map((doc)=>MapEntry(doc.id,FriendModel.fromJson(doc.data())))));
   }
 
   @override
