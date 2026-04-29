@@ -76,10 +76,34 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
 
   void _loadStatus(List<Status> r, Emitter emit){
     friendsStream?.cancel();
-    final friendsStreamBroadcast = (_friendsCubit.state as FriendsLoaded).friends;
+    final friendsStreamBroadcast = _friendsCubit.stream;
     friendsStream = friendsStreamBroadcast.listen(
       (d){
-        final friendsMap = Map.fromEntries(d.map((e)=>MapEntry(e.id, e)));
+        if(d is FriendsLoaded){
+        final List<Status> updated = <Status>[];
+        final current = (state as StatusDisplaySuccess).status;
+
+        for (final s in current) {
+          updated.add(
+            Status(
+              id: s.id, 
+              userId: s.userId, 
+              imageUrl: s.imageUrl, 
+              caption: s.caption, 
+              createdAt: s.createdAt, 
+              expiresAt: s.expiresAt, 
+              userName: d.friends[s.userId]?.name ?? "unknown", 
+              profilepic: d.friends[s.userId]?.profilePic ?? "not found"
+            )
+          );
+        }
+
+      add(UpdateStatusPage(statuses: updated));
+        }
+    });
+
+    final friends = _friendsCubit.state;
+    if(friends is FriendsLoaded){
         final List<Status> updated = <Status>[];
 
         for (final s in r) {
@@ -91,14 +115,13 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
               caption: s.caption, 
               createdAt: s.createdAt, 
               expiresAt: s.expiresAt, 
-              userName: friendsMap[s.userId]?.name ?? "unknown", 
-              profilepic: friendsMap[s.userId]?.profilePic ?? "not found"
+              userName: friends.friends[s.userId]?.name ?? "unknown", 
+              profilepic: friends.friends[s.userId]?.profilePic ?? "not found"
             )
           );
-        }
-
+      }
       add(UpdateStatusPage(statuses: updated));
-    });
+    }
   }
 
   void _updateStatus(UpdateStatusPage event, Emitter emit){

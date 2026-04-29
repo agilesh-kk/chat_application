@@ -14,14 +14,6 @@ class FriendsPage extends StatefulWidget {
 }
 
 class _FriendsPageState extends State<FriendsPage> {
-  Stream<List<FriendModel>> _getFriendsStream() {
-    final friendsCubit = context.watch<FriendsCubit>();
-    if (friendsCubit.state is FriendsLoaded) {
-      return (friendsCubit.state as FriendsLoaded).friends;
-    }
-    return const Stream.empty();
-  }
-
   @override
   void initState() {
     super.initState();
@@ -66,39 +58,59 @@ return Scaffold(
           ),
         ),
         child: SafeArea(
-          child: StreamBuilder<List<FriendModel>>(
-            stream: _getFriendsStream(),
-            builder: (context, snapshot) {
-              final friends = snapshot.data ?? [];
+          child: BlocBuilder<FriendsCubit, FriendsState>(
+            builder: (context, state) {
+              if (state is FriendsLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: AppPallete.primaryOrange,
+                  ),
+                );
+              }
 
-              return CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: _buildHeader(context),
+              if (state is FriendsError) {
+                return Center(
+                  child: Text(
+                    state.message,
+                    style: TextStyle(color: AppPallete.errorColor),
                   ),
-                  if (friends.isEmpty)
+                );
+              }
+
+              if (state is FriendsLoaded) {
+                final friends = state.friends.values.toList();
+
+                return CustomScrollView(
+                  slivers: [
                     SliverToBoxAdapter(
-                      child: _buildEmptyState(),
-                    )
-                  else
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final friend = friends[index];
-                          return _buildFriendTile(
-                            context,
-                            friend: friend,
-                            currentUserId: currentUser.id,
-                          );
-                        },
-                        childCount: friends.length,
-                      ),
+                      child: _buildHeader(context),
                     ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 100),
-                  ),
-                ],
-              );
+                    if (friends.isEmpty)
+                      SliverToBoxAdapter(
+                        child: _buildEmptyState(),
+                      )
+                    else
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final friend = friends[index];
+                            return _buildFriendTile(
+                              context,
+                              friend: friend,
+                              currentUserId: currentUser.id,
+                            );
+                          },
+                          childCount: friends.length,
+                        ),
+                      ),
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 100),
+                    ),
+                  ],
+                );
+              }
+
+              return const SizedBox();
             },
           ),
         ),

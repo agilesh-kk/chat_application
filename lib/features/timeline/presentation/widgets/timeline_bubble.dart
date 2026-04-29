@@ -1,3 +1,4 @@
+import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 
@@ -46,7 +47,7 @@ class _TimelineBubbleState extends State<TimelineBubble>
     _scaleAnimation = Tween<double>(begin: 0.9, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: Curves.easeOutBack, // nice zoom bounce
+        curve: Curves.easeOutBack,
       ),
     );
 
@@ -65,48 +66,76 @@ class _TimelineBubbleState extends State<TimelineBubble>
       opacity: _fadeAnimation,
       child: ScaleTransition(
         scale: _scaleAnimation,
-        child: Container(
+child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           constraints: const BoxConstraints(
             maxWidth: 220,
           ),
           decoration: BoxDecoration(
-            color: widget.isMe
-                ? Colors.green.shade300
-                : Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(10),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: widget.isMe
+                  ? [AppPallete.primaryOrange.withValues(alpha: 0.3), AppPallete.lightOrange.withValues(alpha: 0.1)]
+                  : [AppPallete.cardBg, AppPallete.darkTertiary],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppPallete.primaryOrange.withValues(alpha: 0.4),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppPallete.primaryOrange.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: widget.isMe
                 ? CrossAxisAlignment.start
                 : CrossAxisAlignment.end,
             children: [
-              /// TITLE
-              Text(
-                widget.event.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _icon(widget.event.type),
+                    size: 14,
+                    color: AppPallete.primaryOrange,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      widget.event.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppPallete.whiteColor,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 4),
-
-              /// TIME
+              const SizedBox(height: 6),
               Text(
                 MomentsAgo.calculateMomentsAgo(
                   widget.event.time.toString(),
                 ),
-                style: const TextStyle(fontSize: 10),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: AppPallete.greyText,
+                ),
               ),
-
-              const SizedBox(height: 6),
-
-              /// CONTENT
+              const SizedBox(height: 8),
               if (widget.event.type == "image")
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
                     widget.event.content,
-                    height: 180,
+                    height: 120,
+                    width: 180,
                     fit: BoxFit.cover,
                   ),
                 )
@@ -114,16 +143,21 @@ class _TimelineBubbleState extends State<TimelineBubble>
                 Text(
                   widget.event.content,
                   softWrap: true,
-                ),
-              
-              /// 🔥 ADDED BY
-              if (widget.event.isManual)
-                Text(
-                  "Added by ${widget.event.addedByName}",
                   style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.black,
-                    fontStyle: FontStyle.italic,
+                    color: AppPallete.whiteColor.withValues(alpha: 0.8),
+                    fontSize: 13,
+                  ),
+                ),
+              if (widget.event.isManual)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    "Added by ${widget.event.addedByName}",
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppPallete.greyText,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
             ],
@@ -131,5 +165,16 @@ class _TimelineBubbleState extends State<TimelineBubble>
         ),
       ),
     );
+  }
+
+  IconData _icon(String type) {
+    switch (type) {
+      case "image":
+        return Icons.image;
+      case "milestone":
+        return Icons.star;
+      default:
+        return Icons.message;
+    }
   }
 }

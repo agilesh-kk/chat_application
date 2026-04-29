@@ -1,3 +1,4 @@
+import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:flutter/material.dart';
 
 class TimeCapsulePicker {
@@ -7,6 +8,20 @@ class TimeCapsulePicker {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: AppPallete.primaryOrange,
+              onPrimary: AppPallete.whiteColor,
+              surface: AppPallete.cardBg,
+              onSurface: AppPallete.whiteColor,
+            ),
+            dialogBackgroundColor: AppPallete.cardBg,
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked == null) return null;
@@ -21,13 +36,11 @@ class TimeCapsulePicker {
 
     final difference = selectedDateTime.difference(now);
 
-    /// ❌ Past time
     if (difference.isNegative) {
       _showError(context, "Please select a future time");
       return null;
     }
 
-    /// ❌ Beyond 24 hrs
     if (difference.inHours >= 24) {
       _showError(context, "Time must be within 24 hours");
       return null;
@@ -38,7 +51,17 @@ class TimeCapsulePicker {
 
   static void _showError(BuildContext context, String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+      SnackBar(
+        content: Text(
+          msg,
+          style: TextStyle(color: AppPallete.whiteColor),
+        ),
+        backgroundColor: AppPallete.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
     );
   }
 }

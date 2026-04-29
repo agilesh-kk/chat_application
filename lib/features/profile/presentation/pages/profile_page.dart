@@ -105,48 +105,70 @@ class ProfilePage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Profile",
-                style: TextStyle(
+          if (!isUser)
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppPallete.cardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppPallete.divider),
+                ),
+                child: Icon(
+                  Icons.arrow_back,
                   color: AppPallete.whiteColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 32,
-                  letterSpacing: -1,
+                  size: 20,
                 ),
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Container(
-                    width: 30,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppPallete.primaryOrange,
-                          AppPallete.lightOrange,
-                        ],
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Profile",
+                  style: TextStyle(
+                    color: AppPallete.whiteColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 32,
+                    letterSpacing: -1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppPallete.primaryOrange,
+                            AppPallete.lightOrange,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      borderRadius: BorderRadius.circular(2),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Container(
-                    width: 12,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: AppPallete.divider,
-                      borderRadius: BorderRadius.circular(2),
+                    const SizedBox(width: 4),
+                    Container(
+                      width: 12,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: AppPallete.divider,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (isUser)
+                  ],
+                ),
+              ],
+            ),
+          if (!isUser)
+            _buildCloseButton(
+              onTap: () => Navigator.pop(context),
+            )
+          else
             _buildActionButton(
               icon: Icons.logout_rounded,
               onTap: () async {
@@ -194,6 +216,38 @@ class ProfilePage extends StatelessWidget {
             child: Icon(
               icon,
               color: color ?? AppPallete.whiteColor,
+              size: 24,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCloseButton({required VoidCallback onTap}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppPallete.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppPallete.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Icon(
+              Icons.close,
+              color: AppPallete.whiteColor,
               size: 24,
             ),
           ),
@@ -429,7 +483,7 @@ class ProfilePage extends StatelessWidget {
             ),
             _buildStatItem(
               icon: Icons.cake_outlined,
-              value: _formatDate(profileUser.birthDate),
+              value: profileUser.birthDate != null ? _formatDate(profileUser.birthDate) : "",
               label: "Born",
               color: AppPallete.lightOrange,
             ),
@@ -440,12 +494,12 @@ class ProfilePage extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 16),
             ),
             _buildStatItem(
-              icon: profileUser.gender.toLowerCase() == 'male'
+              icon: profileUser.gender != null && profileUser.gender.toLowerCase() == 'male'
                   ? Icons.male
-                  : profileUser.gender.toLowerCase() == 'female'
+                  : profileUser.gender != null && profileUser.gender.toLowerCase() == 'female'
                       ? Icons.female
                       : Icons.person_outline,
-              value: profileUser.gender,
+              value: profileUser.gender ?? "",
               label: "Gender",
               color: AppPallete.primaryOrange,
             ),
