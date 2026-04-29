@@ -1,5 +1,4 @@
 import 'package:chat_application/core/errors/exceptions.dart';
-import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/timeline/data/models/event_model.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
