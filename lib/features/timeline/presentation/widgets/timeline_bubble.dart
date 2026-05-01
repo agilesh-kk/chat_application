@@ -9,7 +9,7 @@ class TimelineBubble extends StatefulWidget {
   final bool isMe;
 
   final String userId;
-  final String receiverId;
+  final String? receiverId;
 
   const TimelineBubble({
     super.key,
@@ -17,7 +17,7 @@ class TimelineBubble extends StatefulWidget {
     required this.isMe,
     
     required this.userId,
-    required this.receiverId,
+    this.receiverId,
   });
 
   @override

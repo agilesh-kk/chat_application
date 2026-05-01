@@ -108,4 +108,20 @@ class TimelineRepositoryImpl implements TimelineRepository {
       throw ServerExceptions(e.toString());
     }
   }
+  
+  @override
+  Future<void> removePersonalEvent({
+    required String userId, 
+    required String eventId
+  }) async{
+    try{
+      await timelineRemoteDataSources.removePersonalEvent(
+        userId: userId, 
+        eventId: eventId
+      );
+    }
+    catch(e){
+      throw ServerExceptions(e.toString());
+    }
+  }
 }

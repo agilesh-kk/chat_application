@@ -47,10 +47,14 @@ import 'package:chat_application/features/status/presentation/bloc/status_view/s
 import 'package:chat_application/features/timeline/data/datasources/timeline_remote_data_sources.dart';
 import 'package:chat_application/features/timeline/data/repositories/timeline_repository_impl.dart';
 import 'package:chat_application/features/timeline/domain/repositories/timeline_repository.dart';
+import 'package:chat_application/features/timeline/domain/usecases/add_personal_event.dart';
 import 'package:chat_application/features/timeline/domain/usecases/add_timeline_event.dart';
 import 'package:chat_application/features/timeline/domain/usecases/load_events.dart';
+import 'package:chat_application/features/timeline/domain/usecases/load_personal_events.dart';
+import 'package:chat_application/features/timeline/domain/usecases/remove_personal_event.dart';
 import 'package:chat_application/features/timeline/domain/usecases/remove_timeline_event.dart';
-import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/personal_time_line/personal_timeline_bloc.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -368,6 +372,15 @@ void _initTimeline(){
   ..registerFactory(
     () => RemoveTimelineEvent(timelineRepository: serviceLocator<TimelineRepository>())
   )
+  ..registerFactory(
+    () => AddPersonalEvent(timelineRepository: serviceLocator<TimelineRepository>())
+  )
+  ..registerFactory(
+    () => LoadPersonalEvents(timelineRepository: serviceLocator<TimelineRepository>())
+  )
+  ..registerFactory(
+    () => RemovePersonalEvent(timelineRepository: serviceLocator<TimelineRepository>()),
+  )
   
   //bloc
   ..registerFactory(
@@ -375,6 +388,13 @@ void _initTimeline(){
       loadEvents: serviceLocator(),
       addTimeLineEvent: serviceLocator(),
       removeTimelineEvent: serviceLocator(),
+    )
+  )
+  ..registerLazySingleton(
+    () => PersonalTimelineBloc(
+      addPersonalEvent: serviceLocator(), 
+      loadPersonalEvents: serviceLocator(),
+      removePersonalEvent: serviceLocator(),
     )
   );
 }

@@ -25,7 +25,7 @@ abstract interface class TimelineRepository {
   });
 
   Future<Either<Failure, List<Event>>> getPersonalEvents({
-    required String userId
+    required String userId,
   });
 
   Future<void> addPersonalEvent({
@@ -34,5 +34,10 @@ abstract interface class TimelineRepository {
     required String content,
     required String type,
     required DateTime time,
+  });
+
+  Future<void> removePersonalEvent({
+    required String userId,
+    required String eventId,
   });
 }

@@ -10,7 +10,8 @@ import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
-import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/personal_time_line/personal_timeline_bloc.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
 import 'package:chat_application/firebase_options.dart';
 import 'package:chat_application/init_dependencies.dart';
 import 'package:flutter/material.dart';
@@ -74,6 +75,9 @@ void main() async {
         //timeline bloc
         BlocProvider(
           create: (_) => serviceLocator<TimelineBloc>(),
+        ),
+        BlocProvider(
+          create: (_) => serviceLocator<PersonalTimelineBloc>(),
         )
       ],
       child: MyApp(),

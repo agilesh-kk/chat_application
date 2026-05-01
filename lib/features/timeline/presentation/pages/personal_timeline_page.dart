@@ -1,30 +1,62 @@
+import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/personal_time_line/personal_timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
+import 'package:chat_application/features/timeline/presentation/widgets/add_event_dialog.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_bubble.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_options_tray.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:chat_application/init_dependencies.dart';
-
-class TimelinePage extends StatelessWidget {
+class PersonalTimeLinePage extends StatefulWidget {
   final String userId;
-  final String receiverId;
-  final String receiverName;
-  late final TimelineBloc tb;
 
-  TimelinePage({
+  PersonalTimeLinePage({
     super.key,
     required this.userId,
-    required this.receiverId,
-    required this.receiverName
   });
+
+  @override
+  State<PersonalTimeLinePage> createState() => _PersonalTimeLinePageState();
+}
+
+class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ Correct place to trigger bloc event
+    Future.microtask(() {
+      context.read<PersonalTimelineBloc>().add(
+        FetchPersonalTimeLine(userId: widget.userId),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppPallete.primaryOrange,
+        onPressed: () async{
+          final result = await AddEventDialog.show(context);
+
+          if (result != null) {
+            context.read<PersonalTimelineBloc>().add(
+                  AddPersonalTimeLineEvent(
+                    userId: widget.userId,
+                    title: result["title"]!,
+                    content: result["content"]!,
+                    time: DateTime.now(),
+                    type: "text",
+                  ),
+                );
+          }
+        },
+        child: const Icon(Icons.add),
+      ),
       backgroundColor: AppPallete.darkBg,
       body: Container(
         decoration: BoxDecoration(
@@ -44,60 +76,45 @@ class TimelinePage extends StatelessWidget {
             children: [
               _buildHeader(context),
               Expanded(
-                child: BlocProvider(
-                  create: (context) { tb = serviceLocator<TimelineBloc>()
-                    ..add(
-                      FetchTimelineEvent(
-                        userId: userId,
-                        receiverId: receiverId,
-                      ),
-                    );
-                    return tb;
+                child: BlocBuilder<PersonalTimelineBloc, PersonalTimelineState>(
+                  builder: (context, state) {
+                    if (state is TimelineLoading) {
+                      return const Loader();
+                    }
+                              
+                    if (state is PersonalTimelineLoaded) {
+                      if (state.events.isEmpty) {
+                        return _buildEmptyState();
+                      }
+                      
+                      return ListView.builder(
+                        cacheExtent: 100,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        itemCount: state.events.length,
+                        itemBuilder: (context, index) {
+                          final event = state.events[index];
+                          final isMe = event.addedBy == widget.userId;
+                                
+                          return _timelineItem(
+                            event, 
+                            isMe, 
+                            index == state.events.length - 1,
+                            context);
+                        },
+                      );
+                    }
+                              
+                    if (state is PersonalTimelineError) {
+                      return Center(
+                        child: Text(
+                          state.message,
+                          style: TextStyle(color: AppPallete.errorColor),
+                        ),
+                      );
+                    }
+                              
+                    return const SizedBox();
                   },
-                  child: BlocBuilder<TimelineBloc, TimelineState>(
-                    builder: (context, state) {
-                      if (state is TimelineLoading) {
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            color: AppPallete.primaryOrange,
-                          ),
-                        );
-                      }
-              
-                      if (state is TimelineLoaded) {
-                        if (state.events.isEmpty) {
-                          return _buildEmptyState();
-                        }
-                        
-                        return ListView.builder(
-                          cacheExtent: 100,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          itemCount: state.events.length,
-                          itemBuilder: (context, index) {
-                            final event = state.events[index];
-                            final isMe = event.addedBy == userId;
-                
-                            return _timelineItem(
-                              event, 
-                              isMe, 
-                              index == state.events.length - 1,
-                              context);
-                          },
-                        );
-                      }
-              
-                      if (state is TimelineError) {
-                        return Center(
-                          child: Text(
-                            state.message,
-                            style: TextStyle(color: AppPallete.errorColor),
-                          ),
-                        );
-                      }
-              
-                      return const SizedBox();
-                    },
-                  ),
                 ),
               ),
             ],
@@ -271,23 +288,15 @@ class TimelinePage extends StatelessWidget {
 
   Widget _bubble(dynamic event, bool isMe, BuildContext context) {
     return GestureDetector(
-      onDoubleTap: () async {
-        final fullId = (event as Event).id;
-        final messageId = fullId.split("_")[0];
-        
-        Navigator.pop(context, messageId);
-      },
       onLongPressStart: (details){
         TimelineOptionsTray.show(
           context: context,
           position: details.globalPosition,
           onDelete: (){
-            context.read<TimelineBloc>().add(
-              RemoveEvent(
-                eventId: event.id, 
-                messageId: event.messageId, 
-                userId: userId, 
-                receiverId: receiverId,
+            context.read<PersonalTimelineBloc>().add(
+              RemovePersonalTimelineEvent(
+                userId: widget.userId, 
+                eventId: event.id,
               )
             );
           }
@@ -296,8 +305,7 @@ class TimelinePage extends StatelessWidget {
       child: TimelineBubble(
         event: event, 
         isMe: isMe,
-        receiverId: receiverId,
-        userId: userId,
+        userId: widget.userId,
       )
     );
   }

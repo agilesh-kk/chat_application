@@ -38,6 +38,11 @@ abstract interface class TimelineRemoteDataSources {
     required String type,
     required DateTime time,
   });
+
+  Future<void> removePersonalEvent({
+    required String userId,
+    required String eventId,
+  });
 }
 
 class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
@@ -135,14 +140,14 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
       final messageRef = convoRef.collection("messages").doc(messageId);
 
       await firebaseFirestore.runTransaction((transaction) async {
-        // 🔹 1. Delete timeline event
+        //Delete timeline event
         final eventSnap = await transaction.get(timelineRef);
 
         if (!eventSnap.exists) return;
 
         transaction.delete(timelineRef);
 
-        // 🔹 2. Check if message still has OTHER timeline events
+        //Checking if message still has OTHER timeline events
         final timelineQuery =
             await convoRef
                 .collection("timeline")
@@ -204,6 +209,21 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
         "time": time,
       });
     } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
+  
+  @override
+  Future<void> removePersonalEvent({required String userId, required String eventId}) async {
+    try{
+      await firebaseFirestore
+        .collection("users")
+        .doc(userId)
+        .collection("timeline")
+        .doc(eventId)
+        .delete();
+    }
+    catch(e){
       throw ServerExceptions(e.toString());
     }
   }

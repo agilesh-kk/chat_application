@@ -7,7 +7,7 @@ import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_options_helper.dart';
 import 'package:chat_application/features/chats/presentation/pages/image_page.dart';
-import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
