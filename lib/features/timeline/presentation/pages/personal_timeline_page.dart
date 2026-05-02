@@ -221,13 +221,13 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              "Long press a message to add to timeline",
-              style: TextStyle(
-                color: AppPallete.greyText,
-                fontSize: 14,
-              ),
-            ),
+            // Text(
+            //   "Add new events to your TimeLine!",
+            //   style: TextStyle(
+            //     color: AppPallete.greyText,
+            //     fontSize: 14,
+            //   ),
+            // ),
           ],
         ),
       ),

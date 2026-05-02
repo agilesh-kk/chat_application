@@ -191,8 +191,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           //per-user conversation model
           userId: {
             "receiverId": receiverId,
-            "receiverName": receiverData["name"],
-            "receiverProfile": receiverData["profilePic"],
+            //"receiverName": receiverData["name"],
+            //"receiverProfile": receiverData["profilePic"],
             "unread": 0,
 
             // ✅ per-user last message
@@ -204,8 +204,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
           receiverId: {
             "receiverId": userId,
-            "receiverName": userName,
-            "receiverProfile": userProfile,
+            //"receiverName": userName,
+            //"receiverProfile": userProfile,
             "unread": FieldValue.increment(1),
 
             "lastMessage": type == "text" ? content : "📷 Image",

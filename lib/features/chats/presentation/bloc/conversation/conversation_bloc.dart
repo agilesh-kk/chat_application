@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
-import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
