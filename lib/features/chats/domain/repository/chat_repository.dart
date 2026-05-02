@@ -22,7 +22,11 @@ abstract interface class ChatRepository{
     required String content,
     required String msgId,
     String? userName,
-    String? userProfile
+    String? userProfile,
+
+    //for time capsule
+    DateTime? sendAt,
+    bool isScheduled = false,
   });
 
   Future<Either<Failure, void>> sendImage({
@@ -41,8 +45,21 @@ abstract interface class ChatRepository{
   });
 
   //Contract to fetch receiverName
-  Future<Either<Failure,User?>> searchUser({
-    required String receiverName
+  Future<Either<Failure,List<User>>> searchUser({
+    required String receiverName,
+    required String currentUserId,
   });
 
+  Future<Either<Failure,Stream<List<Message>>>> getScheduledMessages({
+    required String receiverId,
+    required String userId,
+  });
+
+  Future<void> deleteMessage({
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    required String type,
+    bool deleteForEveryone = false,
+  });
 }

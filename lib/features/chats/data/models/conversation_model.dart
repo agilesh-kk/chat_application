@@ -1,6 +1,7 @@
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ConversationModel extends Conversation{
+class ConversationModel extends Conversation {
   
 
   ConversationModel({
@@ -10,25 +11,48 @@ class ConversationModel extends Conversation{
     required super.lastMessage,
     required super.lastupdateTime,
     required super.receiverName,
-    required super.profilepicLink
+    required super.profilepicLink,
+    required super.lastSender,
   });
 
   factory ConversationModel.fromJson(
-    Map<String,dynamic> map,
+    Map<String, dynamic> map,
     String id,
-    String userId
-  ){
-    final receiverDetails = map[userId];
+    String userId,
+  ) {
+    final userData = map[userId] ?? {};
 
     return ConversationModel(
       convoId: id,
-      receiverId: receiverDetails["receiverId"],
-      lastMessage: map['lastMessage'],
-      lastupdateTime: map['lastupdateTime'].toDate().toString(),
-      receiverName: receiverDetails["receiverName"] ?? "unknown",
-      profilepicLink: receiverDetails["receiverProfile"] ?? "not found",
-      unread: receiverDetails["unread"] ?? 0
+      receiverId: userData["receiverId"] ?? "",
+      lastMessage: userData["lastMessage"] ?? "",
+      lastupdateTime:
+          _parseLastUpdateTime(userData["lastupdateTime"]),
+      receiverName: userData["receiverName"] ?? "unknown",
+      profilepicLink: userData["receiverProfile"] ?? "",
+      unread: userData["unread"] ?? 0,
+      lastSender: userData["lastSender"] ?? "",
     );
+  }
+
+  static String _parseLastUpdateTime(dynamic raw) {
+    if (raw == null) {
+      return "";
+    }
+
+    if (raw is String && raw.isNotEmpty) {
+      return raw;
+    }
+
+    if (raw is Timestamp) {
+      return raw.toDate().toString();
+    }
+
+    try {
+      return raw.toString();
+    } catch (_) {
+      return "";
+    }
   }
 
   Map<String,dynamic> toMap(String userId){
@@ -41,6 +65,7 @@ class ConversationModel extends Conversation{
       },
       "lastMessage": lastMessage,
       "lastupdateTime": lastupdateTime,
+      "lastSender": lastSender,
     };
   }
 }

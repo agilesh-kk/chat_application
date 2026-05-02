@@ -19,12 +19,18 @@ class SendMessageEvent extends ChatEvent{
   final String content;
   String? userName;
   String? userProfile;
+
+  final DateTime? sendAt;
+  final bool isScheduled;
+
   SendMessageEvent({
     required this.userId,
     required this.receiverId,
     required this.content,
     this.userName,
-    this.userProfile
+    this.userProfile,
+    this.sendAt,
+    this.isScheduled=false,
   });
 }
 
@@ -47,6 +53,22 @@ class MessagesUpdatedEvent extends ChatEvent {
   final List<Message> messages;
 
   MessagesUpdatedEvent(this.messages);
+}
+
+class DeleteMessageEvent extends ChatEvent{
+  final String msgId;
+  final String userId;
+  final String receiverId;
+  final String type;
+  final bool deleteForEveryone;
+
+  DeleteMessageEvent({
+    required this.msgId, 
+    required this.userId, 
+    required this.receiverId,
+    required this.type, 
+    required this.deleteForEveryone
+  });
 }
 
 class Closechat extends ChatEvent{}

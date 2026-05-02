@@ -4,10 +4,13 @@ import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
-import 'package:chat_application/features/timeline/features/timeline/presentation/bloc/timeline_bloc.dart';
+import 'package:chat_application/features/timeline/presentation/bloc/timeline_bloc.dart';
 import 'package:chat_application/firebase_options.dart';
 import 'package:chat_application/init_dependencies.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +29,11 @@ void main() async {
           create: (_) => serviceLocator<AppUserCubit>(), //loads the app_user_cubit contents from the dependency file
         ),
 
+        //user friends cubit
+        BlocProvider(
+          create: (context) => serviceLocator<FriendsCubit>(),
+        ),
+
         //authentication bloc
         BlocProvider(
           create: (_) => serviceLocator<AuthBloc>()
@@ -35,6 +43,9 @@ void main() async {
         //chat bloc
         BlocProvider(
           create: (_) => serviceLocator<ChatBloc>(), 
+        ),
+        BlocProvider(
+          create: (_)=> serviceLocator<TimeCapsuleBloc>()
         ),
         BlocProvider(
           create: (_) => serviceLocator<ConversationBloc>(), 
@@ -52,10 +63,18 @@ void main() async {
           create: (_) => serviceLocator<StatusviewBloc>(),
         ),
 
-        //profile bloc
+        //profile blocs
         BlocProvider(
           create: (_) => serviceLocator<ProfilePicBloc> ()
         ),
+        BlocProvider(
+          create: (_) => serviceLocator<BioBloc>(),
+        ),
+
+        //timeline bloc
+        BlocProvider(
+          create: (_) => serviceLocator<TimelineBloc>(),
+        )
       ],
       child: MyApp(),
     ),
@@ -72,7 +91,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        scaffoldBackgroundColor: Color(0xFF0D0D0D),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Color(0xFFFF6B35),
+          brightness: Brightness.dark,
+        ),
       ),
       home: AuthGate(),
     );

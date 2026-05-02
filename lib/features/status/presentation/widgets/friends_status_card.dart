@@ -1,64 +1,224 @@
+import 'dart:io';
+import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:flutter/material.dart';
 
-class FriendsStatusCard extends StatelessWidget {
+class FriendsStatusCard extends StatefulWidget {
   final Status status;
   final VoidCallback onstatusTap;
-  final String displayPicUrl;
   final String latestStatusTime;
+
   const FriendsStatusCard({
-    super.key, 
+    super.key,
     required this.status,
     required this.onstatusTap,
-    required this.displayPicUrl,
     required this.latestStatusTime,
   });
 
   @override
+  State<FriendsStatusCard> createState() => _FriendsStatusCardState();
+}
+
+class _FriendsStatusCardState extends State<FriendsStatusCard>
+    with TickerProviderStateMixin {
+  late AnimationController _tapController;
+  late AnimationController _slideController;
+  late Animation<double> _scaleAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _tapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.96).animate(
+      CurvedAnimation(parent: _tapController, curve: Curves.easeInOut),
+    );
+    
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.3, 0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) _slideController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tapController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onstatusTap,
-      child: Container(
-        height: 80,
-        margin: EdgeInsets.all(5).copyWith(
-          bottom: 5,
-        ),
-        padding: EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          //color: Colors.amberAccent
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: NetworkImage(displayPicUrl),
-              radius: 30,
-            ),
-            SizedBox(width:20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return SlideTransition(
+      position: _slideAnimation,
+      child: GestureDetector(
+        onTapDown: (_) => _tapController.forward(),
+        onTapUp: (_) {
+          _tapController.reverse();
+          widget.onstatusTap();
+        },
+        onTapCancel: () => _tapController.reverse(),
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  status.userName,
-                  style: TextStyle(
-                    fontSize: 20,
-                    //fontWeight: FontWeight.bold
-                  ),
-                ),
-                SizedBox(height: 5,),
-                Text(
-                  MomentsAgo.calculateMomentsAgo(latestStatusTime),
-                  style: TextStyle(
-                    color: const Color.fromARGB(255, 105, 122, 131),
-                    fontSize: 15
-                  ),
-                ),
+                _buildProfileAvatar(),
+                const SizedBox(width: 12),
+                Expanded(child: _buildCard()),
               ],
-            )
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileAvatar() {
+    return CircleAvatar(
+      radius: 26,
+      backgroundImage: displayImage(widget.status),
+      backgroundColor: AppPallete.cardBg,
+      child: widget.status.profilepic == null
+          ? const Icon(Icons.person, color: AppPallete.greyText, size: 22)
+          : null,
+    );
+  }
+
+  Widget _buildCard() {
+    return Container(
+      height: 72,
+      decoration: BoxDecoration(
+        color: AppPallete.cardBg.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppPallete.divider.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          _buildStatusInfo(),
+          _buildStatusPreview(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusInfo() {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              widget.status.userName,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppPallete.whiteColor,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              MomentsAgo.calculateMomentsAgo(widget.latestStatusTime),
+              style: TextStyle(
+                fontSize: 12,
+                color: AppPallete.greyText,
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildStatusPreview() {
+    return SizedBox(
+      width: 72,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.horizontal(right: Radius.circular(16)),
+        child: _buildStatusImage(),
+      ),
+    );
+  }
+
+  Widget _buildStatusImage() {
+    if (widget.status.localPath != null) {
+      return Image.file(
+        File(widget.status.localPath!),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => _buildNetworkImage(),
+      );
+    }
+    return _buildNetworkImage();
+  }
+
+  Widget _buildNetworkImage() {
+    return Image.network(
+      widget.status.imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: AppPallete.cardBg,
+          child: const Center(
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppPallete.primaryOrange,
+              ),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (_, __, ___) => Container(
+        color: AppPallete.cardBg,
+        child: const Icon(
+          Icons.image,
+          color: AppPallete.greyText,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  ImageProvider displayImage(Status s) {
+    if (s.profilepic != null && s.profilepic!.isNotEmpty) {
+      if (s.profilepic!.startsWith('assets/')) {
+        return AssetImage(s.profilepic!);
+      }
+      return NetworkImage(s.profilepic!);
+    }
+    if (s.localPath != null) {
+      return FileImage(File(s.localPath!));
+    }
+    return NetworkImage(s.imageUrl);
   }
 }

@@ -10,39 +10,60 @@ import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:fpdart/fpdart.dart';
 
-class ChatRepositoryImpl implements ChatRepository{
+class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
   final ChatLocalDataSource chatLocalDataSource;
 
-  ChatRepositoryImpl({required this.chatRemoteDataSources, required this.chatLocalDataSource});
+  ChatRepositoryImpl({
+    required this.chatRemoteDataSources,
+    required this.chatLocalDataSource,
+  });
 
   @override
-  Future<Either<Failure, Stream<List<Conversation>>>> getConversations({required String userId}) async{
-    try{
-      Stream<List<Conversation>> res = await chatRemoteDataSources.getConversations(userId: userId);
-      return right(res);
-    }on ServerExceptions catch(e){
-      return left(Failure(e.message));
-    }
-  }
-
-  @override
-  Future<Either<Failure, Stream<List<Message>>>> getMessages({required String receiverId, required String userId}) async {
-    try{
-      Stream<List<Message>> res = await chatRemoteDataSources.getMessages(receiverId: receiverId, userId: userId);
-      return right(res);
-    }on ServerExceptions catch(e){
-      return left(Failure(e.message));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> sendImage({required String receiverId, required String userId, required File file, required String msgId, String? userName, String? userProfile}) async {
+  Future<Either<Failure, Stream<List<Conversation>>>> getConversations({
+    required String userId,
+  }) async {
     try {
-      final localPath = chatLocalDataSource.saveImage(file, msgId);
+      Stream<List<Conversation>> res = await chatRemoteDataSources
+          .getConversations(userId: userId);
+      return right(res);
+    } on ServerExceptions catch (e) {
+      return left(Failure(e.message));
+    }
+  }
 
-      final imageUrl =
-          await chatRemoteDataSources.uploadImage(file: file, msgId: msgId);
+  @override
+  Future<Either<Failure, Stream<List<Message>>>> getMessages({
+    required String receiverId,
+    required String userId,
+  }) async {
+    try {
+      Stream<List<Message>> res = await chatRemoteDataSources.getMessages(
+        receiverId: receiverId,
+        userId: userId,
+      );
+      return right(res);
+    } on ServerExceptions catch (e) {
+      return left(Failure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> sendImage({
+    required String receiverId,
+    required String userId,
+    required File file,
+    required String msgId,
+    String? userName,
+    String? userProfile,
+  }) async {
+    try {
+      chatLocalDataSource.saveImage(file, msgId);
+
+      final imageUrl = await chatRemoteDataSources.uploadImage(
+        file: file,
+        msgId: msgId,
+      );
 
       await chatRemoteDataSources.sendMessage(
         type: "image",
@@ -56,30 +77,93 @@ class ChatRepositoryImpl implements ChatRepository{
 
       return right(null);
     } catch (e) {
-      print(e.toString());
+      //print(e.toString());
       return left(Failure(e.toString()));
     }
   }
 
   @override
-  Future<Either<Failure, void>> sendMessage({required String receiverId, required String userId, required String content, required String msgId, String? userName, String? userProfile}) async{
-    try{
-      await chatRemoteDataSources.sendMessage(receiverId: receiverId, userId: userId, content: content,userName: userName,userProfile: userProfile,msgId: msgId);
+  Future<Either<Failure, void>> sendMessage({
+    required String receiverId,
+    required String userId,
+    required String content,
+    required String msgId,
+    String? userName,
+    String? userProfile,
+
+    //time capsule
+    DateTime? sendAt,
+    bool isScheduled = false,
+  }) async {
+    try {
+      await chatRemoteDataSources.sendMessage(
+        receiverId: receiverId,
+        userId: userId,
+        content: content,
+        userName: userName,
+        userProfile: userProfile,
+        msgId: msgId,
+        sendAt: sendAt,
+        //isScheduled: isScheduled,
+      );
       return right(null);
-    }on ServerExceptions catch(e){
+    } on ServerExceptions catch (e) {
       return left(Failure(e.message));
     }
   }
 
   @override
-  Future<Either<Failure, User?>> searchUser({required String receiverName})async {
-    try{
-      final res =  await chatRemoteDataSources.searchUser(receiverName: receiverName);
+  Future<Either<Failure, List<User>>> searchUser({
+    required String receiverName,
+    required String currentUserId,
+  }) async {
+    try {
+      final res = await chatRemoteDataSources.searchUser(
+        receiverName: receiverName,
+        currentUserId: currentUserId,
+      );
       return right(res);
-    } on ServerExceptions catch(e){
+    } on ServerExceptions catch (e) {
       return left(Failure(e.message));
     }
   }
-
   
+  @override
+  Future<Either<Failure, Stream<List<Message>>>> getScheduledMessages({required String receiverId, required String userId}) async{
+    try {
+      Stream<List<Message>> res = await chatRemoteDataSources.getScheduledMessages(
+        receiverId: receiverId,
+        userId: userId,
+      );
+      return right(res);
+    } on ServerExceptions catch (e) {
+      return left(Failure(e.message));
+    }
+  }
+  
+  @override
+  Future<void> deleteMessage({
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    required String type,
+    bool deleteForEveryone = false,
+  }) async {
+    try {
+      await chatRemoteDataSources.deleteMessage(
+        msgId: msgId,
+        userId: userId,
+        receiverId: receiverId,
+        deleteForEveryone: deleteForEveryone,
+      );
+
+      if(type == "image"){
+        //print(type);
+        await chatLocalDataSource.deleteImage(msgId);
+      }
+      
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
 }

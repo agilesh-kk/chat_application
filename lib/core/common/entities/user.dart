@@ -4,9 +4,10 @@ class User {
   final String id;
   final String name;
   final String email;
+  final DateTime birthDate;
+  final String gender;
   final String? profilePic;
   final List<String>? friends;
-  final DateTime birthDate;
   final String? bio;
 
   User({
@@ -14,6 +15,7 @@ class User {
     required this.name,
     required this.email,
     required this.birthDate,
+    required this.gender,
     this.profilePic,
     this.friends,
     this.bio,
@@ -33,6 +35,7 @@ class User {
     List<String>? friends,
     DateTime? birthDate,
     String? bio,
+    String? gender
   }) {
     return User(
       id: id ?? this.id,
@@ -42,6 +45,7 @@ class User {
       friends: friends ?? this.friends,
       birthDate: birthDate ?? this.birthDate,
       bio: bio ?? this.bio,
+      gender: gender ?? this.gender,
     );
   }
 }

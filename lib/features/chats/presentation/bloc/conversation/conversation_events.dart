@@ -16,3 +16,14 @@ class ConversationCreatedEvent extends ConversationEvent {
   final String userId;
   ConversationCreatedEvent(this.userId);
 }
+
+// 🔥 INTERNAL EVENTS (VERY IMPORTANT)
+class _ConversationUpdated extends ConversationEvent {
+  final List<Conversation> convos;
+  _ConversationUpdated(this.convos);
+}
+
+class _ConversationErrorEvent extends ConversationEvent {
+  final String message;
+  _ConversationErrorEvent(this.message);
+}

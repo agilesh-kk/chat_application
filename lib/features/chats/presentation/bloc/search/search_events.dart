@@ -4,6 +4,10 @@ abstract class SearchEvent {}
 
 class SearchStart extends SearchEvent {
   final String name;
-  SearchStart({required this.name});
+  final String currentUserId;
+  SearchStart({
+    required this.name,
+    required this.currentUserId,
+  });
 }
 

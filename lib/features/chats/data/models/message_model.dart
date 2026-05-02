@@ -9,9 +9,13 @@ class MessageModel extends Message {
     required super.content,
     required super.createdAt,
     required super.deletedfor,
+    super.deletedForEveryone,
     required super.status,
     super.type,
-    super.isLocal
+    super.isLocal,
+    super.sendAt,
+    super.isScheduled,
+    super.inTimeline,
   });
 
   factory MessageModel.fromJson(
@@ -23,39 +27,37 @@ class MessageModel extends Message {
       senderId: map['senderId'],
       content: map['content'],
       status: map['status'] ?? "read",
-      createdAt: parseCreatedAt(map["createdAt"]),
+      createdAt: map['createdAt'] != null
+        ? (map['createdAt'] as Timestamp).toDate()
+        : DateTime.now(),
+      deletedForEveryone: map['deletedForEveryone'] ?? false,
       type: map['type'] ?? "text",
-      deletedfor:
-        List<String>.from(map['deletedFor'] ?? []),
+      deletedfor: List<String>.from(map['deletedfor'] ?? []),
+      sendAt: map['sendAt'] != null
+        ? (map['sendAt'] as Timestamp).toDate()
+        : null,
+      isScheduled: map['isScheduled'] ?? false,
+      inTimeline: map["inTimeline"] ?? false,
     );
   }
 
-static String parseCreatedAt(dynamic value) {
-  if (value == null) return DateTime.now().toString();
-
-  if (value is Timestamp) {
-    return value.toDate().toString();
-  }
-
-  if (value is String) {
-    return DateTime.tryParse(value).toString();
-  }
-
-  if (value is DateTime) {
-    return value.toString();
-  }
-
-  return "Time Error";
-}
-
-  Map<String,dynamic> toMap(){
-    return {
+  Map<String, dynamic> toMap() {
+    final data = {
       "senderId": senderId,
       "content": content,
-      "createdAt": createdAt,
+      "createdAt": Timestamp.fromDate(createdAt),
       "status": status,
-      "deletedFor": deletedfor,
-      "type":type
+      "deletedfor": deletedfor,
+      "deletedForEveryone": deletedForEveryone ?? false, //delted for everyone parameter
+      "type": type,
+      "isScheduled": sendAt != null,
+      "inTimeline": inTimeline,
     };
+
+    if (sendAt != null) {
+      data["sendAt"] = Timestamp.fromDate(sendAt!);
+    }
+
+    return data;
   }
 }

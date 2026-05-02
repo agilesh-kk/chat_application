@@ -7,6 +7,7 @@ import 'package:chat_application/features/auth/domain/usecase/current_user.dart'
 import 'package:chat_application/features/auth/domain/usecase/user_sign_in.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_out.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_up.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -19,12 +20,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final CurrentUser _currentUser;
   final UserSignOut _userSignOut;
   final AppUserCubit _appUserCubit;
+  final FriendsCubit friendsCubit;
   AuthBloc({
     required UserSignUp userSignUp,
     required UserSignIn userSignIn,
     required CurrentUser currentUser,
     required UserSignOut userSignOut,
     required AppUserCubit appUserCubit,
+    required this.friendsCubit
   })
     : _userSignUp = userSignUp,
     _userSignIn = userSignIn,
@@ -47,6 +50,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
         birthDate: event.birthDate,
+        gender: event.gender,
       ),
     );
 
@@ -100,6 +104,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   void _emitAuthSuccess(User user, Emitter<AuthState> emit){
     _appUserCubit.updateUser(user);
+    friendsCubit.loadFriends(userId: user.id);
     emit(AuthSuccess(user));
   }
 }

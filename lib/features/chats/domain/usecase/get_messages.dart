@@ -2,7 +2,7 @@ import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/core/usecase/usecase.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
-import 'package:fpdart/src/either.dart';
+import 'package:fpdart/fpdart.dart';
 
 class GetMessages implements UseCase<Stream<List<Message>>,GetMessageParams>{
   final ChatRepository chatRepository;

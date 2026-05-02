@@ -1,13 +1,22 @@
 import 'dart:io';
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
+import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
-import 'package:chat_application/features/timeline/features/timeline/presentation/pages/timeline_page.dart';
+import 'package:chat_application/features/chats/presentation/widgets/delete_message_confirmation_dialog.dart';
+import 'package:chat_application/features/chats/presentation/widgets/send_options_dialog.dart';
+import 'package:chat_application/features/chats/presentation/widgets/time_capsule_picker.dart';
+import 'package:chat_application/features/timeline/presentation/pages/timeline_page.dart';
+import 'package:chat_application/features/friends/data/friend_model.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:intl/intl.dart';
 
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
@@ -20,6 +29,7 @@ class ChatPage extends StatefulWidget {
   final String receiverName;
   int? scrolltoIndex;
   CacheService? cacheService;
+  String? highlightMessageId;
 
   ChatPage({
     super.key,
@@ -28,6 +38,7 @@ class ChatPage extends StatefulWidget {
     required this.receiverId,
     required this.receiverName,
     this.scrolltoIndex,
+    this.highlightMessageId,
   });
 
   @override
@@ -102,6 +113,40 @@ class _ChatPageState extends State<ChatPage> {
     controller.clear();
   }
 
+  Future<void> _handleTimeCapsule() async {
+    final selectedTime = await TimeCapsulePicker.pick(context);
+
+    if (selectedTime == null) return;
+
+    _sendTimeCapsule(selectedTime);
+  }
+
+  void _sendTimeCapsule(DateTime scheduledTime) {
+    final text = controller.text.trim();
+    //print("printing......"+scheduledTime.toIso8601String());
+    if (text.isEmpty) return;
+
+    final user = context.read<AppUserCubit>().state;
+
+    context.read<ChatBloc>().add(
+          SendMessageEvent(
+            userId: widget.currentUserId,
+            receiverId: widget.receiverId,
+            content: text,
+            userName:
+                (user is AppUserIsSignedin) ? user.user.name : "Unknown",
+            userProfile:
+                (user is AppUserIsSignedin) ? user.user.profilePic : "Unknown",
+
+            /// 🔥 NEW FIELD
+            sendAt: scheduledTime,
+            isScheduled: true,
+          ),
+        );
+
+    controller.clear();
+  }
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final picked =
@@ -129,140 +174,467 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.receiverName),
-        actions: [IconButton(
-          onPressed: () async {
-            int index = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TimelinePage(
-                  receiverName: widget.receiverName,
-                  userId: widget.currentUserId,
-                  receiverId: widget.receiverId,
-                ),
-              ),
-            );
-
-            if (cb.state is ChatLoaded) {
-              final cl = cb.state as ChatLoaded;
-
-              final reversedIndex = cl.messages.length - 1 - index;
-
-              setState(() {
-                highlightedIndex = reversedIndex;
-              });
-
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _scrollToIndex(reversedIndex);
-              });
-
-              /// remove highlight after animation
-              Future.delayed(const Duration(milliseconds: 800), () {
-                if (mounted) {
-                  setState(() {
-                    highlightedIndex = null;
-                  });
-                }
-              });
-            }
-          },
-          icon: const Icon(Icons.favorite,color: Color.fromARGB(255, 255, 102, 0),),
-        )],
+      backgroundColor: AppPallete.darkBg,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppPallete.darkBg,
+              AppPallete.darkSecondary,
+              AppPallete.darkBg,
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              _buildMessages(),
+              _buildInput(),
+            ],
+          ),
+        ),
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final friendsState = context.watch<FriendsCubit>().state;
+    FriendModel? friend;
+    if (friendsState is FriendsLoaded) {
+      friend = friendsState.friends[widget.receiverId];
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
         children: [
-          /// =======================
-          /// MESSAGES
-          /// =======================
-          Expanded(
-            child: BlocBuilder<ChatBloc, ChatState>(
-              builder: (context, state) {
-                if (state is ChatError) {
-                  return Center(child: Text(state.message));
-                }
-
-                if (state is ChatLoading) {
-                  return const Center(
-                      child: CircularProgressIndicator());
-                }
-
-                if (state is ChatLoaded) {
-                  final List<Message> messages = state.messages;
-
-                  /// 🔥 Handle scrolling
-                  if (widget.scrolltoIndex != null) {
-                    print(widget.scrolltoIndex);
-                    _scrollToIndex(widget.scrolltoIndex!);
-                    widget.scrolltoIndex = null;
-                  }
-
-                  return ScrollablePositionedList.builder(
-                    reverse: true,
-                    itemCount: messages.length,
-                    itemScrollController: _scrollController,
-                    itemPositionsListener: _positionsListener,
-
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-
-                      final isMe = message.senderId ==
-                          widget.currentUserId;
-
-                      bool isAnimate = false;
-
-                      /// Animate last message
-                      if ((index == messages.length - 1 &&
-                              message.id != lastAnimated) &&
-                          !firstTime) {
-                        isAnimate = true;
-                      }
-
-                      if (index == messages.length - 1) {
-                        lastAnimated = message.id;
-                      }
-
-                      firstTime = false;
-
-                      return buildBubble(
-                          message, isMe, isAnimate, highlightedIndex==index);
-                    },
-                  );
-                }
-
-                return const SizedBox();
-              },
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppPallete.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppPallete.divider),
+              ),
+              child: Icon(
+                Icons.arrow_back,
+                color: AppPallete.whiteColor,
+                size: 20,
+              ),
             ),
           ),
-
-          /// =======================
-          /// INPUT
-          /// =======================
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.image),
-                  onPressed: _pickImage,
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    decoration: const InputDecoration(
-                      hintText: "Type message...",
-                      border: OutlineInputBorder(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: GestureDetector(
+              onTap: friend != null
+                ? () => _showFriendProfile(context, friend!)
+                : null,
+              child: Row(
+                children: [
+                  if (friend != null) ...[
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppPallete.cardBg,
+                        border: Border.all(color: AppPallete.primaryOrange),
+                      ),
+                      child: friend.profilePic.isNotEmpty
+                        ? CircleAvatar(
+                            radius: 18,
+                            backgroundImage: AssetImage(friend.profilePic),
+                            backgroundColor: AppPallete.cardBg,
+                          )
+                        : Icon(
+                            Icons.person,
+                            color: AppPallete.greyText,
+                            size: 20,
+                          ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.receiverName,
+                          style: TextStyle(
+                            color: AppPallete.whiteColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (friend != null && friend.email.isNotEmpty)
+                          Text(
+                            friend.email,
+                            style: TextStyle(
+                              color: AppPallete.greyText,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 5),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _send,
-                ),
-              ],
+                ],
+              ),
             ),
-          )
+          ),
+          _buildHeaderButton(
+            icon: Icons.favorite,
+            color: AppPallete.primaryOrange,
+            onTap: () async {
+              String? messageId = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TimelinePage(
+                    receiverName: widget.receiverName,
+                    userId: widget.currentUserId,
+                    receiverId: widget.receiverId,
+                  ),
+                ),
+              );
+
+              if (cb.state is ChatLoaded) {
+                final cl = cb.state as ChatLoaded;
+                
+                if (messageId != null && cl.messages.any((m) => m.id == messageId)) {
+                  setState(() {
+                    widget.highlightMessageId = messageId;
+                  });
+                }
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+          _buildHeaderButton(
+            icon: Icons.lock_clock,
+            color: AppPallete.primaryOrange,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TimeCapsuleMessages(
+                    currentUserId: widget.currentUserId,
+                    receiverId: widget.receiverId,
+                    receiverName: widget.receiverName,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppPallete.cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppPallete.divider),
+        ),
+        child: Icon(
+          icon,
+          color: color,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  void _showFriendProfile(BuildContext context, FriendModel friend) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(
+          isUser: false,
+          user: friend,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessages() {
+    return Expanded(
+      child: BlocBuilder<ChatBloc, ChatState>(
+        builder: (context, state) {
+          if (state is ChatError) {
+            return Center(
+              child: Text(
+                state.message,
+                style: TextStyle(color: AppPallete.errorColor),
+              ),
+            );
+          }
+
+          if (state is ChatLoading) {
+            return const Center(
+              child: CircularProgressIndicator(
+                color: AppPallete.primaryOrange,
+              ),
+            );
+          }
+
+          if (state is ChatLoaded) {
+            final List<Message> messages = state.messages;
+
+            if (widget.scrolltoIndex != null) {
+              _scrollToIndex(widget.scrolltoIndex!);
+              widget.scrolltoIndex = null;
+            }
+
+            if (widget.highlightMessageId != null) {
+              final highlightIndex = messages.indexWhere((m) => m.id == widget.highlightMessageId);
+              if (highlightIndex != -1) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _scrollToIndex(highlightIndex);
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    if (mounted) {
+                      setState(() {
+                        highlightedIndex = highlightIndex;
+                      });
+                      Future.delayed(const Duration(milliseconds: 1500), () {
+                        if (mounted) {
+                          setState(() {
+                            highlightedIndex = null;
+                          });
+                        }
+                      });
+                    }
+                  });
+                });
+                widget.highlightMessageId = null;
+              }
+            }
+
+            return ScrollablePositionedList.builder(
+              reverse: true,
+              itemCount: messages.length,
+              itemScrollController: _scrollController,
+              itemPositionsListener: _positionsListener,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemBuilder: (context, index) {
+                final message = messages[index];
+                final isMe = message.senderId == widget.currentUserId;
+
+                bool isAnimate = false;
+
+                if ((index == messages.length - 1 && message.id != lastAnimated) &&
+                    !firstTime) {
+                  isAnimate = true;
+                }
+
+                if (index == messages.length - 1) {
+                  lastAnimated = message.id;
+                }
+
+                firstTime = false;
+
+                return Padding(
+                  padding: EdgeInsets.only(bottom: message.inTimeline && index == 0 ? 12 : 0),
+                  child: Column(
+                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    children: [
+                      if (_shouldShowDateHeader(messages, index))
+                        _buildDateHeader(message.createdAt),
+                      Stack(
+                      clipBehavior: Clip.none,
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      children: [
+                        buildBubble(message, isMe, isAnimate, highlightedIndex == index),
+                        if (message.inTimeline)
+                          Positioned(
+                            left: isMe ? null : -2,
+                            right: isMe ? -2 : null,
+                            bottom: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.favorite,
+                                size: 10,
+                                color: AppPallete.whiteColor,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                );
+              },
+            );
+          }
+
+          return const SizedBox();
+        },
+      ),
+    );
+  }
+
+  bool _shouldShowDateHeader(List<Message> messages, int index) {
+    if (index == messages.length - 1) return true;
+    final currentMsg = messages[index];
+    final nextMsg = messages[index + 1];
+    final currentDate = DateTime(
+      currentMsg.createdAt.year,
+      currentMsg.createdAt.month,
+      currentMsg.createdAt.day,
+    );
+    final nextDate = DateTime(
+      nextMsg.createdAt.year,
+      nextMsg.createdAt.month,
+      nextMsg.createdAt.day,
+    );
+    return currentDate != nextDate;
+  }
+
+  Widget _buildDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final msgDate = DateTime(date.year, date.month, date.day);
+
+    String label;
+    if (msgDate == today) {
+      label = "Today";
+    } else if (msgDate == yesterday) {
+      label = "Yesterday";
+    } else {
+      label = DateFormat('MMMM d, y').format(date);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppPallete.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppPallete.divider),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: AppPallete.greyText,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInput() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _pickImage,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppPallete.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppPallete.divider),
+              ),
+              child: Icon(
+                Icons.image,
+                color: AppPallete.greyText,
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppPallete.inputBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppPallete.divider),
+              ),
+              child: TextField(
+                controller: controller,
+                style: TextStyle(color: AppPallete.whiteColor),
+                decoration: InputDecoration(
+                  hintText: "Type message...",
+                  hintStyle: TextStyle(color: AppPallete.greyText),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: _send,
+            onLongPress: () {
+              showDialog(
+                context: context,
+                builder: (_) => SendOptionsDialog(
+                  onSendNormally: _send,
+                  onTimeCapsule: _handleTimeCapsule,
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppPallete.primaryOrange,
+                    AppPallete.lightOrange,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppPallete.primaryOrange.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.send,
+                color: AppPallete.whiteColor,
+                size: 22,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -275,19 +647,79 @@ class _ChatPageState extends State<ChatPage> {
     switch (msg.type) {
       case "text":
         return MessageBubble(
+          currentUserId: widget.currentUserId,
+          receiverId: widget.receiverId,
           key: ValueKey(msg.id),
           message: msg,
           isMe: isMe,
           animate: isAnimate!,
           highlight: flash,
+          onDelete: () { 
+            DeleteMessageConfirmationDialog.show(
+              context,
+              messageContent: msg.content,
+              onDeleteForMe: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: msg.id,
+                        userId: widget.currentUserId,
+                        type: msg.type,
+                        receiverId: widget.receiverId,
+                        deleteForEveryone: false,
+                      ),
+                    );
+              },
+              onDeleteForEveryone: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: msg.id,
+                        userId: widget.currentUserId,
+                        type: msg.type,
+                        receiverId: widget.receiverId,
+                        deleteForEveryone: true,
+                      ),
+                    );
+              },
+            ); 
+          },
         );
       case "image":
         return ImageMessageTile(
+          currentUserId: widget.currentUserId,
+          receiverId: widget.receiverId,
           key: ValueKey(msg.id),
           message: msg,
           cacheService: widget.cacheService!,
           isMe: isMe,
           flash: flash,
+          onDelete: () {
+            DeleteMessageConfirmationDialog.show(
+              context,
+              messageContent: "📷 Image", // Since images don't have text content
+              onDeleteForMe: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: msg.id,
+                        userId: widget.currentUserId,
+                        type: msg.type,
+                        receiverId: widget.receiverId,
+                        deleteForEveryone: false,
+                      ),
+                    );
+              },
+              onDeleteForEveryone: () {
+                context.read<ChatBloc>().add(
+                      DeleteMessageEvent(
+                        msgId: msg.id,
+                        userId: widget.currentUserId,
+                        receiverId: widget.receiverId,
+                        type: msg.type,
+                        deleteForEveryone: true,
+                      ),
+                    );
+              },
+            );
+          },
         );
       default:
         return const SizedBox();

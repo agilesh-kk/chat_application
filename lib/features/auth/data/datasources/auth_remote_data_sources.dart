@@ -11,6 +11,7 @@ abstract interface class AuthRemoteDataSources {
     required String email,
     required String password,
     required DateTime birthDate,
+    required String gender,
   });
 
   Future<UserModel> signInWithEmailPassword({
@@ -21,6 +22,10 @@ abstract interface class AuthRemoteDataSources {
   Future<UserModel?> getCurrentUser();
 
   Future<void> signout();
+
+  Future<bool> isNameAvailable({
+    required String name
+  });
 
 }
 
@@ -39,6 +44,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
     required String email,
     required String password,
     required DateTime birthDate,
+    required String gender,
   }) async {
     try {
       //Create user in Firebase Auth
@@ -59,8 +65,10 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         name: name,
         email: email,
         birthDate: birthDate,
+        gender: gender,
         profilePic: '',
         friends: [],
+        bio: '',
       );
 
       //Saving user to Firestore
@@ -68,10 +76,11 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'id': firebaseUser.uid,
         'name': name,
         'email': email,
-        //default link for profile picture
         'profilePic': getRandomProfileImage(),
         'birthDate': birthDate,
         'friends': [],
+        'gender' : gender,
+        'bio' : "",
       });
 
       if(firebaseUser.emailVerified){
@@ -92,6 +101,16 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         throw ServerExceptions(e.message ?? "Authentication failed");
       }
     }
+  }
+
+  @override
+  Future<bool> isNameAvailable({required String name}) async{
+    final doc = await firebaseFirestore
+      .collection('usernames')
+      .doc(name.trim().toLowerCase())
+      .get();
+
+    return !doc.exists;
   }
 
   @override
@@ -173,4 +192,6 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
       throw ServerExceptions("Failed to logout");
     }
   }
+  
+  
 }

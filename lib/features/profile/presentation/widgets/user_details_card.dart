@@ -1,98 +1,189 @@
+import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class UserDetailsCard extends StatelessWidget {
-  final String email;
-  final String bio;
-  final DateTime birthDate;
-  final IconData? button;
-  final VoidCallback? bioUpdate;
+class UserDetailsCard extends StatefulWidget {
+  final String? bio;
+  final String userId;
+
+  /// if null → read only
+  final VoidCallback? onEditBio;
 
   const UserDetailsCard({
     super.key,
-    required this.email,
-    required this.bio,
-    required this.birthDate,
-    this.button,
-    this.bioUpdate,
+    this.bio,
+    required this.userId,
+    this.onEditBio,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        //color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
+  State<UserDetailsCard> createState() => _UserDetailsCardState();
+}
+
+class _UserDetailsCardState extends State<UserDetailsCard> {
+  bool isEditing = false;
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.bio);
+  }
+
+  @override
+  void didUpdateWidget(covariant UserDetailsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    /// keep controller in sync when bloc updates UI
+    if (oldWidget.bio != widget.bio) {
+      _controller.text = widget.bio ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _startEditing() {
+    if (widget.onEditBio == null) return;
+
+    setState(() {
+      isEditing = true;
+    });
+  }
+
+  void _saveBio() {
+    final newBio = _controller.text.trim();
+
+    context.read<BioBloc>().add(
+      BioUpdate(
+        userId: widget.userId,
+        bio: newBio,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    );
 
-          //email
-          _buildSection(
-            title: "Email",
-            value: email,
+    setState(() {
+      isEditing = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditable = widget.onEditBio != null;
+
+    return PopScope(
+      canPop: !isEditing,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+
+        if (isEditing) {
+          setState(() {
+            isEditing = false;
+            _controller.text = widget.bio ?? '';
+          });
+
+          /// close keyboard
+          FocusScope.of(context).unfocus();
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppPallete.cardBg.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppPallete.divider.withValues(alpha: 0.5),
+            width: 1,
           ),
-
-          const SizedBox(height: 16),
-
-          //bio
-          _buildSection(
-            title: "Bio",
-            value: bio,
-            icon: button,
-            onPressed: bioUpdate,
-          ),
-
-          const SizedBox(height: 16),
-
-          //birth date
-          _buildSection(
-            title: "Birthday",
-            value: DateFormat('MMM dd, yyyy').format(birthDate),
-          ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            //BIO 
+            _buildBioSection(isEditable),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSection({
-    required String title,
-    required String value,
-    IconData? icon,
-    VoidCallback? onPressed,
-  }) {
+  /// ---------------- BIO SECTION ----------------
+  Widget _buildBioSection(bool isEditable) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+        /// TEXT / TEXTFIELD
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isEditing)
+                TextField(
+                  controller: _controller,
+                  maxLines: null,
+                  autofocus: true,
+                  style: TextStyle(color: AppPallete.whiteColor),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: AppPallete.inputBg,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppPallete.primaryOrange),
+                    ),
+                  ),
+                  onSubmitted: (_) => _saveBio(),
+                )
+              else
+                Text(
+                  (widget.bio == null || widget.bio!.isEmpty) 
+                    ? "No bio yet" 
+                    : widget.bio!,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: (widget.bio == null || widget.bio!.isEmpty) 
+                        ? AppPallete.greyText 
+                        : AppPallete.whiteColor,
+                  ),
+                ),
+
+              const SizedBox(height: 4),
+
+              Text(
+                "Bio",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppPallete.greyText,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.grey,
-              ),
-            ),
-            
-          ],
+            ],
+          ),
         ),
-        const SizedBox(width: 40),
-        if(icon!=null)
-        IconButton(
-          icon: Icon(button),
-          onPressed: onPressed,
-        )
+
+        /// ICON (ONLY IF EDITABLE)
+        if (isEditable)
+          IconButton(
+            icon: Icon(
+              isEditing ? Icons.check : Icons.edit,
+              size: 20,
+              color: AppPallete.primaryOrange,
+            ),
+            onPressed: isEditing ? _saveBio : _startEditing,
+          ),
       ],
     );
   }
