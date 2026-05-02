@@ -86,9 +86,6 @@ class ProfilePage extends StatelessWidget {
                         child: _buildMoreActions(context, profileUser, appUserState),
                       ),
                       SliverToBoxAdapter(
-                        child: _buildDetailsSection(profileUser),
-                      ),
-                      SliverToBoxAdapter(
                         child: SizedBox(height: 100),
                       ),
                     ],
@@ -458,50 +455,65 @@ class ProfilePage extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
           children: [
-            _buildStatItem(
-              icon: Icons.people_outline,
-              value: friendsCount.toString(),
-              label: "Friends",
-              color: AppPallete.primaryOrange,
-              isClickable: isUser,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const FriendsPage(),
-                  ),
-                );
-              },
+            Row(
+              children: [
+                _buildStatItem(
+                  icon: Icons.people_outline,
+                  value: friendsCount.toString(),
+                  label: "Friends",
+                  color: AppPallete.primaryOrange,
+                  isClickable: isUser,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FriendsPage(),
+                      ),
+                    );
+                  },
+                ),
+                Container(
+                  width: 1,
+                  height: 50,
+                  color: AppPallete.divider,
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                _buildStatItem(
+                  icon: Icons.cake_outlined,
+                  value: profileUser.birthDate != null ? _formatDate(profileUser.birthDate) : "",
+                  label: "Born",
+                  color: AppPallete.lightOrange,
+                ),
+                Container(
+                  width: 1,
+                  height: 50,
+                  color: AppPallete.divider,
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                _buildStatItem(
+                  icon: profileUser.gender != null && profileUser.gender.toLowerCase() == 'male'
+                      ? Icons.male
+                      : profileUser.gender != null && profileUser.gender.toLowerCase() == 'female'
+                          ? Icons.female
+                          : Icons.person_outline,
+                  value: profileUser.gender ?? "",
+                  label: "Gender",
+                  color: AppPallete.primaryOrange,
+                ),
+              ],
             ),
+            const SizedBox(height: 20),
             Container(
-              width: 1,
-              height: 50,
-              color: AppPallete.divider,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
+              height: 1,
+              color: AppPallete.divider.withValues(alpha: 0.3),
             ),
-            _buildStatItem(
-              icon: Icons.cake_outlined,
-              value: profileUser.birthDate != null ? _formatDate(profileUser.birthDate) : "",
-              label: "Born",
-              color: AppPallete.lightOrange,
-            ),
-            Container(
-              width: 1,
-              height: 50,
-              color: AppPallete.divider,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-            ),
-            _buildStatItem(
-              icon: profileUser.gender != null && profileUser.gender.toLowerCase() == 'male'
-                  ? Icons.male
-                  : profileUser.gender != null && profileUser.gender.toLowerCase() == 'female'
-                      ? Icons.female
-                      : Icons.person_outline,
-              value: profileUser.gender ?? "",
-              label: "Gender",
-              color: AppPallete.primaryOrange,
+            const SizedBox(height: 20),
+            UserDetailsCard(
+              bio: profileUser.bio,
+              onEditBio: isUser ? () {} : null,
+              userId: profileUser.id,
             ),
           ],
         ),
@@ -786,62 +798,4 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailsSection(dynamic profileUser) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: AppPallete.primaryOrange,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                "About",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppPallete.whiteColor,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppPallete.cardBg.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: AppPallete.divider.withValues(alpha: 0.3),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: UserDetailsCard(
-              email: profileUser.email,
-              bio: profileUser.bio,
-              onEditBio: isUser ? () {} : null,
-              userId: profileUser.id,
-              birthDate: profileUser.birthDate,
-              gender: profileUser.gender,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

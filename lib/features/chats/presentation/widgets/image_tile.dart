@@ -350,14 +350,6 @@ class _ImageMessageTileState extends State<ImageMessageTile>
             right: 5,
             child: _buildStatus(msg.status, widget.isMe),
           ),
-Positioned(
-            bottom: 7,
-            right: 20,
-            child: (widget.message.inTimeline) ?
-              Icon(Icons.favorite, size: 12, color: AppPallete.primaryOrange) :
-              SizedBox(width: 4),
-               
-          )
         ],
       );
     }

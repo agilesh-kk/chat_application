@@ -97,30 +97,39 @@ class DeleteMessageConfirmationDialog extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _buildButton(
-                  label: 'Cancel',
-                  onTap: () => Navigator.of(context).pop(),
-                  isPrimary: false,
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: _buildButton(
+                    label: 'Cancel',
+                    onTap: () => Navigator.of(context).pop(),
+                    isPrimary: false,
+                  ),
                 ),
                 const SizedBox(width: 12),
-                _buildButton(
-                  label: 'Delete for me',
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    onDeleteForMe();
-                  },
-                  isPrimary: false,
-                  isDestructive: true,
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: _buildButton(
+                    label: 'Delete for me',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onDeleteForMe();
+                    },
+                    isPrimary: false,
+                    isDestructive: true,
+                  ),
                 ),
                 const SizedBox(width: 12),
-                _buildButton(
-                  label: 'Delete for everyone',
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    onDeleteForEveryone();
-                  },
-                  isPrimary: true,
-                  isDestructive: true,
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: _buildButton(
+                    label: 'Delete for everyone',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onDeleteForEveryone();
+                    },
+                    isPrimary: true,
+                    isDestructive: true,
+                  ),
                 ),
               ],
             ),

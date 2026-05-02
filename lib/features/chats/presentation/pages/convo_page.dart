@@ -394,7 +394,7 @@ class _ConversationPageState extends State<ConversationPage> with SingleTickerPr
 
   Widget _buildFAB() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 90),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

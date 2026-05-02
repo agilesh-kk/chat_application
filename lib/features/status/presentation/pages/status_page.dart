@@ -130,8 +130,6 @@ class _StatusPageState extends State<StatusPage>
                               image: pfp,
                               hasStatus: hasStatus,
                               onViewStatus: () async {
-                                bool hasInternet =
-                                    await HelperFunctions.hasInternet();
                                 if (myStatuses.isNotEmpty) {
                                   Navigator.push(
                                     context,
@@ -139,7 +137,7 @@ class _StatusPageState extends State<StatusPage>
                                       builder: (_) => ViewStatusPage(
                                         statuses: myStatuses,
                                         isUserStatus: true,
-                                        hasInternet: hasInternet,
+                                        hasInternet: true,
                                         userProfilePic: pfp!,
                                       ),
                                     ),

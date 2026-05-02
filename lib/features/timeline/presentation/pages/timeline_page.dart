@@ -75,7 +75,7 @@ class TimelinePage extends StatelessWidget {
                           itemCount: state.events.length,
                           itemBuilder: (context, index) {
                             final event = state.events[index];
-                            final isMe = event.addedBy == userId;
+                            final isMe = index%2 != 0;
                 
                             return _timelineItem(
                               event, 

@@ -62,6 +62,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.ease,
       );
+      progress = 0;
       startStoryTimer();
     } else {
       timer?.cancel();
@@ -77,6 +78,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.ease,
       );
+      progress = 0;
       startStoryTimer();
     }
   }

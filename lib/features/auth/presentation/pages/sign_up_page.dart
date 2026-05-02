@@ -1,4 +1,5 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_dropdown_selector.dart';
@@ -62,7 +63,12 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: BlocBuilder<AuthBloc, AuthState>(
+            child: BlocConsumer<AuthBloc, AuthState>(
+              listener: (context, state) {
+                if(state is AuthFailure){
+                showSnackbar(context, state.message);
+              }
+              },
               builder: (context, state) {
                 if (state is AuthLoading) {
                   return const Center(
@@ -181,6 +187,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             hinText: 'Full Name',
             textController: nameController,
             isObscure: false,
+            icon: Icons.person_outline,
           ),
           const SizedBox(height: 16),
           AuthFields(

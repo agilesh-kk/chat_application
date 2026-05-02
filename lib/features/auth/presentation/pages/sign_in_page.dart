@@ -1,4 +1,5 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
@@ -48,7 +49,12 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: BlocBuilder<AuthBloc, AuthState>(
+          child: BlocConsumer<AuthBloc, AuthState>(
+            listener: (context, state) {
+              if(state is AuthFailure){
+                showSnackbar(context, state.message);
+              }
+            },
             builder: (context, state) {
               if (state is AuthLoading) {
                 return const Center(

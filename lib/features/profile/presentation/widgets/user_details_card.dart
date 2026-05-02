@@ -2,13 +2,9 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 
 class UserDetailsCard extends StatefulWidget {
-  final String email;
   final String? bio;
-  final DateTime? birthDate;
-  final String? gender;
   final String userId;
 
   /// if null → read only
@@ -16,10 +12,7 @@ class UserDetailsCard extends StatefulWidget {
 
   const UserDetailsCard({
     super.key,
-    required this.email,
     this.bio,
-    this.birthDate,
-    this.gender,
     required this.userId,
     this.onEditBio,
   });
@@ -117,66 +110,11 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-      
-            //EMAIL
-            _buildNormalSection(
-              title: "Email",
-              value: widget.email,
-            ),
-      
-            const SizedBox(height: 16),
-      
             //BIO 
             _buildBioSection(isEditable),
-      
-            const SizedBox(height: 16),
-      
-            //BIRTHDATE
-            _buildNormalSection(
-              title: "Birthday",
-              value: widget.birthDate != null 
-                ? DateFormat('MMM dd, yyyy').format(widget.birthDate!)
-                : "",
-            ),
-      
-            const SizedBox(height: 16),
-      
-            //GENDER
-            _buildNormalSection(
-              title: "Gender",
-              value: widget.gender ?? "",
-            ),
           ],
         ),
       ),
-    );
-  }
-
-  /// ---------------- NORMAL SECTION ----------------
-  Widget _buildNormalSection({
-    required String title,
-    required String value,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: AppPallete.whiteColor,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 13,
-            color: AppPallete.greyText,
-          ),
-        ),
-      ],
     );
   }
 

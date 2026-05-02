@@ -5,12 +5,14 @@ class AuthFields extends StatefulWidget {
   final String hinText;
   final TextEditingController textController;
   final bool isObscure;
+  final IconData? icon;
 
   const AuthFields({
     super.key,
     required this.hinText,
     required this.textController,
     required this.isObscure,
+    this.icon,
   });
 
   @override
@@ -71,7 +73,7 @@ class _AuthFieldsState extends State<AuthFields> {
               fontSize: 14,
             ),
             prefixIcon: Icon(
-              widget.isObscure ? Icons.lock_outline : Icons.email_outlined,
+              widget.icon ?? (widget.isObscure ? Icons.lock_outline : Icons.email_outlined),
               color: _isFocused ? AppPallete.primaryOrange : AppPallete.greyText,
               size: 20,
             ),

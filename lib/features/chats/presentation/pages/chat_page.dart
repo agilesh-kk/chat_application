@@ -448,12 +448,14 @@ class _ChatPageState extends State<ChatPage> {
 
                 firstTime = false;
 
-                return Column(
-                  crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                  children: [
-                    if (_shouldShowDateHeader(messages, index))
-                      _buildDateHeader(message.createdAt),
-                    Stack(
+                return Padding(
+                  padding: EdgeInsets.only(bottom: message.inTimeline && index == 0 ? 12 : 0),
+                  child: Column(
+                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    children: [
+                      if (_shouldShowDateHeader(messages, index))
+                        _buildDateHeader(message.createdAt),
+                      Stack(
                       clipBehavior: Clip.none,
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                       children: [
@@ -485,6 +487,7 @@ class _ChatPageState extends State<ChatPage> {
                       ],
                     ),
                   ],
+                ),
                 );
               },
             );
