@@ -4,7 +4,9 @@ import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/timeline/data/datasources/timeline_remote_data_sources.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/features/timeline/domain/repositories/timeline_repository.dart';
+import 'package:chat_application/init_dependencies.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:uuid/uuid.dart';
 
 class TimelineRepositoryImpl implements TimelineRepository {
   final TimelineRemoteDataSources timelineRemoteDataSources;
@@ -55,12 +57,67 @@ class TimelineRepositoryImpl implements TimelineRepository {
     required String userId,
     required String receiverId,
   }) async {
-    try{
+    try {
       await timelineRemoteDataSources.removeEvent(
-        eventId: eventId, 
-        messageId: messageId, 
+        eventId: eventId,
+        messageId: messageId,
+        userId: userId,
+        receiverId: receiverId,
+      );
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Event>>> getPersonalEvents({required String userId}) async{
+    try{
+      final res = await timelineRemoteDataSources.getPersonalEvents(
+        userId: userId
+      );
+
+      return right(res);
+    }
+    catch(e){
+      return left(Failure(e.toString()));
+    }
+  }
+
+  @override
+  Future<void> addPersonalEvent({
+    required String userId,
+    required String title,
+    required String content,
+    required String type,
+    required DateTime time,
+  }) async{
+    try{
+      var uuid = Uuid();
+      String id = uuid.v4();
+      
+      await timelineRemoteDataSources.addPersonalEvent(
         userId: userId, 
-        receiverId: receiverId
+        id: id, 
+        title: title, 
+        content: content, 
+        type: type, 
+        time: time
+      );
+    }
+    catch(e){
+      throw ServerExceptions(e.toString());
+    }
+  }
+  
+  @override
+  Future<void> removePersonalEvent({
+    required String userId, 
+    required String eventId
+  }) async{
+    try{
+      await timelineRemoteDataSources.removePersonalEvent(
+        userId: userId, 
+        eventId: eventId
       );
     }
     catch(e){

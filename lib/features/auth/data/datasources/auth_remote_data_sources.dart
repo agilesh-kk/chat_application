@@ -12,6 +12,7 @@ abstract interface class AuthRemoteDataSources {
     required String password,
     required DateTime birthDate,
     required String gender,
+    required String eventId,
   });
 
   Future<UserModel> signInWithEmailPassword({
@@ -45,6 +46,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
     required String password,
     required DateTime birthDate,
     required String gender,
+    required String eventId,
   }) async {
     try {
       //Create user in Firebase Auth
@@ -81,6 +83,19 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'friends': [],
         'gender' : gender,
         'bio' : "",
+      });
+
+      final timelineRef = firebaseFirestore
+        .collection("users")
+        .doc(firebaseUser.uid)
+        .collection("timeline");
+      
+      await timelineRef.doc(eventId).set({
+        "id": eventId,
+        "title": "Account created!",
+        "content": "Welcoming you to NXchat",
+        "type": "text",
+        "time": DateTime.now(),
       });
 
       if(firebaseUser.emailVerified){

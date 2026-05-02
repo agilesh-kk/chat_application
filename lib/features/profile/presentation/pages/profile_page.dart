@@ -7,6 +7,7 @@ import 'package:chat_application/features/profile/presentation/pages/friends_pag
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
 import 'package:chat_application/features/profile/presentation/widgets/user_details_card.dart';
+import 'package:chat_application/features/timeline/presentation/pages/personal_timeline_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -639,7 +640,12 @@ class ProfilePage extends StatelessWidget {
                       AppPallete.primaryOrange,
                       AppPallete.lightOrange,
                     ],
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context, 
+                        MaterialPageRoute(builder: (context) => PersonalTimeLinePage(userId: profileUser.id) )
+                      );
+                    },
                   ),
                 ),
               ],

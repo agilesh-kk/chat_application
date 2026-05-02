@@ -4,6 +4,7 @@ import 'package:chat_application/features/auth/data/datasources/auth_remote_data
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:uuid/uuid.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSources remoteDataSources;
@@ -17,6 +18,8 @@ class AuthRepositoryImpl implements AuthRepository {
     required DateTime birthDate,
     required String gender,
   }) async {
+    var uuid = Uuid();
+    String eventId = uuid.v4();
     return _getuser(
       () async => await remoteDataSources.signUpWithEmailPassword(
         name: name,
@@ -24,6 +27,7 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
         birthDate: birthDate,
         gender: gender,
+        eventId: eventId,
       ),
     );
   }
