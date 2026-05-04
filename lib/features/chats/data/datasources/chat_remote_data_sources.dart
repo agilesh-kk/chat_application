@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/exceptions.dart';
+import 'package:chat_application/features/chats/data/datasources/timeline_service.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -230,21 +231,34 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       await batch.commit();
 
-      if (!isScheduled) {
-        await _updateAchievementStats(
-          userId: userId,
-          receiverId: receiverId,
-        );
-      }
+      
 
       if (!isScheduled) {
-        await processTimelineEvent(
+        // await processTimelineEvent(
+        //   messageId: msgId,
+        //   senderId: userId,
+        //   receiverId: receiverId,
+        //   type: type,
+        //   content: content,
+        //   createdAt: Timestamp.now(),
+        // );
+
+        final timelineService = TimelineService(firestore);
+
+        await timelineService.handleMessage(
           messageId: msgId,
           senderId: userId,
           receiverId: receiverId,
           type: type,
           content: content,
           createdAt: Timestamp.now(),
+        );
+      }
+
+      if (!isScheduled) {
+        await _updateAchievementStats(
+          userId: userId,
+          receiverId: receiverId,
         );
       }
     } catch (e) {
@@ -271,61 +285,73 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .doc(receiverId);
 
     // =========================
-    // 🔥 PRE-READ (LIMITER LOGIC HERE)
+    // 🔥 STEP 1: LIGHTWEIGHT INCREMENTS (NO READS)
     // =========================
-    final userSnap = await userRef.get();
-    final userData = userSnap.data() ?? {};
 
+    await Future.wait([
+      userRef.set({
+        "totalMessages": FieldValue.increment(1),
+      }, SetOptions(merge: true)),
+
+      friendRef.set({
+        "messageCount": FieldValue.increment(1),
+      }, SetOptions(merge: true)),
+    ]);
+
+    // =========================
+    // 🔥 STEP 2: READ UPDATED VALUES (MINIMAL READ)
+    // =========================
+
+    final userSnap = await userRef.get();
     final friendSnap = await friendRef.get();
+
+    final userData = userSnap.data() ?? {};
     final friendData = friendSnap.data() ?? {};
 
-    int totalMessages = (userData['totalMessages'] ?? 0) + 1;
+    final totalMessages = userData['totalMessages'] ?? 0;
+    final messageCount = friendData['messageCount'] ?? 0;
+    final wasQualified = friendData['isQualified'] ?? false;
 
-    int oldCount = friendData['messageCount'] ?? 0;
-    int newCount = oldCount + 1;
-
-    bool wasQualified = friendData['isQualified'] ?? false;
-    bool isNowQualified = newCount >= 5;
-
-    bool justQualified = !wasQualified && isNowQualified;
+    final isNowQualified = messageCount >= 5;
+    final justQualified = !wasQualified && isNowQualified;
 
     // =========================
-    // 🚫 LIMITER CONDITION
+    // 🚫 LIMITER (VERY IMPORTANT)
     // =========================
+
     if (totalMessages % 5 != 0 && !justQualified) {
-      // 👉 Only update lightweight friend stats (NO heavy calc)
-      await friendRef.set({
-        "messageCount": newCount,
-        "isQualified": isNowQualified,
-      }, SetOptions(merge: true));
-
-      return; // 🔥 STOP HERE → saves reads & writes
+      // only update qualification flag if needed
+      if (justQualified) {
+        await friendRef.set({
+          "isQualified": true,
+        }, SetOptions(merge: true));
+      }
+      return;
     }
 
     // =========================
-    // 🔥 RUN FULL TRANSACTION ONLY WHEN NEEDED
+    // 🔥 STEP 3: HEAVY LOGIC (TRANSACTION)
     // =========================
-    await firestore.runTransaction((transaction) async {
-      final userSnapTx = await transaction.get(userRef);
-      final friendSnapTx = await transaction.get(friendRef);
+
+    await firestore.runTransaction((tx) async {
+      final userSnapTx = await tx.get(userRef);
+      final friendSnapTx = await tx.get(friendRef);
 
       final userDataTx = userSnapTx.data() ?? {};
       final friendDataTx = friendSnapTx.data() ?? {};
 
-      int totalMessages = (userDataTx['totalMessages'] ?? 0) + 1;
+      int totalMessages = userDataTx['totalMessages'] ?? 0;
       int qualifiedFriends = userDataTx['qualifiedFriends'] ?? 0;
 
-      int oldCount = friendDataTx['messageCount'] ?? 0;
-      int newCount = oldCount + 1;
-
+      int messageCount = friendDataTx['messageCount'] ?? 0;
       bool wasQualified = friendDataTx['isQualified'] ?? false;
-      bool isNowQualified = newCount >= 5;
+
+      bool isNowQualified = messageCount >= 5;
 
       // =========================
-      // 📊 UPDATE FRIEND STATS
+      // 📊 UPDATE FRIEND QUALIFICATION
       // =========================
-      transaction.set(friendRef, {
-        "messageCount": newCount,
+      tx.set(friendRef, {
         "isQualified": isNowQualified,
       }, SetOptions(merge: true));
 
@@ -334,7 +360,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       }
 
       // =========================
-      // ⚙️ CALCULATE SCORE
+      // ⚙️ SCORE CALCULATION
       // =========================
       const mMax = 10000;
       const fMax = 100;
@@ -354,13 +380,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       }
 
       double score = (wM * mNorm) + (wF * fNorm * engagement);
-
       score = pow(score, 1.2).toDouble();
 
       final percentage = score * 100;
 
       // =========================
-      // 🏆 LEVEL
+      // 🏆 LEVEL SYSTEM
       // =========================
       String level;
       if (percentage < 10) level = "Newcomer 🌱";
@@ -372,7 +397,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       else level = "Legend 🏆";
 
       // =========================
-      // 🔥 UNLOCK LOGIC
+      // 🎯 UNLOCK SYSTEM
       // =========================
       final thresholds = {
         "ach_1": 0,
@@ -390,10 +415,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           .toList();
 
       // =========================
-      // 📝 UPDATE STATS
+      // 📝 FINAL UPDATE
       // =========================
-      transaction.set(userRef, {
-        "totalMessages": totalMessages,
+      tx.set(userRef, {
         "qualifiedFriends": qualifiedFriends,
         "score": score,
         "percentage": percentage,
