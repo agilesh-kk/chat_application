@@ -1,6 +1,7 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
+import 'package:chat_application/features/achievement/presentation/pages/achievement_page.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/profile/presentation/pages/friends_page.dart';
@@ -627,7 +628,12 @@ class ProfilePage extends StatelessWidget {
                       AppPallete.storyGradientStart,
                       AppPallete.storyGradientEnd,
                     ],
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context, 
+                        MaterialPageRoute(builder: (context) => AchievementPage(userId: profileUser.id) )
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 14),

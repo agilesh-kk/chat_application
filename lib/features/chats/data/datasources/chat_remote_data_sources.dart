@@ -6,6 +6,7 @@ import 'package:chat_application/features/chats/data/models/conversation_model.d
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import 'dart:math';
 
 abstract interface class ChatRemoteDataSources {
   Future<Stream<List<ConversationModel>>> getConversations({
@@ -230,6 +231,13 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       await batch.commit();
 
       if (!isScheduled) {
+        await _updateAchievementStats(
+          userId: userId,
+          receiverId: receiverId,
+        );
+      }
+
+      if (!isScheduled) {
         await processTimelineEvent(
           messageId: msgId,
           senderId: userId,
@@ -242,6 +250,159 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     } catch (e) {
       //print("Send message error: $e");
     }
+  }
+
+  Future<void> _updateAchievementStats({
+    required String userId,
+    required String receiverId,
+  }) async {
+    final firestore = FirebaseFirestore.instance;
+
+    final userRef = firestore
+        .collection("users")
+        .doc(userId)
+        .collection("achievement")
+        .doc("stats");
+
+    final friendRef = firestore
+        .collection("user_stats")
+        .doc(userId)
+        .collection("friends")
+        .doc(receiverId);
+
+    // =========================
+    // 🔥 PRE-READ (LIMITER LOGIC HERE)
+    // =========================
+    final userSnap = await userRef.get();
+    final userData = userSnap.data() ?? {};
+
+    final friendSnap = await friendRef.get();
+    final friendData = friendSnap.data() ?? {};
+
+    int totalMessages = (userData['totalMessages'] ?? 0) + 1;
+
+    int oldCount = friendData['messageCount'] ?? 0;
+    int newCount = oldCount + 1;
+
+    bool wasQualified = friendData['isQualified'] ?? false;
+    bool isNowQualified = newCount >= 5;
+
+    bool justQualified = !wasQualified && isNowQualified;
+
+    // =========================
+    // 🚫 LIMITER CONDITION
+    // =========================
+    if (totalMessages % 5 != 0 && !justQualified) {
+      // 👉 Only update lightweight friend stats (NO heavy calc)
+      await friendRef.set({
+        "messageCount": newCount,
+        "isQualified": isNowQualified,
+      }, SetOptions(merge: true));
+
+      return; // 🔥 STOP HERE → saves reads & writes
+    }
+
+    // =========================
+    // 🔥 RUN FULL TRANSACTION ONLY WHEN NEEDED
+    // =========================
+    await firestore.runTransaction((transaction) async {
+      final userSnapTx = await transaction.get(userRef);
+      final friendSnapTx = await transaction.get(friendRef);
+
+      final userDataTx = userSnapTx.data() ?? {};
+      final friendDataTx = friendSnapTx.data() ?? {};
+
+      int totalMessages = (userDataTx['totalMessages'] ?? 0) + 1;
+      int qualifiedFriends = userDataTx['qualifiedFriends'] ?? 0;
+
+      int oldCount = friendDataTx['messageCount'] ?? 0;
+      int newCount = oldCount + 1;
+
+      bool wasQualified = friendDataTx['isQualified'] ?? false;
+      bool isNowQualified = newCount >= 5;
+
+      // =========================
+      // 📊 UPDATE FRIEND STATS
+      // =========================
+      transaction.set(friendRef, {
+        "messageCount": newCount,
+        "isQualified": isNowQualified,
+      }, SetOptions(merge: true));
+
+      if (!wasQualified && isNowQualified) {
+        qualifiedFriends += 1;
+      }
+
+      // =========================
+      // ⚙️ CALCULATE SCORE
+      // =========================
+      const mMax = 10000;
+      const fMax = 100;
+
+      final mNorm = log(1 + totalMessages) / log(1 + mMax);
+      final fNorm = log(1 + qualifiedFriends) / log(1 + fMax);
+
+      const wM = 0.75;
+      const wF = 0.25;
+
+      const targetPerFriend = 20;
+
+      double engagement = 1.0;
+      if (qualifiedFriends > 0) {
+        engagement = totalMessages / (qualifiedFriends * targetPerFriend);
+        if (engagement > 1) engagement = 1;
+      }
+
+      double score = (wM * mNorm) + (wF * fNorm * engagement);
+
+      score = pow(score, 1.2).toDouble();
+
+      final percentage = score * 100;
+
+      // =========================
+      // 🏆 LEVEL
+      // =========================
+      String level;
+      if (percentage < 10) level = "Newcomer 🌱";
+      else if (percentage < 25) level = "Starter 💬";
+      else if (percentage < 40) level = "Socializing 🤝";
+      else if (percentage < 60) level = "Active User 🔥";
+      else if (percentage < 75) level = "Connector 🔗";
+      else if (percentage < 90) level = "Influencer 🌟";
+      else level = "Legend 🏆";
+
+      // =========================
+      // 🔥 UNLOCK LOGIC
+      // =========================
+      final thresholds = {
+        "ach_1": 0,
+        "ach_2": 10,
+        "ach_3": 25,
+        "ach_4": 40,
+        "ach_5": 60,
+        "ach_6": 75,
+        "ach_7": 90,
+      };
+
+      final unlocked = thresholds.entries
+          .where((e) => percentage >= e.value)
+          .map((e) => e.key)
+          .toList();
+
+      // =========================
+      // 📝 UPDATE STATS
+      // =========================
+      transaction.set(userRef, {
+        "totalMessages": totalMessages,
+        "qualifiedFriends": qualifiedFriends,
+        "score": score,
+        "percentage": percentage,
+        "level": level,
+        "unlocked": unlocked,
+        "collected": userDataTx["collected"] ?? [],
+        "seen": userDataTx["seen"] ?? [],
+      }, SetOptions(merge: true));
+    });
   }
 
   String generateConversationId(String user1, String user2) {

@@ -1,4 +1,5 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+import 'package:chat_application/features/achievement/presentation/bloc/achievement_bloc.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart';
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
@@ -78,6 +79,11 @@ void main() async {
         ),
         BlocProvider(
           create: (_) => serviceLocator<PersonalTimelineBloc>(),
+        ),
+
+        //achivement bloc
+        BlocProvider(
+          create: (_) => serviceLocator<AchievementBloc>(),
         )
       ],
       child: MyApp(),

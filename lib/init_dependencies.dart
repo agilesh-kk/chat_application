@@ -1,5 +1,12 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/keys/app_keys.dart';
+import 'package:chat_application/features/achievement/data/datasources/achievement_remote_datasource.dart';
+import 'package:chat_application/features/achievement/data/repository/achievement_repository_impl.dart';
+import 'package:chat_application/features/achievement/domain/repository/achievement_repository.dart';
+import 'package:chat_application/features/achievement/domain/usecase/collect_achievement.dart';
+import 'package:chat_application/features/achievement/domain/usecase/get_achievements.dart';
+import 'package:chat_application/features/achievement/domain/usecase/mark_achievement_seen.dart';
+import 'package:chat_application/features/achievement/presentation/bloc/achievement_bloc.dart';
 import 'package:chat_application/features/auth/data/datasources/auth_remote_data_sources.dart';
 import 'package:chat_application/features/auth/data/repository/auth_repository_impl.dart';
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
@@ -85,6 +92,7 @@ Future<void> initDependencies() async {
   _initStatus();
   _initProfile();
   _initTimeline();
+  _initAchievement();
 
   //supabase initialization
   final supabase = await Supabase.initialize(
@@ -395,6 +403,39 @@ void _initTimeline(){
       addPersonalEvent: serviceLocator(), 
       loadPersonalEvents: serviceLocator(),
       removePersonalEvent: serviceLocator(),
+    )
+  );
+}
+
+void _initAchievement() {
+  serviceLocator
+  //data source
+  ..registerFactory<AchievementRemoteDatasource>(
+   () => AchievementRemoteDatasourceImpl(firestore: serviceLocator<FirebaseFirestore>())
+  )
+
+  //repository
+  ..registerFactory<AchievementRepository>(
+    () => AchievementRepositoryImpl(achievementRemoteDatasource: serviceLocator<AchievementRemoteDatasource>())
+  )
+
+  //usecase
+  ..registerFactory(
+    () => CollectAchievement(achievementRepository: serviceLocator<AchievementRepository>())
+  )
+  ..registerFactory(
+    ()=> GetAchievements(achievementRepository: serviceLocator<AchievementRepository>())
+  )
+  ..registerFactory(
+    ()=> MarkAchievementSeen(serviceLocator<AchievementRepository>())
+  )
+
+  //bloc
+  ..registerLazySingleton(
+    () => AchievementBloc(
+      getAchievements: serviceLocator<GetAchievements>(), 
+      collectAchievement: serviceLocator<CollectAchievement>(), 
+      markAchievementSeen: serviceLocator<MarkAchievementSeen>(),
     )
   );
 }
