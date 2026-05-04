@@ -44,6 +44,12 @@ abstract interface class ChatRepository{
     required String userId,
   });
 
+  //marking the messages has viewed
+  Future<void> markMessagesDelivered({
+    required String userId,
+    required String receiverId,
+  });
+
   //Contract to fetch receiverName
   Future<Either<Failure,List<User>>> searchUser({
     required String receiverName,
@@ -62,4 +68,7 @@ abstract interface class ChatRepository{
     required String type,
     bool deleteForEveryone = false,
   });
+  
+  
+
 }

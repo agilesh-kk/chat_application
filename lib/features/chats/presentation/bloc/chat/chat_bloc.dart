@@ -5,6 +5,7 @@ import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/usecase/delete_message.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
+import 'package:chat_application/features/chats/domain/usecase/mark_messages_delivered.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,10 +16,15 @@ part "chat_states.dart";
 
 class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
-  final  GetMessages _getMessages;
-  final  SendMessage _sendMessage;
+  final GetMessages _getMessages;
+  final SendMessage _sendMessage;
   final SendImage _sendImage;
   final DeleteMessage _deleteMessage;
+  final MarkMessagesDelivered _markMessagesDelivered;
+
+  String? _currentUserId;
+  String? _currentReceiverId;
+  bool _alreadyMarkedRecently = false;
   StreamSubscription<List<Message>>? _messageSub;
 
   ChatBloc({
@@ -26,12 +32,14 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     required SendMessage sendMessage,
     required SendImage sendImage,
     required DeleteMessage deleteMessage,
+    required MarkMessagesDelivered markMessagesDelivered,
   })
    :
    _getMessages = getMessages,
    _sendMessage = sendMessage,
    _sendImage = sendImage,
    _deleteMessage = deleteMessage, 
+   _markMessagesDelivered = markMessagesDelivered,
    super(ChatInitial()) {
 
     on<Closechat>((event, emit)async {
@@ -39,43 +47,45 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       emit(ChatClosed());
     },);
 
-      on<SendImageEvent>((
-          SendImageEvent event, Emitter<ChatState> emit) async {
+    on<SendImageEvent>((
+      SendImageEvent event, Emitter<ChatState> emit) async {
 
-        final current = state as ChatLoaded;
+      final current = state as ChatLoaded;
 
-        final msgId = const Uuid().v4();
+      final msgId = const Uuid().v4();
 
-        // ✅ 1. Create LOCAL MESSAGE
-        final localMessage = Message(
-          senderId: event.userId,
-          createdAt: DateTime.now(),
-          deletedfor: [],
-          id: msgId,
-          content: "",
-          type: "image",
-          localPath: event.file.path,
-          isLocal: true,
-          status: "sending",
-        );
+      // ✅ 1. Create LOCAL MESSAGE
+      final localMessage = Message(
+        senderId: event.userId,
+        createdAt: DateTime.now(),
+        deletedfor: [],
+        id: msgId,
+        content: "",
+        type: "image",
+        localPath: event.file.path,
+        isLocal: true,
+        status: "sending",
+      );
 
-        // ✅ 2. Emit instantly (NO WAIT)
-        emit(ChatLoaded([localMessage, ...current.messages]));
+      // ✅ 2. Emit instantly (NO WAIT)
+      emit(ChatLoaded([localMessage, ...current.messages]));
 
-        // ✅ 3. Call usecase (async)
-        await _sendImage(
-          SendImageParams(
-            receiverId: event.receiverId,
-            userId: event.userId,
-            file: event.file,
-            msgId: msgId,
-            userName: event.userName,
-            userProfile: event.userProfile
-          ),
-        );
-      });
+      // ✅ 3. Call usecase (async)
+      await _sendImage(
+        SendImageParams(
+          receiverId: event.receiverId,
+          userId: event.userId,
+          file: event.file,
+          msgId: msgId,
+          userName: event.userName,
+          userProfile: event.userProfile
+        ),
+      );
+    });
 
     on<LoadMessagesEvent>((event, emit) async {
+      _currentUserId = event.userId;
+      _currentReceiverId = event.receiverId;
 
       emit(ChatLoading());
 
@@ -191,10 +201,42 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     });
 
     on<DeleteMessageEvent>(_onDeleteMessageEvent);
+    on<MarkMessagesDeliveredEvent>(_onMarkMessagesDeleiveredEvent);
 
   }
 
   void updateMessages(List<Message> received, emit) {
+    // =========================
+    // 🔥 STEP 1: DETECT UNSEEN MESSAGES
+    // =========================
+    final hasUnseen = received.any(
+      (msg) =>
+          msg.senderId == _currentReceiverId && // ✅ only incoming
+          msg.status == "sent" &&
+          !msg.isLocal,
+    );
+
+    if (hasUnseen &&
+        !_alreadyMarkedRecently &&
+        _currentUserId != null &&
+        _currentReceiverId != null) {
+
+      _alreadyMarkedRecently = true;
+
+      add(MarkMessagesDeliveredEvent(
+        userId: _currentUserId!,
+        receiverId: _currentReceiverId!,
+      ));
+
+      // debounce reset
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _alreadyMarkedRecently = false;
+      });
+    }
+
+    // =========================
+    // 🔥 STEP 2: YOUR EXISTING LOGIC
+    // =========================
     if (state is ChatLoaded) {
       final currentState = state as ChatLoaded;
 
@@ -213,9 +255,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       List<Message> updated = messageMap.values.toList();
 
       updated.sort((a, b) {
-        final aTime = a.createdAt;
-        final bTime = b.createdAt;
-        return bTime.compareTo(aTime);
+        return b.createdAt.compareTo(a.createdAt);
       });
 
       add(MessagesUpdatedEvent(updated));
@@ -255,6 +295,15 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         // If delete succeeds, the message stream should update automatically.
         // No immediate state change is required here unless you want optimistic UI.
       },
+    );
+  }
+
+  FutureOr<void> _onMarkMessagesDeleiveredEvent(MarkMessagesDeliveredEvent event, Emitter<ChatState> emit) async{
+    await _markMessagesDelivered(
+      MarkMessagesDeliveredParams(
+        userId: event.userId, 
+        receiverId: event.receiverId
+      )
     );
   }
 }

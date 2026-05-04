@@ -13,6 +13,16 @@ class LoadMessagesEvent extends ChatEvent {
   });
 }
 
+class MarkMessagesDeliveredEvent extends ChatEvent {
+  final String userId;
+  final String receiverId;
+
+  MarkMessagesDeliveredEvent({
+    required this.userId,
+    required this.receiverId,
+  });
+}
+
 class SendMessageEvent extends ChatEvent{
   final String receiverId;
   final String userId;

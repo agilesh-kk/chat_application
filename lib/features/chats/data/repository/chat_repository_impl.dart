@@ -49,6 +49,17 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<void> markMessagesDelivered({
+    required String userId,
+    required String receiverId,
+  }) {
+    return chatRemoteDataSources.markMessagesDelivered(
+      receiverId: receiverId,
+      userId: userId,
+    );
+  }
+
+  @override
   Future<Either<Failure, void>> sendImage({
     required String receiverId,
     required String userId,

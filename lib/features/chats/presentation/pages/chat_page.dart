@@ -71,6 +71,13 @@ class _ChatPageState extends State<ChatPage> {
           receiverId: widget.receiverId,
         ),
       );
+    
+    context.read<ChatBloc>().add(
+      MarkMessagesDeliveredEvent(
+        userId: widget.currentUserId,
+        receiverId: widget.receiverId,
+      ),
+    );
   }
 
   @override

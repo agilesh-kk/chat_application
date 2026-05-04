@@ -50,6 +50,11 @@ abstract interface class ChatRemoteDataSources {
     required String receiverId,
     bool deleteForEveryone = false,
   });
+
+  Future markMessagesDelivered({
+    required String userId, 
+    required String receiverId
+  });
 }
 
 class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
@@ -86,7 +91,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .orderBy("createdAt", descending: true)
         .snapshots()
         .map((snapshot) {
-          markMessagesDelivered(userId, receiverId);
+          //markMessagesDelivered(userId, receiverId);
 
           //filtering out the deleted for messages.
           return snapshot.docs
@@ -94,6 +99,31 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             .where((msg) => !msg.deletedfor.contains(userId))
             .toList();
         });
+  }
+
+  @override
+  Future<void> markMessagesDelivered({
+    required String userId, 
+    required String receiverId
+  }) async {
+    final convoRef = firestore
+        .collection("Conversations")
+        .doc(generateConversationId(userId, receiverId))
+      ..update({"$userId.unread": 0});
+
+    final snapshot = 
+        await convoRef
+            .collection("messages")
+            .where("senderId", isEqualTo: receiverId)
+            .where("status", isEqualTo: "sent")
+            .get();
+
+    final batch = firestore.batch();
+
+    for (final doc in snapshot.docs) {
+      batch.update(doc.reference, {"status": "seen"});
+    }
+    await batch.commit();
   }
 
   @override
@@ -466,26 +496,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     .toList();
   }
 
-  Future<void> markMessagesDelivered(String userId, String receiverId) async {
-    final convoRef = firestore
-        .collection("Conversations")
-        .doc(generateConversationId(userId, receiverId))
-      ..update({"$userId.unread": 0});
-
-    final snapshot = 
-        await convoRef
-            .collection("messages")
-            .where("senderId", isEqualTo: receiverId)
-            .where("status", isEqualTo: "sent")
-            .get();
-
-    final batch = firestore.batch();
-
-    for (final doc in snapshot.docs) {
-      batch.update(doc.reference, {"status": "seen"});
-    }
-    await batch.commit();
-  }
   
   @override
   Future<void> deleteMessage({

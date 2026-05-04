@@ -23,6 +23,7 @@ import 'package:chat_application/features/chats/domain/usecase/delete_message.da
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_scheduled_messages.dart';
+import 'package:chat_application/features/chats/domain/usecase/mark_messages_delivered.dart';
 import 'package:chat_application/features/chats/domain/usecase/search_user.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
@@ -284,6 +285,9 @@ void _initChat()async {
       chatRepository: serviceLocator<ChatRepository>()
     )
   )
+  ..registerFactory(
+    () => MarkMessagesDelivered(chatRepository: serviceLocator<ChatRepository>()),
+  )
 
   ..registerLazySingleton(
     () => ChatBloc(
@@ -291,6 +295,7 @@ void _initChat()async {
       getMessages: serviceLocator(),
       sendMessage: serviceLocator(),
       deleteMessage: serviceLocator(),
+      markMessagesDelivered: serviceLocator(),
     )
   )
 
