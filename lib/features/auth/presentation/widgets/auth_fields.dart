@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:flutter/services.dart';
 
 class AuthFields extends StatefulWidget {
   final String hinText;
   final TextEditingController textController;
   final bool isObscure;
   final IconData? icon;
+  final bool? isSmall;
 
   const AuthFields({
     super.key,
@@ -13,6 +15,7 @@ class AuthFields extends StatefulWidget {
     required this.textController,
     required this.isObscure,
     this.icon,
+    this.isSmall,
   });
 
   @override
@@ -65,6 +68,18 @@ class _AuthFieldsState extends State<AuthFields> {
           });
         },
         child: TextFormField(
+          inputFormatters: widget.isSmall == true
+            ? [
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) {
+                    return newValue.copyWith(
+                      text: newValue.text.toLowerCase(),
+                      selection: newValue.selection,
+                    );
+                  },
+                ),
+              ]
+            : null,
           style: const TextStyle(color: AppPallete.whiteColor),
           decoration: InputDecoration(
             hintText: widget.hinText,

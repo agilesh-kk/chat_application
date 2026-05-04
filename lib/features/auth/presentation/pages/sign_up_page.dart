@@ -188,6 +188,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             textController: nameController,
             isObscure: false,
             icon: Icons.person_outline,
+            isSmall : true,
           ),
           const SizedBox(height: 16),
           AuthFields(

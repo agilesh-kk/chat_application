@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:chat_application/core/usecase/usecase.dart';
-import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/domain/usecase/get_all_status.dart';

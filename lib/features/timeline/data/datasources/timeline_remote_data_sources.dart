@@ -3,7 +3,6 @@ import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/timeline/data/models/event_model.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:uuid/uuid.dart';
 
 abstract interface class TimelineRemoteDataSources {
   Future<List<Event>> getEvents({

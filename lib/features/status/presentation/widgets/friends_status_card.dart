@@ -210,11 +210,11 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
   }
 
   ImageProvider displayImage(Status s) {
-    if (s.profilepic != null && s.profilepic!.isNotEmpty) {
-      if (s.profilepic!.startsWith('assets/')) {
-        return AssetImage(s.profilepic!);
+    if (s.profilepic.isNotEmpty) {
+      if (s.profilepic.startsWith('assets/')) {
+        return AssetImage(s.profilepic);
       }
-      return NetworkImage(s.profilepic!);
+      return NetworkImage(s.profilepic);
     }
     if (s.localPath != null) {
       return FileImage(File(s.localPath!));

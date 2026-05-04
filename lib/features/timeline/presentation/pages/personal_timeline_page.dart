@@ -1,6 +1,5 @@
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
-import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/personal_time_line/personal_timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/add_event_dialog.dart';

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:chat_application/core/common/entities/user.dart';
-import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/chats/data/datasources/timeline_service.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
 import 'package:chat_application/features/chats/data/models/message_model.dart';

@@ -4,7 +4,6 @@ import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/timeline/data/datasources/timeline_remote_data_sources.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/features/timeline/domain/repositories/timeline_repository.dart';
-import 'package:chat_application/init_dependencies.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:uuid/uuid.dart';
 
