@@ -170,16 +170,18 @@ return Align(
                   Icon(Icons.block, size: 14, color: AppPallete.greyText),
                   SizedBox(width: 4),
                 ],
-                Text(
-                  widget.message.deletedForEveryone
-                    ? "This message was deleted "
-                    : widget.message.content,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
-                    color: widget.message.deletedForEveryone
-                      ? AppPallete.greyText
-                      : (widget.isMe ? AppPallete.whiteColor : AppPallete.whiteColor),
+                Flexible(
+                  child: Text(
+                    widget.message.deletedForEveryone
+                      ? "This message was deleted "
+                      : widget.message.content,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
+                      color: widget.message.deletedForEveryone
+                        ? AppPallete.greyText
+                        : (widget.isMe ? AppPallete.whiteColor : AppPallete.whiteColor),
+                    ),
                   ),
                 ),
               ],

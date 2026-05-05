@@ -40,18 +40,10 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
     final res = await _loadEvents(
       LoadEventsParams(userId: event.userId, receiverId: event.receiverId),
     );
-    res.fold((l) => emit(TimelineError(l.message)), (r) {
-      if (r.isEmpty) {
-        add(
-          RefreshTimelineEvent(
-            userId: event.userId,
-            receiverId: event.receiverId,
-          ),
-        );
-      } else {
-        emit(TimelineLoaded(r));
-      }
-    });
+    res.fold(
+      (l) => emit(TimelineError(l.message)), 
+      (r) => emit(TimelineLoaded(r)) 
+    );
   }
 
   void _closetimeline(

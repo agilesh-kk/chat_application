@@ -36,7 +36,9 @@ class TimelineService {
     required String type,
     required String content,
     required Timestamp createdAt,
+    bool isFromScheduler = false,
   }) async {
+    if (isFromScheduler) return;
     await _loadRules();
 
     final convoId = _generateConversationId(senderId, receiverId);
