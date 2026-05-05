@@ -54,20 +54,25 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
     required String userId,
     required String receiverId,
   }) async {
-    String convoId = generateConversationId(userId, receiverId);
+    try{
+      String convoId = generateConversationId(userId, receiverId);
 
-    final timelineEvents =
-        (await firebaseFirestore
-                .collection("Conversations")
-                .doc(convoId)
-                .collection("timeline")
-                .orderBy("time")
-                .get())
-            .docs;
+      final timelineEvents =
+          (await firebaseFirestore
+                  .collection("Conversations")
+                  .doc(convoId)
+                  .collection("timeline")
+                  .orderBy("time")
+                  .get())
+              .docs;
 
-    return timelineEvents.map((e) {
-      return EventModel.fromJson(e.data(), e.id);
-    }).toList();
+      return timelineEvents.map((e) {
+        return EventModel.fromJson(e.data(), e.id);
+      }).toList();
+    }
+    catch(e){
+      throw ServerExceptions(e.toString());
+    }
   }
 
   String generateConversationId(String user1, String user2) {

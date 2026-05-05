@@ -592,6 +592,8 @@ class _ChatPageState extends State<ChatPage> {
               ),
               child: TextField(
                 controller: controller,
+                minLines: 1,
+                maxLines: 5, 
                 style: TextStyle(color: AppPallete.whiteColor),
                 decoration: InputDecoration(
                   hintText: "Type message...",
