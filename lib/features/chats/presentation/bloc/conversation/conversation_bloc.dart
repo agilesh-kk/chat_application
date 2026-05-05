@@ -41,7 +41,10 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
             _convoSub = convoStream.listen(
               (convos) {
                 //print("📦 BLOC RECEIVED: ${convos.length}");
-                final sub = (friendsCubit.state as FriendsLoaded).friends;
+                var sub = {}; 
+                if(friendsCubit.state is FriendsLoaded){
+                  sub = (friendsCubit.state as FriendsLoaded).friends;
+                }
 
                 final List<Conversation> updated = <Conversation>[];
                   for(final c in convos){
@@ -51,8 +54,8 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                       receiverId: c.receiverId,
                       lastMessage: c.lastMessage,
                       lastupdateTime: c.lastupdateTime,
-                      profilepicLink: sub[c.receiverId]!.profilePic,
-                      receiverName: sub[c.receiverId]!.name,
+                      profilepicLink: sub[c.receiverId]?.profilePic ?? "loading",
+                      receiverName: sub[c.receiverId]?.name ?? "loading",
                       unread: c.unread,
                       lastSender: c.lastSender)
                     );
@@ -92,6 +95,8 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                 },);
           },
         );
+
+        emit(ConversationLoaded(conversations: []));
       } catch (e) {
         emit(ConversationError(e.toString()));
       }

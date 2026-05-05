@@ -85,6 +85,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
         for (final s in current) {
           updated.add(
             Status(
+              localPath: s.localPath,
               id: s.id, 
               userId: s.userId, 
               imageUrl: s.imageUrl, 

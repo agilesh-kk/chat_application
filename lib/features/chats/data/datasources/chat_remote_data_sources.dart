@@ -5,6 +5,8 @@ import 'package:chat_application/features/chats/data/datasources/timeline_servic
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'dart:math';
 
@@ -27,7 +29,7 @@ abstract interface class ChatRemoteDataSources {
     //bool? isScheduled,
   });
 
-  Future<String> uploadImage({required File file, required String msgId});
+  Future<String> uploadImage({required XFile image, required String msgId});
 
   Future<Stream<List<MessageModel>>> getMessages({
     required String receiverId,
@@ -148,13 +150,17 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
   @override
   Future<String> uploadImage({
-    required File file,
+    required XFile image,
     required String msgId,
   }) async {
     final path = "$msgId.jpg";
-
-    await supabase.storage.from("images").upload(path, file);
-
+    if (kIsWeb) {
+        final bytes = await image.readAsBytes();
+        await supabase.storage.from('images').uploadBinary(path, bytes);
+    }else{
+        final file = File(image.path);
+        await supabase.storage.from("images").upload(path, file);
+    }
     return supabase.storage.from("images").getPublicUrl(path);
   }
 

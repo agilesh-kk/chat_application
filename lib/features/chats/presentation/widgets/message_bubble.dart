@@ -154,7 +154,7 @@ return Align(
         decoration: BoxDecoration(
           color: widget.highlight
             ? AppPallete.primaryOrange.withValues(alpha: 0.3)
-            : (widget.isMe ? AppPallete.primaryOrange : AppPallete.cardBg),
+            : (widget.isMe ? const Color(0xFFB84A1A) : AppPallete.cardBg),
           borderRadius: BorderRadius.circular(16),
           border: widget.isMe ? null : Border.all(color: AppPallete.divider),
         ),

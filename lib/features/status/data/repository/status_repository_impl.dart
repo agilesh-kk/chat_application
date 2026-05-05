@@ -72,9 +72,10 @@ class StatusRepositoryImpl implements StatusRepository {
       return right(status);
 
     } on ServerExceptions catch (_) {
-
+      print("failed");
       try{
         final status = await statusLocalDataSource.getAllStatuses();
+        print("locall");
         return right(status);
       }catch(e){
         return left(Failure(e.toString()));

@@ -61,8 +61,8 @@ class StatusLocalDataSourceImpl implements StatusLocalDataSource {
     }
   }
 
-  Future<String> downloadAndSaveImage(String url, String id) async {
-
+  Future<String?> downloadAndSaveImage(String url, String id) async {
+    if (kIsWeb) return null;
     final dir = await getApplicationDocumentsDirectory();
     final folder = Directory('${dir.path}/status_img');
 
@@ -74,7 +74,6 @@ class StatusLocalDataSourceImpl implements StatusLocalDataSource {
 
     await Dio().download(url, file.path);
     
-
     return file.path;
   }
 }

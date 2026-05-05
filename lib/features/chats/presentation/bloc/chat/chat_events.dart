@@ -47,13 +47,13 @@ class SendMessageEvent extends ChatEvent{
 class SendImageEvent extends ChatEvent {
   final String receiverId;
   final String userId;
-  final File file;
+  final XFile image;
   String? userName;
   String? userProfile;
   SendImageEvent({
     required this.userId,
     required this.receiverId,
-    required this.file,
+    required this.image,
     this.userName,
     this.userProfile
   });

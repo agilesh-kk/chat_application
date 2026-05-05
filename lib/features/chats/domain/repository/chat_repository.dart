@@ -1,11 +1,10 @@
 
-import 'dart:io';
-
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:image_picker/image_picker.dart';
 
 // Contract for Repository (Independent)
 abstract interface class ChatRepository{
@@ -32,7 +31,7 @@ abstract interface class ChatRepository{
   Future<Either<Failure, void>> sendImage({
     required String receiverId,
     required String userId,
-    required File file,
+    required XFile image,
     required String msgId,
     String? userName,
     String? userProfile,

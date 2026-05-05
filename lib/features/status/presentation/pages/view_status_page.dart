@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
+import 'package:chat_application/features/friends/data/friend_model.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,7 @@ class ViewStatusPage extends StatefulWidget {
   final String userProfilePic;
   final bool isUserStatus;
   final bool hasInternet;
+  final String userName;
 
   const ViewStatusPage({
     super.key,
@@ -20,6 +23,7 @@ class ViewStatusPage extends StatefulWidget {
     required this.isUserStatus,
     required this.hasInternet,
     required this.userProfilePic,
+    required this.userName
   });
 
   @override
@@ -101,7 +105,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppPallete.darkBg,
       body: BlocConsumer<StatusviewBloc, StatusviewState>(
         listener: (context, state) async {
           if (state is ViewDisplaySuccess) {
@@ -117,55 +121,132 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
               ),
               builder: (context) {
                 return Container(
-                  height: 350,
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppPallete.cardBg,
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(20),
                     ),
+                    border: Border.all(
+                      color: AppPallete.divider,
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, -3),
+                      ),
+                    ],
                   ),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Container(
                         height: 4,
-                        width: 40,
+                        width: 36,
                         decoration: BoxDecoration(
                           color: AppPallete.divider,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      const SizedBox(height: 15),
-                      Text(
-                        "${state.statusView.length} views",
-                        style: const TextStyle(
-                          color: AppPallete.whiteColor,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.remove_red_eye_outlined,
+                              size: 20,
+                              color: AppPallete.greyText,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "${state.statusView.length} views",
+                              style: const TextStyle(
+                                color: AppPallete.whiteColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Divider(color: AppPallete.divider),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: state.statusView.length,
-                          itemBuilder: (context, index) {
-                            final viewer = state.statusView[index];
-                            return ListTile(
-                              title: Text(
-                                viewer.viewerName,
-                                style: const TextStyle(
-                                  color: AppPallete.whiteColor,
-                                ),
-                              ),
-                              subtitle: Text(
-                                MomentsAgo.calculateMomentsAgo(
-                                  viewer.viewedAt.toLocal().toString(),
-                                ),
-                                style: const TextStyle(
-                                  color: AppPallete.greyText,
-                                  fontSize: 12,
-                                ),
-                              ),
+                      Container(
+                        height: 1,
+                        color: AppPallete.divider,
+                      ),
+                      Flexible(
+                        child: BlocBuilder<FriendsCubit, FriendsState>(
+                          builder: (context, friendsState) {
+                            Map<String, FriendModel> friendsMap = {};
+                            if (friendsState is FriendsLoaded) {
+                              friendsMap = friendsState.friends;
+                            }
+
+                            return ListView.builder(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: state.statusView.length,
+                              itemBuilder: (context, index) {
+                                final viewer = state.statusView[index];
+                                final friend = friendsMap[viewer.viewerId];
+                                final profilePic = friend?.profilePic;
+                                final hasProfilePic = profilePic != null && profilePic.isNotEmpty;
+
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 6,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 20,
+                                        backgroundImage: hasProfilePic
+                                            ? AssetImage(profilePic)
+                                            : null,
+                                        backgroundColor: AppPallete.darkSecondary,
+                                        child: !hasProfilePic
+                                            ? const Icon(
+                                                Icons.person,
+                                                size: 20,
+                                                color: AppPallete.greyText,
+                                              )
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              viewer.viewerName,
+                                              style: const TextStyle(
+                                                color: AppPallete.whiteColor,
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              MomentsAgo.calculateMomentsAgo(
+                                                viewer.viewedAt.toLocal().toString(),
+                                              ),
+                                              style: const TextStyle(
+                                                color: AppPallete.greyText,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             );
                           },
                         ),
@@ -217,7 +298,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                   right: 0,
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: Column(
                         children: [
                           _buildProgressBars(),
@@ -239,8 +320,12 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppPallete.darkBg.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppPallete.primaryOrange.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
                       ),
                       child: Text(
                         status.caption,
@@ -256,46 +341,27 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                   Positioned(
                     bottom: 40,
                     right: 20,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black38,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        iconSize: 28,
-                        icon: const Icon(
-                          Icons.remove_red_eye,
-                          color: Colors.white,
+                    child: GestureDetector(
+                      onTap: () {
+                        context.read<StatusviewBloc>().add(
+                              GetViewEvent(statusId: status.id),
+                            );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppPallete.cardBg.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppPallete.divider),
                         ),
-                        onPressed: () {
-                          context.read<StatusviewBloc>().add(
-                                GetViewEvent(statusId: status.id),
-                              );
-                        },
+                        child: Icon(
+                          Icons.remove_red_eye_outlined,
+                          size: 22,
+                          color: AppPallete.primaryOrange,
+                        ),
                       ),
                     ),
                   ),
-                Positioned(
-                  top: 40,
-                  right: 16,
-                  child: IconButton(
-                    iconSize: 28,
-                    icon: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black38,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
               ],
             ),
           );
@@ -320,8 +386,8 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                       : index == currentIndex
                           ? progress
                           : 0,
-                  backgroundColor: Colors.white30,
-                  valueColor: const AlwaysStoppedAnimation(Colors.white),
+                  backgroundColor: Colors.white24,
+                  valueColor: const AlwaysStoppedAnimation(AppPallete.primaryOrange),
                   minHeight: 3,
                 ),
               ),
@@ -339,12 +405,17 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
+            gradient: LinearGradient(
+              colors: [
+                AppPallete.primaryOrange,
+                AppPallete.lightOrange,
+              ],
+            ),
           ),
           child: CircleAvatar(
             radius: 18,
             backgroundImage: AssetImage(widget.userProfilePic),
-            backgroundColor: AppPallete.cardBg,
+            backgroundColor: AppPallete.darkSecondary,
           ),
         ),
         const SizedBox(width: 12),
@@ -352,7 +423,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              status.userName,
+              widget.userName,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,

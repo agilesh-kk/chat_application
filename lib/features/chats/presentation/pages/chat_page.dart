@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
@@ -161,8 +159,6 @@ class _ChatPageState extends State<ChatPage> {
 
     if (picked == null) return;
 
-    final file = File(picked.path);
-
     final user = context.read<AppUserCubit>().state;
 
     if (user is AppUserIsSignedin) {
@@ -171,7 +167,7 @@ class _ChatPageState extends State<ChatPage> {
           userName: user.user.name,
           userProfile: user.user.profilePic,
           userId: user.user.id,
-          file: file,
+          image: picked,
           receiverId: widget.receiverId,
         ),
       );

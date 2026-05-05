@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
@@ -8,8 +7,10 @@ import 'package:chat_application/features/chats/presentation/helper/cacheservice
 import 'package:chat_application/features/chats/presentation/widgets/message_options_helper.dart';
 import 'package:chat_application/features/chats/presentation/pages/image_page.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart' as http;
 
 class ImageMessageTile extends StatefulWidget {
   final Message message;
@@ -105,7 +106,34 @@ class _ImageMessageTileState extends State<ImageMessageTile>
       return;
     }
 
-    /// 🟢 LOCAL FILE
+    if (kIsWeb) {
+      if (msg.localPath != null) {
+        final response = await http.get(Uri.parse(msg.localPath!));
+        if (response.statusCode == 200) {
+          imageBytes = response.bodyBytes;
+          widget.cacheService.cache[msg.id] = imageBytes!;
+          isLoading = false;
+          if (mounted) setState(() {});
+          return;
+        }
+      }
+
+      if (msg.content.isNotEmpty) {
+        final response = await http.get(Uri.parse(msg.content));
+        if (response.statusCode == 200) {
+          imageBytes = response.bodyBytes;
+          widget.cacheService.cache[msg.id] = imageBytes!;
+          isLoading = false;
+          if (mounted) setState(() {});
+          return;
+        }
+      }
+
+      isLoading = false;
+      if (mounted) setState(() {});
+      return;
+    }
+
     if (msg.localPath != null) {
       final bytes = await File(msg.localPath!).readAsBytes();
       widget.cacheService.cache[msg.id] = bytes;
@@ -167,7 +195,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
               color: widget.flash
                   ? AppPallete.primaryOrange.withValues(alpha: 0.3)
                   : (widget.isMe
-                      ? AppPallete.primaryOrange
+                      ? const Color(0xFFB84A1A)
                       : AppPallete.cardBg),
               borderRadius: BorderRadius.circular(16),
               border: widget.isMe

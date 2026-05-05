@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:chat_application/core/theme/app_pallette.dart';
 import '../../domain/entity/achievement.dart';
 import '../../services/achievement_image_service.dart';
+import '../../services/achievement_details_mapper.dart';
 import 'achievement_tile.dart';
 
 class AchievementGrid extends StatelessWidget {
   final Achievement data;
   final AchievementImageService imageService;
-
-  // 🔥 ADD THIS
   final Function(String achievementId) onCollect;
 
   const AchievementGrid({
@@ -19,36 +19,66 @@ class AchievementGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final allAchievements = [
-      "ach_1",
-      "ach_2",
-      "ach_3",
-      "ach_4",
-      "ach_5",
-      "ach_6",
-      "ach_7",
-    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppPallete.primaryOrange,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                width: 3,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: AppPallete.primaryOrange.withValues(alpha: 0.5),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'All Achievements',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppPallete.whiteColor,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            itemCount: AchievementDetailsMapper.all.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
+              childAspectRatio: 0.85,
+            ),
+            itemBuilder: (_, index) {
+              final detail = AchievementDetailsMapper.all[index];
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: allAchievements.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-      ),
-      itemBuilder: (_, index) {
-        final id = allAchievements[index];
-
-        return AchievementTile(
-          id: id,
-          data: data,
-          imageService: imageService,
-
-          // 🔥 PASS CALLBACK DOWN
-          onCollect: () => onCollect(id),
-        );
-      },
+              return AchievementTile(
+                id: detail.id,
+                data: data,
+                imageService: imageService,
+                onCollect: () => onCollect(detail.id),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

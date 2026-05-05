@@ -78,11 +78,7 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
                       _buildForgotPassword(),
                       const SizedBox(height: 16),
                       _buildSignInButton(),
-                      const SizedBox(height: 24),
-                      _buildDivider(),
-                      const SizedBox(height: 24),
-                      _buildSocialButtons(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
                       _buildSignUpLink(),
                       const SizedBox(height: 40),
                     ],
@@ -211,57 +207,6 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
               );
         }
       },
-    );
-  }
-
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: AppPallete.divider)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'or continue with',
-            style: TextStyle(color: AppPallete.greyText, fontSize: 12),
-          ),
-        ),
-        Expanded(child: Divider(color: AppPallete.divider)),
-      ],
-    );
-  }
-
-  Widget _buildSocialButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildSocialButton(Icons.g_mobiledata_rounded, 'Google'),
-        const SizedBox(width: 16),
-        _buildSocialButton(Icons.apple_rounded, 'Apple'),
-      ],
-    );
-  }
-
-  Widget _buildSocialButton(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppPallete.cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppPallete.divider),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppPallete.whiteColor, size: 24),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppPallete.whiteColor,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
     );
   }
 

@@ -139,6 +139,7 @@ class _StatusPageState extends State<StatusPage>
                                         isUserStatus: true,
                                         hasInternet: true,
                                         userProfilePic: pfp!,
+                                        userName: currentUserName,
                                       ),
                                     ),
                                   );
@@ -213,6 +214,7 @@ class _StatusPageState extends State<StatusPage>
                                           isUserStatus: false,
                                           hasInternet: false,
                                           userProfilePic: firstStatus.profilepic,
+                                          userName: firstStatus.userName,
                                         ),
                                       ),
                                     );

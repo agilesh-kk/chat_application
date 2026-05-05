@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
@@ -9,6 +8,7 @@ import 'package:chat_application/features/chats/domain/usecase/mark_messages_del
 import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 part "chat_events.dart";
@@ -62,7 +62,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         id: msgId,
         content: "",
         type: "image",
-        localPath: event.file.path,
+        localPath: event.image.path,
         isLocal: true,
         status: "sending",
       );
@@ -75,7 +75,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         SendImageParams(
           receiverId: event.receiverId,
           userId: event.userId,
-          file: event.file,
+          image: event.image,
           msgId: msgId,
           userName: event.userName,
           userProfile: event.userProfile

@@ -163,11 +163,7 @@ class ProfilePage extends StatelessWidget {
                 ),
               ],
             ),
-          if (!isUser)
-            _buildCloseButton(
-              onTap: () => Navigator.pop(context),
-            )
-          else
+          if (isUser)
             _buildActionButton(
               icon: Icons.logout_rounded,
               onTap: () async {
@@ -215,38 +211,6 @@ class ProfilePage extends StatelessWidget {
             child: Icon(
               icon,
               color: color ?? AppPallete.whiteColor,
-              size: 24,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCloseButton({required VoidCallback onTap}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppPallete.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppPallete.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Icon(
-              Icons.close,
-              color: AppPallete.whiteColor,
               size: 24,
             ),
           ),
@@ -461,27 +425,29 @@ class ProfilePage extends StatelessWidget {
           children: [
             Row(
               children: [
-                _buildStatItem(
-                  icon: Icons.people_outline,
-                  value: friendsCount.toString(),
-                  label: "Friends",
-                  color: AppPallete.primaryOrange,
-                  isClickable: isUser,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FriendsPage(),
-                      ),
-                    );
-                  },
-                ),
-                Container(
-                  width: 1,
-                  height: 50,
-                  color: AppPallete.divider,
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                ),
+                if (isUser) ...[
+                  _buildStatItem(
+                    icon: Icons.people_outline,
+                    value: friendsCount.toString(),
+                    label: "Friends",
+                    color: AppPallete.primaryOrange,
+                    isClickable: isUser,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FriendsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  Container(
+                    width: 1,
+                    height: 50,
+                    color: AppPallete.divider,
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                ],
                 _buildStatItem(
                   icon: Icons.cake_outlined,
                   value: profileUser.birthDate != null ? _formatDate(profileUser.birthDate) : "",

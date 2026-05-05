@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
@@ -9,6 +7,7 @@ import 'package:chat_application/features/chats/domain/entities/conversation.dar
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
@@ -63,16 +62,16 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<Either<Failure, void>> sendImage({
     required String receiverId,
     required String userId,
-    required File file,
+    required XFile image,
     required String msgId,
     String? userName,
     String? userProfile,
   }) async {
     try {
-      chatLocalDataSource.saveImage(file, msgId);
+      await chatLocalDataSource.saveImage(image, msgId);
 
       final imageUrl = await chatRemoteDataSources.uploadImage(
-        file: file,
+        image: image,
         msgId: msgId,
       );
 

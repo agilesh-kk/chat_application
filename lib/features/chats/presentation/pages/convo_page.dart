@@ -474,108 +474,110 @@ class _ConversationPageState extends State<ConversationPage> with SingleTickerPr
 
   Widget _buildEmptyState() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: SweepGradient(
-                      colors: [
-                        AppPallete.primaryOrange.withValues(alpha: 0.3),
-                        AppPallete.lightOrange.withValues(alpha: 0.1),
-                        AppPallete.primaryOrange.withValues(alpha: 0.3),
-                      ],
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: SweepGradient(
+                        colors: [
+                          AppPallete.primaryOrange.withValues(alpha: 0.3),
+                          AppPallete.lightOrange.withValues(alpha: 0.1),
+                          AppPallete.primaryOrange.withValues(alpha: 0.3),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(28),
-                  decoration: BoxDecoration(
-                    color: AppPallete.cardBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppPallete.primaryOrange.withValues(alpha: 0.3),
-                      width: 2,
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppPallete.cardBg,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppPallete.primaryOrange.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppPallete.primaryOrange.withValues(alpha: 0.2),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                        ),
+                      ],
                     ),
+                    child: Icon(
+                      Icons.chat_bubble_outline,
+                      size: 40,
+                      color: AppPallete.primaryOrange,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                "No chats yet",
+                style: TextStyle(
+                  color: AppPallete.whiteColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Start a new conversation",
+                style: TextStyle(
+                  color: AppPallete.greyText,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => SearchPage(currentUserId: widget.userId,)));
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+                    ),
+                    borderRadius: BorderRadius.circular(30),
                     boxShadow: [
                       BoxShadow(
-                        color: AppPallete.primaryOrange.withValues(alpha: 0.2),
-                        blurRadius: 30,
-                        spreadRadius: 5,
+                        color: AppPallete.primaryOrange.withValues(alpha: 0.4),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
-                  child: Icon(
-                    Icons.chat_bubble_outline,
-                    size: 48,
-                    color: AppPallete.primaryOrange,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            Text(
-              "No chats yet",
-              style: TextStyle(
-                color: AppPallete.whiteColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "Start a new conversation",
-              style: TextStyle(
-                color: AppPallete.greyText,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 32),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => SearchPage(currentUserId: widget.userId,)));
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppPallete.primaryOrange.withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.person_add, color: AppPallete.whiteColor, size: 20),
-                    const SizedBox(width: 10),
-                    Text(
-                      "Find Friends",
-                      style: TextStyle(
-                        color: AppPallete.whiteColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_add, color: AppPallete.whiteColor, size: 20),
+                      const SizedBox(width: 10),
+                      Text(
+                        "Find Friends",
+                        style: TextStyle(
+                          color: AppPallete.whiteColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

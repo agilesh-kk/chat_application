@@ -94,44 +94,33 @@ class DeleteMessageConfirmationDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: _buildButton(
-                    label: 'Cancel',
-                    onTap: () => Navigator.of(context).pop(),
-                    isPrimary: false,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: _buildButton(
-                    label: 'Delete for me',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onDeleteForMe();
-                    },
-                    isPrimary: false,
-                    isDestructive: true,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: _buildButton(
-                    label: 'Delete for everyone',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onDeleteForEveryone();
-                    },
-                    isPrimary: true,
-                    isDestructive: true,
-                  ),
-                ),
-              ],
+            _buildButton(
+              label: 'Cancel',
+              onTap: () => Navigator.of(context).pop(),
+              isPrimary: false,
+              fullWidth: true,
+            ),
+            const SizedBox(height: 12),
+            _buildButton(
+              label: 'Delete for me',
+              onTap: () {
+                Navigator.of(context).pop();
+                onDeleteForMe();
+              },
+              isPrimary: false,
+              isDestructive: true,
+              fullWidth: true,
+            ),
+            const SizedBox(height: 12),
+            _buildButton(
+              label: 'Delete for everyone',
+              onTap: () {
+                Navigator.of(context).pop();
+                onDeleteForEveryone();
+              },
+              isPrimary: true,
+              isDestructive: true,
+              fullWidth: true,
             ),
           ],
         ),
@@ -144,32 +133,37 @@ class DeleteMessageConfirmationDialog extends StatelessWidget {
     required VoidCallback onTap,
     required bool isPrimary,
     bool isDestructive = false,
+    bool fullWidth = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isPrimary
-              ? (isDestructive
-                  ? AppPallete.errorColor
-                  : AppPallete.primaryOrange)
-              : AppPallete.darkTertiary,
-          borderRadius: BorderRadius.circular(12),
-          border: isPrimary
-              ? null
-              : Border.all(color: AppPallete.divider),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
+    return SizedBox(
+      width: fullWidth ? double.maxFinite : null,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
             color: isPrimary
-                ? AppPallete.whiteColor
-                : (isDestructive
+                ? (isDestructive
                     ? AppPallete.errorColor
-                    : AppPallete.greyText),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+                    : AppPallete.primaryOrange)
+                : AppPallete.darkTertiary,
+            borderRadius: BorderRadius.circular(12),
+            border: isPrimary
+                ? null
+                : Border.all(color: AppPallete.divider),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isPrimary
+                  ? AppPallete.whiteColor
+                  : (isDestructive
+                      ? AppPallete.errorColor
+                      : AppPallete.greyText),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),

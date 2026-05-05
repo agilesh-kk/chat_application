@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/core/usecase/usecase.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:image_picker/image_picker.dart';
 
 class SendImage implements UseCase<void,SendImageParams>{
   final ChatRepository chatRepository;
@@ -14,7 +13,7 @@ class SendImage implements UseCase<void,SendImageParams>{
     return await chatRepository.sendImage(
       receiverId : params.receiverId,
       userId: params.userId,
-      file: params.file,
+      image: params.image,
       msgId: params.msgId,
       userName: params.userName,
       userProfile: params.userProfile
@@ -25,7 +24,7 @@ class SendImage implements UseCase<void,SendImageParams>{
 class SendImageParams{
   final String receiverId;
   final String userId;
-  final File file;
+  final XFile image;
   final String msgId;
   String? userName;
   String? userProfile;
@@ -33,7 +32,7 @@ class SendImageParams{
   SendImageParams({
     required this.receiverId,
     required this.userId,
-    required this.file,
+    required this.image,
     required this.msgId,
     this.userName,
     this.userProfile
