@@ -1,5 +1,6 @@
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/features/chats/presentation/cubit/sticky_header_cubit.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
 import 'package:chat_application/features/chats/presentation/widgets/convo_tile.dart';
@@ -97,7 +98,7 @@ class _ConversationPageState extends State<ConversationPage> with SingleTickerPr
                     if (state is ConversationLoading) {
                       return const Center(child: Loader());
                     }
-
+    
                     if (state is ConversationLoaded) {
                       var conversations = state.conversations;
                       
@@ -112,14 +113,14 @@ class _ConversationPageState extends State<ConversationPage> with SingleTickerPr
                       if (conversations.isEmpty) {
                         return isSearching ? _buildNoResultsState() : _buildEmptyState();
                       }
-
+    
                       return _buildChatList(conversations);
                     }
-
+    
                     if (state is ConversationError) {
                       return _buildErrorState(state.message);
                     }
-
+    
                     return const SizedBox();
                   },
                 ),

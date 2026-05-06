@@ -70,7 +70,7 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 120),
+                      const SizedBox(height: 220),
                       _buildHeader(),
                       const SizedBox(height: 32),
                       _buildInputFields(),

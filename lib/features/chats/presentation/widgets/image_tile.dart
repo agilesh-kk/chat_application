@@ -56,7 +56,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 800),
     );
 
     _scale = TweenSequence([
@@ -336,53 +336,64 @@ class _ImageMessageTileState extends State<ImageMessageTile>
     }
     final msg = widget.message;
 
-    if (isLoading) {
-      return SizedBox(
-        height: 150,
-        width: 150,
-        child: Center(
-          child: CircularProgressIndicator(
-            color: AppPallete.primaryOrange,
-          ),
-        ),
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
 
-    if (imageBytes != null) {
-      return Stack(
-        children: [
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => FullScreenImagePage(
-                    bytes: imageBytes!,
-                    tag: msg.id,
-                  ),
-                ),
-              );
-            },
-            child: Hero(
-              tag: msg.id,
-              child: Image.memory(
-                imageBytes!,
-                fit: BoxFit.cover,
-                gaplessPlayback: true,
+        if (isLoading) {
+          return SizedBox(
+            width: width,
+            height: height,
+            child: Center(
+              child: CircularProgressIndicator(
+                color: AppPallete.primaryOrange,
               ),
             ),
-          ),
+          );
+        }
 
-          Positioned(
-            bottom: 5,
-            right: 5,
-            child: _buildStatus(msg.status, widget.isMe),
-          ),
-        ],
-      );
-    }
+        if (imageBytes != null) {
+          return Stack(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FullScreenImagePage(
+                        bytes: imageBytes!,
+                        tag: msg.id,
+                      ),
+                    ),
+                  );
+                },
+                child: Hero(
+                  tag: msg.id,
+                  child: SizedBox(
+                    width: width,
+                    height: height,
+                    child: Image.memory(
+                      imageBytes!,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                    ),
+                  ),
+                ),
+              ),
 
-    return const SizedBox();
+              Positioned(
+                bottom: 5,
+                right: 5,
+                child: _buildStatus(msg.status, widget.isMe),
+              ),
+            ],
+          );
+        }
+
+        return const SizedBox();
+      },
+    );
   }
 
   Widget _buildStatus(String status, bool isMe) {

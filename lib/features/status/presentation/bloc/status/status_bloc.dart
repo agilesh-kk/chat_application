@@ -83,6 +83,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
         final current = (state as StatusDisplaySuccess).status;
 
         for (final s in current) {
+          print(s.localPath);
           updated.add(
             Status(
               localPath: s.localPath,
@@ -109,6 +110,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
         for (final s in r) {
           updated.add(
             Status(
+              localPath: s.localPath,
               id: s.id, 
               userId: s.userId, 
               imageUrl: s.imageUrl, 
