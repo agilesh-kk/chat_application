@@ -1,10 +1,30 @@
 {
   "project_info": {
     "project_number": "331917739786",
+    "firebase_url": "https://chat-application-7e969-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "chat-application-7e969",
     "storage_bucket": "chat-application-7e969.firebasestorage.app"
   },
   "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:331917739786:android:d526ad2b7a85e87139dcf3",
+        "android_client_info": {
+          "package_name": "com.axisstudio.memento"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoVFi6htaPz2tn0MQBaxakG1QWhlUlsI0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
     {
       "client_info": {
         "mobilesdk_app_id": "1:331917739786:android:e537bf69aeaa04e939dcf3",

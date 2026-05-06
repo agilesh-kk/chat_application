@@ -93,7 +93,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
       await timelineRef.doc(eventId).set({
         "id": eventId,
         "title": "Account created!",
-        "content": "Welcoming you to NXchat",
+        "content": "Welcoming you to Memento",
         "type": "text",
         "time": DateTime.now(),
       });
