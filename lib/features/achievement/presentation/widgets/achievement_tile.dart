@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import '../../domain/entity/achievement.dart';
@@ -68,12 +69,12 @@ class _AchievementTileState extends State<AchievementTile>
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
                     color: isUnlocked ? null : AppPallete.darkSecondary,
                     colorBlendMode: isUnlocked ? null : BlendMode.darken,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorWidget: (_, __, ___) => Container(
                       color: AppPallete.darkTertiary,
                       child: Center(
                         child: Icon(

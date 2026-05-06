@@ -1,6 +1,5 @@
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
-import 'package:chat_application/features/chats/presentation/cubit/sticky_header_cubit.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
 import 'package:chat_application/features/chats/presentation/widgets/convo_tile.dart';
@@ -17,77 +16,49 @@ class ConversationPage extends StatefulWidget {
   State<ConversationPage> createState() => _ConversationPageState();
 }
 
-class _ConversationPageState extends State<ConversationPage> with SingleTickerProviderStateMixin {
+class _ConversationPageState extends State<ConversationPage> {
   final searchController = TextEditingController();
-  bool isSearching = false;
-  bool _isSearchVisible = false;
   final _searchFocusNode = FocusNode();
-  late AnimationController _searchAnimationController;
-  late Animation<double> _searchWidthAnimation;
+  bool isSearching = false;
 
   @override
   void initState() {
     super.initState();
     context.read<ConversationBloc>()
         .add(LoadConversationsEvent(widget.userId));
-    
-    _searchAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    
-    _searchWidthAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _searchAnimationController, curve: Curves.easeOut),
-    );
-    
-    _searchFocusNode.addListener(() {
-      if (!_searchFocusNode.hasFocus && isSearching && searchController.text.isEmpty) {
-        _toggleSearch();
-      }
-    });
-  }
-
-  void _toggleSearch() {
-    setState(() {
-      _isSearchVisible = !_isSearchVisible;
-    });
-    
-    if (_isSearchVisible) {
-      _searchAnimationController.forward();
-      _searchFocusNode.requestFocus();
-    } else {
-      _searchAnimationController.reverse();
-      searchController.clear();
-    }
   }
 
   @override
   void dispose() {
     searchController.dispose();
-    _searchAnimationController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppPallete.darkBg,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppPallete.darkBg,
-              AppPallete.darkSecondary,
-              AppPallete.darkBg,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+    return GestureDetector(
+      onTap: () {
+        _searchFocusNode.unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: AppPallete.darkBg,
+        floatingActionButton: _buildFAB(),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppPallete.darkBg,
+                AppPallete.darkSecondary,
+                AppPallete.darkBg,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
+          child: SafeArea(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(context),
@@ -125,11 +96,11 @@ class _ConversationPageState extends State<ConversationPage> with SingleTickerPr
                   },
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-      floatingActionButton: _buildFAB(),
     );
   }
 
@@ -155,84 +126,44 @@ class _ConversationPageState extends State<ConversationPage> with SingleTickerPr
   }
 
   Widget _buildSearchBar() {
-    return AnimatedBuilder(
-      animation: _searchAnimationController,
-      builder: (context, child) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: SizedBox(
-            height: 50,
-            child: Stack(
-              children: [
-                if (_isSearchVisible)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      height: 50,
-                      width: MediaQuery.of(context).size.width * _searchWidthAnimation.value,
-                      decoration: BoxDecoration(
-                        color: AppPallete.inputBg,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppPallete.divider),
-                      ),
-                      child: TextField(
-                        controller: searchController,
-                        focusNode: _searchFocusNode,
-                        onChanged: (value) {
-                          setState(() {
-                            isSearching = value.isNotEmpty;
-                          });
-                        },
-                        style: TextStyle(color: AppPallete.whiteColor),
-                        decoration: InputDecoration(
-                          hintText: "Search conversations...",
-                          hintStyle: TextStyle(color: AppPallete.greyText),
-                          prefixIcon: Icon(Icons.search, color: AppPallete.greyText),
-                          suffixIcon: isSearching
-                              ? IconButton(
-                                  icon: Icon(Icons.clear, color: AppPallete.greyText),
-                                  onPressed: () {
-                                    searchController.clear();
-                                    setState(() {
-                                      isSearching = false;
-                                    });
-                                  },
-                                )
-                              : IconButton(
-                                  icon: Icon(Icons.close, color: AppPallete.greyText),
-                                  onPressed: _toggleSearch,
-                                ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        ),
-                      ),
-                    ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: AppPallete.inputBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppPallete.divider),
+        ),
+        child: TextField(
+          controller: searchController,
+          focusNode: _searchFocusNode,
+          onChanged: (value) {
+            setState(() {
+              isSearching = value.isNotEmpty;
+            });
+          },
+          style: TextStyle(color: AppPallete.whiteColor),
+          decoration: InputDecoration(
+            hintText: "Search conversations...",
+            hintStyle: TextStyle(color: AppPallete.greyText),
+            prefixIcon: Icon(Icons.search, color: AppPallete.greyText),
+            suffixIcon: isSearching
+                ? IconButton(
+                    icon: Icon(Icons.clear, color: AppPallete.greyText),
+                    onPressed: () {
+                      searchController.clear();
+                      setState(() {
+                        isSearching = false;
+                      });
+                    },
                   )
-                else
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: GestureDetector(
-                      onTap: _toggleSearch,
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppPallete.inputBg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppPallete.divider),
-                        ),
-                        child: Icon(
-                          Icons.search,
-                          color: AppPallete.greyText,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 

@@ -441,12 +441,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                       GetViewEvent(statusId: status.id),
                                     );
                               },
-                              child: BlocBuilder<StatusviewBloc, StatusviewState>(
-                                builder: (context, state) {
-                                  final count = state is ViewDisplaySuccess
-                                      ? state.statusView.length
-                                      : 0;
-                                  return Container(
+                              child:  Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: AppPallete.cardBg
@@ -455,32 +450,14 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                       border: Border.all(
                                           color: AppPallete.divider),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.remove_red_eye_outlined,
-                                          size: 18,
-                                          color: AppPallete.primaryOrange,
-                                        ),
-                                        if (count > 0) ...[
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '$count',
-                                            style: const TextStyle(
-                                              color: AppPallete.whiteColor,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
+                                    child: const Icon(
+                                      Icons.remove_red_eye_outlined,
+                                      size: 18,
+                                      color: AppPallete.primaryOrange,
+                                    )
+                              )
+                            )
+                          )
                       ],
                     ),
                   ),

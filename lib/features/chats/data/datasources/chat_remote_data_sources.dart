@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:chat_application/core/common/entities/user.dart';
+import 'package:chat_application/features/achievement/services/achievement_details_mapper.dart';
 import 'package:chat_application/features/chats/data/datasources/timeline_service.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
 import 'package:chat_application/features/chats/data/models/message_model.dart';
@@ -9,6 +10,9 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'dart:math';
+
+// Re-export for backward compatibility
+typedef LevelInfoMapper = AchievementDetailsMapper;
 
 abstract interface class ChatRemoteDataSources {
   Future<Stream<List<ConversationModel>>> getConversations({
@@ -422,14 +426,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       // =========================
       // 🏆 LEVEL SYSTEM
       // =========================
-      String level;
-      if (percentage < 10) level = "Newcomer 🌱";
-      else if (percentage < 25) level = "Starter 💬";
-      else if (percentage < 40) level = "Socializing 🤝";
-      else if (percentage < 60) level = "Active User 🔥";
-      else if (percentage < 75) level = "Connector 🔗";
-      else if (percentage < 90) level = "Influencer 🌟";
-      else level = "Legend 🏆";
+      final levelInfo = LevelInfoMapper.getByPercentage(percentage);
+      final level = levelInfo.name;
 
       // =========================
       // 🎯 UNLOCK SYSTEM
@@ -478,7 +476,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     final result = await firestore
       .collection("users")
       .where("name", isGreaterThanOrEqualTo: receiverName)
-      .where("name", isLessThanOrEqualTo: receiverName + '\uf8ff')
+      .where("name", isLessThanOrEqualTo: '$receiverName\uf8ff')
       .limit(10)
       //.where("id", isNotEqualTo: currentUserId)
       .get();

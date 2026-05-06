@@ -19,6 +19,7 @@ class AchievementGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -56,27 +57,27 @@ class AchievementGrid extends StatelessWidget {
             ],
           ),
         ),
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            itemCount: AchievementDetailsMapper.all.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 14,
-              childAspectRatio: 0.85,
-            ),
-            itemBuilder: (_, index) {
-              final detail = AchievementDetailsMapper.all[index];
-
-              return AchievementTile(
-                id: detail.id,
-                data: data,
-                imageService: imageService,
-                onCollect: () => onCollect(detail.id),
-              );
-            },
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          itemCount: AchievementDetailsMapper.all.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 14,
+            crossAxisSpacing: 14,
+            childAspectRatio: 0.85,
           ),
+          itemBuilder: (_, index) {
+            final detail = AchievementDetailsMapper.all[index];
+
+            return AchievementTile(
+              id: detail.id,
+              data: data,
+              imageService: imageService,
+              onCollect: () => onCollect(detail.id),
+            );
+          },
         ),
       ],
     );

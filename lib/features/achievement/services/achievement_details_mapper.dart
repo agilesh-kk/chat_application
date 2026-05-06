@@ -11,9 +11,17 @@ class AchievementRarity {
     label: 'Common',
     color: AppPallete.greyText,
   );
+  static const uncommon = AchievementRarity(
+    label: 'Uncommon',
+    color: Color(0xFF4CAF50),
+  );
   static const rare = AchievementRarity(
     label: 'Rare',
     color: Color(0xFF4FC3F7),
+  );
+  static const mythic = AchievementRarity(
+    label: 'Mythic',
+    color: Color(0xFFFF9800),
   );
   static const epic = AchievementRarity(
     label: 'Epic',
@@ -23,25 +31,94 @@ class AchievementRarity {
     label: 'Legendary',
     color: AppPallete.primaryOrange,
   );
+  static const exotic = AchievementRarity(
+    label: 'Exotic',
+    color: Color(0xFFFFD700),
+  );
+  static const transcendent = AchievementRarity(
+    label: 'Transcendent',
+    color: Color(0xFFFFEB3B),
+  );
 }
 
-class AchievementDetail {
+class LevelInfo {
   final String id;
   final String name;
   final String description;
   final AchievementRarity rarity;
   final IconData icon;
+  final int minPercentage;
 
-  const AchievementDetail({
+  const LevelInfo({
     required this.id,
     required this.name,
     required this.description,
     required this.rarity,
     required this.icon,
+    required this.minPercentage,
   });
 }
 
 class AchievementDetailsMapper {
+  static const List<LevelInfo> all = [
+    LevelInfo(
+      id: 'ach_1',
+      name: 'Newcomer 🌱',
+      description: 'You\'re just starting your chat journey. Send your first message to begin!',
+      rarity: AchievementRarity.common,
+      icon: Icons.chat_bubble_outline,
+      minPercentage: 0,
+    ),
+    LevelInfo(
+      id: 'ach_2',
+      name: 'Starter 💬',
+      description: 'You\'re getting comfortable with chatting. Keep the conversations going!',
+      rarity: AchievementRarity.uncommon,
+      icon: Icons.groups_outlined,
+      minPercentage: 10,
+    ),
+    LevelInfo(
+      id: 'ach_3',
+      name: 'Socializing 🤝',
+      description: 'You\'re becoming social. Add more friends and chat regularly!',
+      rarity: AchievementRarity.rare,
+      icon: Icons.nights_stay_outlined,
+      minPercentage: 25,
+    ),
+    LevelInfo(
+      id: 'ach_4',
+      name: 'Active User 🔥',
+      description: 'You\'re an active chatter now. Your engagement is impressive!',
+      rarity: AchievementRarity.mythic,
+      icon: Icons.local_fire_department_outlined,
+      minPercentage: 40,
+    ),
+    LevelInfo(
+      id: 'ach_5',
+      name: 'Connector 🔗',
+      description: 'You\'re connecting people together. You\'re building a network!',
+      rarity: AchievementRarity.epic,
+      icon: Icons.favorite_border,
+      minPercentage: 60,
+    ),
+    LevelInfo(
+      id: 'ach_6',
+      name: 'Influencer 🌟',
+      description: 'You\'re an influencer now. People love chatting with you!',
+      rarity: AchievementRarity.legendary,
+      icon: Icons.auto_stories_outlined,
+      minPercentage: 75,
+    ),
+    LevelInfo(
+      id: 'ach_7',
+      name: 'Legend 🏆',
+      description: 'You\'re a legend! You\'ve mastered the art of conversation!',
+      rarity: AchievementRarity.transcendent,
+      icon: Icons.emoji_events_outlined,
+      minPercentage: 90,
+    ),
+  ];
+
   static const Map<String, int> thresholds = {
     "ach_1": 0,
     "ach_2": 10,
@@ -52,59 +129,17 @@ class AchievementDetailsMapper {
     "ach_7": 90,
   };
 
-  static const List<AchievementDetail> all = [
-    AchievementDetail(
-      id: 'ach_1',
-      name: 'First Steps',
-      description: 'Send your first message',
-      rarity: AchievementRarity.common,
-      icon: Icons.chat_bubble_outline,
-    ),
-    AchievementDetail(
-      id: 'ach_2',
-      name: 'Social Butterfly',
-      description: 'Add 5 friends to your network',
-      rarity: AchievementRarity.rare,
-      icon: Icons.groups_outlined,
-    ),
-    AchievementDetail(
-      id: 'ach_3',
-      name: 'Night Owl',
-      description: 'Send a message after midnight',
-      rarity: AchievementRarity.epic,
-      icon: Icons.nights_stay_outlined,
-    ),
-    AchievementDetail(
-      id: 'ach_4',
-      name: 'Streak Master',
-      description: 'Maintain a 7-day chat streak',
-      rarity: AchievementRarity.rare,
-      icon: Icons.local_fire_department_outlined,
-    ),
-    AchievementDetail(
-      id: 'ach_5',
-      name: 'Status Star',
-      description: 'Post 10 status updates',
-      rarity: AchievementRarity.common,
-      icon: Icons.auto_stories_outlined,
-    ),
-    AchievementDetail(
-      id: 'ach_6',
-      name: 'Timeline Keeper',
-      description: 'Save 20 timeline moments',
-      rarity: AchievementRarity.epic,
-      icon: Icons.favorite_border,
-    ),
-    AchievementDetail(
-      id: 'ach_7',
-      name: 'Legend',
-      description: 'Unlock all other achievements',
-      rarity: AchievementRarity.legendary,
-      icon: Icons.emoji_events_outlined,
-    ),
-  ];
+  static LevelInfo getByPercentage(double percentage) {
+    LevelInfo current = all.first;
+    for (final level in all) {
+      if (percentage >= level.minPercentage) {
+        current = level;
+      }
+    }
+    return current;
+  }
 
-  static AchievementDetail getById(String id) {
+  static LevelInfo getById(String id) {
     return all.firstWhere(
       (a) => a.id == id,
       orElse: () => all.first,

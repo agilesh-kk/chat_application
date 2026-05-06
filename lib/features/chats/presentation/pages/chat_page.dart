@@ -48,6 +48,7 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController controller = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
   late final ChatBloc cb;
   int? highlightedIndex;
   String lastAnimated = "";
@@ -170,9 +171,13 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppPallete.darkBg,
-      body: Container(
+    return GestureDetector(
+      onTap: () {
+        _messageFocusNode.unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: AppPallete.darkBg,
+        body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -191,6 +196,7 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
       ),
+      )
     );
   }
 
@@ -530,6 +536,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
               child: TextField(
                 controller: controller,
+                focusNode: _messageFocusNode,
                 minLines: 1,
                 maxLines: 5,
                 style: const TextStyle(color: AppPallete.whiteColor),

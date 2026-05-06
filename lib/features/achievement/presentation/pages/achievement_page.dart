@@ -69,82 +69,81 @@ class _AchievementPageState extends State<AchievementPage>
             ),
           ),
           child: SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(context),
-                Expanded(
-                  child: BlocListener<AchievementBloc, AchievementState>(
-                    listener: (context, state) {
-                      if (state is AchievementLoaded) {
-                        final data = state.data;
+            child: BlocListener<AchievementBloc, AchievementState>(
+              listener: (context, state) {
+                if (state is AchievementLoaded) {
+                  final data = state.data;
 
-                        for (final ach in data.unlocked) {
-                          if (!data.seen.contains(ach)) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (mounted) {
-                                _showUnlockDialog(context, ach);
-                              }
-                            });
-
-                            _bloc.add(MarkAchievementSeenEvent(
-                              userId: widget.userId,
-                              achievementId: ach,
-                            ));
-
-                            break;
-                          }
+                  for (final ach in data.unlocked) {
+                    if (!data.seen.contains(ach)) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          _showUnlockDialog(context, ach);
                         }
-                      }
-                    },
-                    child: BlocBuilder<AchievementBloc, AchievementState>(
-                      builder: (context, state) {
+                      });
+
+                      _bloc.add(MarkAchievementSeenEvent(
+                        userId: widget.userId,
+                        achievementId: ach,
+                      ));
+
+                      break;
+                    }
+                  }
+                }
+              },
+              child: BlocBuilder<AchievementBloc, AchievementState>(
+                builder: (context, state) {
+                  return SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildHeader(context),
                         if (state is AchievementLoading ||
-                            state is AchievementInitial) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: AppPallete.primaryOrange,
-                            ),
-                          );
-                        }
-
-                        if (state is AchievementError) {
-                          return Center(
-                            child: Text(
-                              state.message,
-                              style: TextStyle(
-                                color: AppPallete.errorColor,
-                                fontSize: 16,
+                            state is AchievementInitial)
+                          const Padding(
+                            padding: EdgeInsets.all(50),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: AppPallete.primaryOrange,
                               ),
                             ),
-                          );
-                        }
-
-                        if (state is AchievementLoaded) {
-                          return Column(
-                            children: [
-                              AchievementProgress(data: state.data),
-                              Expanded(
-                                child: AchievementGrid(
-                                  data: state.data,
-                                  imageService: _imageService,
-                                  onCollect: (id) {
-                                    _bloc.add(CollectAchievementEvent(
-                                      id,
-                                      widget.userId,
-                                    ));
-                                  },
+                          )
+                        else if (state is AchievementError)
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Center(
+                              child: Text(
+                                state.message,
+                                style: TextStyle(
+                                  color: AppPallete.errorColor,
+                                  fontSize: 16,
                                 ),
                               ),
+                            ),
+                          )
+                        else if (state is AchievementLoaded)
+                          Column(
+                            children: [
+                              AchievementProgress(data: state.data),
+                              AchievementGrid(
+                                data: state.data,
+                                imageService: _imageService,
+                                onCollect: (id) {
+                                  _bloc.add(CollectAchievementEvent(
+                                    id,
+                                    widget.userId,
+                                  ));
+                                },
+                              ),
                             ],
-                          );
-                        }
-
-                        return const SizedBox();
-                      },
+                          )
+                        else
+                          const SizedBox(),
+                      ],
                     ),
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
             ),
           ),
         ),
