@@ -25,7 +25,9 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     // 🔥 LOAD CONVERSATIONS
     // =========================================================
     on<LoadConversationsEvent>((event, emit) async {
-      emit(ConversationLoading());
+      if(state is! ConversationLoaded) {
+        emit(ConversationLoading());
+      }
 
       // Cancel previous stream if exists
       await _convoSub?.cancel();
@@ -89,14 +91,15 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                       lastSender: c.lastSender)
                     );
                   }
-
                   add(_ConversationUpdated(updated));
                 }
                 },);
           },
         );
 
-        emit(ConversationLoaded(conversations: []));
+        if(state is! ConversationLoaded) {
+          emit(ConversationLoaded(conversations: []));
+        }
       } catch (e) {
         emit(ConversationError(e.toString()));
       }

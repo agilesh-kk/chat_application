@@ -49,7 +49,6 @@ class _ConversationPageState extends State<ConversationPage> with SingleTickerPr
   void _toggleSearch() {
     setState(() {
       _isSearchVisible = !_isSearchVisible;
-      isSearching = _isSearchVisible;
     });
     
     if (_isSearchVisible) {

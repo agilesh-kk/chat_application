@@ -92,7 +92,7 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
                         itemCount: state.events.length,
                         itemBuilder: (context, index) {
                           final event = state.events[index];
-                          final isMe = event.addedBy == widget.userId;
+                          final isMe = index%2 == 0;
                                 
                           return _timelineItem(
                             event, 

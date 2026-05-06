@@ -42,6 +42,16 @@ class AchievementDetail {
 }
 
 class AchievementDetailsMapper {
+  static const Map<String, int> thresholds = {
+    "ach_1": 0,
+    "ach_2": 10,
+    "ach_3": 25,
+    "ach_4": 40,
+    "ach_5": 60,
+    "ach_6": 75,
+    "ach_7": 90,
+  };
+
   static const List<AchievementDetail> all = [
     AchievementDetail(
       id: 'ach_1',

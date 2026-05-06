@@ -66,6 +66,7 @@ class _NavigationPageState extends State<NavigationPage> {
               child: SafeArea(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
                     _buildNavItem(1, Icons.remove_red_eye_outlined, Icons.remove_red_eye, 'Status'),

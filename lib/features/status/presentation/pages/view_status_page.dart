@@ -23,7 +23,7 @@ class ViewStatusPage extends StatefulWidget {
     required this.isUserStatus,
     required this.hasInternet,
     required this.userProfilePic,
-    required this.userName
+    required this.userName,
   });
 
   @override
@@ -35,7 +35,20 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   int currentIndex = 0;
   Timer? timer;
   double progress = 0;
+  bool _isCaptionExpanded = false;
+  bool _isUIVisible = true;
   final Duration storyDuration = const Duration(seconds: 5);
+
+  void toggleUIVisibility() {
+    setState(() {
+      _isUIVisible = !_isUIVisible;
+    });
+    if (_isUIVisible) {
+      resumeStory();
+    } else {
+      pauseStory();
+    }
+  }
 
   @override
   void initState() {
@@ -67,6 +80,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
         curve: Curves.ease,
       );
       progress = 0;
+      _isCaptionExpanded = false;
       startStoryTimer();
     } else {
       timer?.cancel();
@@ -194,7 +208,8 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                 final viewer = state.statusView[index];
                                 final friend = friendsMap[viewer.viewerId];
                                 final profilePic = friend?.profilePic;
-                                final hasProfilePic = profilePic != null && profilePic.isNotEmpty;
+                                final hasProfilePic =
+                                    profilePic != null && profilePic.isNotEmpty;
 
                                 return Padding(
                                   padding: const EdgeInsets.symmetric(
@@ -220,7 +235,8 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               viewer.viewerName,
@@ -233,7 +249,9 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                             const SizedBox(height: 2),
                                             Text(
                                               MomentsAgo.calculateMomentsAgo(
-                                                viewer.viewedAt.toLocal().toString(),
+                                                viewer.viewedAt
+                                                    .toLocal()
+                                                    .toString(),
                                               ),
                                               style: const TextStyle(
                                                 color: AppPallete.greyText,
@@ -271,8 +289,14 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                 nextStory();
               }
             },
-            onLongPressStart: (_) => pauseStory(),
-            onLongPressEnd: (_) => resumeStory(),
+            onLongPressStart: (_){
+              toggleUIVisibility();
+              pauseStory();
+            },
+            onLongPressEnd: (_){
+              toggleUIVisibility();
+              resumeStory();
+            },
             child: Stack(
               children: [
                 PageView.builder(
@@ -292,76 +316,175 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                     );
                   },
                 ),
+                // Top UI elements
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Column(
-                        children: [
-                          _buildProgressBars(),
-                          const SizedBox(height: 12),
-                          _buildUserInfo(status),
-                        ],
+                  child: AnimatedOpacity(
+                    opacity: _isUIVisible ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Column(
+                          children: [
+                            _buildProgressBars(),
+                            const SizedBox(height: 12),
+                            _buildUserInfo(status),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-                if (status.caption.isNotEmpty)
-                  Positioned(
-                    bottom: 80,
-                    left: 20,
-                    right: 20,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppPallete.darkBg.withValues(alpha: 0.75),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppPallete.primaryOrange.withValues(alpha: 0.3),
-                          width: 1,
+                // Bottom section - always show caption container (transparent if empty)
+                Positioned(
+                  bottom: 25,
+                  left: 20,
+                  right: 20,
+                  child: AnimatedOpacity(
+                    opacity: _isUIVisible ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: status.caption.isNotEmpty
+                                  ? AppPallete.darkBg.withValues(alpha: 0.75)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                              border: status.caption.isNotEmpty
+                                  ? Border.all(
+                                      color: AppPallete.primaryOrange
+                                          .withValues(alpha: 0.3),
+                                      width: 1,
+                                    )
+                                  : null,
+                            ),
+                            child: status.caption.isNotEmpty
+                                ? Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxHeight:
+                                              _isCaptionExpanded ? 200 : 75,
+                                        ),
+                                        child: SingleChildScrollView(
+                                          child: RichText(
+                                            textAlign: TextAlign.center,
+                                            text: TextSpan(
+                                              children: [
+                                                TextSpan(
+                                                  text: _isCaptionExpanded
+                                                      ? status.caption
+                                                      : (status.caption.length > 100
+                                                          ? '${status.caption.substring(0, 100)}...'
+                                                          : status.caption),
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                                if (status.caption.length > 100)
+                                                  WidgetSpan(
+                                                    alignment: PlaceholderAlignment.middle,
+                                                    child: GestureDetector(
+                                                      onTap: () {
+                                                        setState(() {
+                                                          _isCaptionExpanded =
+                                                              !_isCaptionExpanded;
+                                                        });
+                                                        if(_isCaptionExpanded){
+                                                          pauseStory();
+                                                        }else{
+                                                          resumeStory();
+                                                        }
+                                                      },
+                                                      child: Text(
+                                                        _isCaptionExpanded
+                                                            ? '  Show less'
+                                                            : '  Read more',
+                                                        style: TextStyle(
+                                                          color: AppPallete
+                                                              .primaryOrange,
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        status.caption,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                      ),
+                        if (widget.isUserStatus && widget.hasInternet)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: GestureDetector(
+                              onTap: () {
+                                context.read<StatusviewBloc>().add(
+                                      GetViewEvent(statusId: status.id),
+                                    );
+                              },
+                              child: BlocBuilder<StatusviewBloc, StatusviewState>(
+                                builder: (context, state) {
+                                  final count = state is ViewDisplaySuccess
+                                      ? state.statusView.length
+                                      : 0;
+                                  return Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppPallete.cardBg
+                                          .withValues(alpha: 0.6),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                          color: AppPallete.divider),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.remove_red_eye_outlined,
+                                          size: 18,
+                                          color: AppPallete.primaryOrange,
+                                        ),
+                                        if (count > 0) ...[
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '$count',
+                                            style: const TextStyle(
+                                              color: AppPallete.whiteColor,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                if (widget.isUserStatus && widget.hasInternet)
-                  Positioned(
-                    bottom: 40,
-                    right: 20,
-                    child: GestureDetector(
-                      onTap: () {
-                        context.read<StatusviewBloc>().add(
-                              GetViewEvent(statusId: status.id),
-                            );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppPallete.cardBg.withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppPallete.divider),
-                        ),
-                        child: Icon(
-                          Icons.remove_red_eye_outlined,
-                          size: 22,
-                          color: AppPallete.primaryOrange,
-                        ),
-                      ),
-                    ),
-                  ),
+                ),
               ],
             ),
           );
@@ -387,7 +510,8 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                           ? progress
                           : 0,
                   backgroundColor: Colors.white24,
-                  valueColor: const AlwaysStoppedAnimation(AppPallete.primaryOrange),
+                  valueColor:
+                      const AlwaysStoppedAnimation(AppPallete.primaryOrange),
                   minHeight: 3,
                 ),
               ),
@@ -419,27 +543,29 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
           ),
         ),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.userName,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.userName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
-            ),
-            Text(
-              MomentsAgo.calculateMomentsAgo(
-                status.createdAt.toLocal().toString(),
+              Text(
+                MomentsAgo.calculateMomentsAgo(
+                  status.createdAt.toLocal().toString(),
+                ),
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                ),
               ),
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

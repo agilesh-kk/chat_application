@@ -75,8 +75,6 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
                       const SizedBox(height: 32),
                       _buildInputFields(),
                       const SizedBox(height: 16),
-                      _buildForgotPassword(),
-                      const SizedBox(height: 16),
                       _buildSignInButton(),
                       const SizedBox(height: 32),
                       _buildSignUpLink(),
@@ -173,23 +171,6 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
             isObscure: true,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildForgotPassword() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: TextButton(
-        onPressed: () {},
-        child: Text(
-          'Forgot Password?',
-          style: TextStyle(
-            color: AppPallete.primaryOrange,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
       ),
     );
   }

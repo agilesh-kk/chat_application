@@ -4,6 +4,7 @@ import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/achievement/presentation/pages/achievement_page.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/presentation/pages/friends_page.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
@@ -392,9 +393,12 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildStatsRow(BuildContext context, dynamic appUserState, dynamic profileUser) {
-    final friendsCount = appUserState is AppUserIsSignedin
-        ? appUserState.user.friends?.length ?? 0
-        : 0;
+    final friends = context.watch<FriendsCubit>().state;
+    var friendsCount = 0;
+    
+    if(friends is FriendsLoaded){
+      friendsCount = friends.friends.length;
+    }
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -490,7 +494,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   String _formatDate(DateTime date) {
-    return "${date.day}/${date.month}";
+    return "${date.day}/${date.month}/${date.year}";
   }
 
   Widget _buildStatItem({
