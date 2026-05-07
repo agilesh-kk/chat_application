@@ -5,6 +5,7 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_options_helper.dart';
+import 'package:intl/intl.dart';
 import 'package:chat_application/features/chats/presentation/pages/image_page.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
 import 'package:flutter/foundation.dart';
@@ -385,7 +386,27 @@ class _ImageMessageTileState extends State<ImageMessageTile>
               Positioned(
                 bottom: 5,
                 right: 5,
-                child: _buildStatus(msg.status, widget.isMe),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('h:mm a').format(msg.createdAt),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppPallete.whiteColor,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      _buildStatus(msg.status, widget.isMe),
+                    ],
+                  ),
+                ),
               ),
             ],
           );
