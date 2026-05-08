@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
@@ -230,21 +231,43 @@ class _ChatPageState extends State<ChatPage> {
               child: Row(
                 children: [
                   if (friend != null) ...[
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppPallete.cardBg,
-                        border: Border.all(color: AppPallete.primaryOrange),
-                      ),
-                      child: friend.profilePic.isNotEmpty
-                          ? CircleAvatar(
-                              radius: 18,
-                              backgroundImage: AssetImage(friend.profilePic),
-                              backgroundColor: AppPallete.cardBg,
-                            )
-                          : const Icon(Icons.person, color: AppPallete.greyText, size: 20),
+                    Stack(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppPallete.cardBg,
+                            border: Border.all(color: AppPallete.primaryOrange),
+                          ),
+                          child: friend.profilePic.isNotEmpty
+                              ? CircleAvatar(
+                                  radius: 18,
+                                  backgroundImage: AssetImage(friend.profilePic),
+                                  backgroundColor: AppPallete.cardBg,
+                                )
+                              : const Icon(Icons.person, color: AppPallete.greyText, size: 20),
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: friend.isEffectivelyOnline
+                                  ? AppPallete.primaryOrange
+                                  : AppPallete.greyText,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppPallete.cardBg,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(width: 10),
                   ],
@@ -258,9 +281,13 @@ class _ChatPageState extends State<ChatPage> {
                           style: const TextStyle(color: AppPallete.whiteColor, fontSize: 18, fontWeight: FontWeight.bold),
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (friend != null && friend.email.isNotEmpty)
+                        if (friend != null)
                           Text(
-                            friend.email,
+                            friend.isEffectivelyOnline
+                                ? "Online"
+                                : friend.lastSeen != null
+                                    ? "Last seen ${MomentsAgo.calculateMomentsAgo(friend.lastSeen!.toIso8601String())}"
+                                    : "",
                             style: const TextStyle(color: AppPallete.greyText, fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),

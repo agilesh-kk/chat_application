@@ -9,6 +9,7 @@ part 'friends_state.dart';
 class FriendsCubit extends Cubit<FriendsState> {
   final FriendsRemoteDataSource repository;
   StreamSubscription<Map<String,FriendModel>>? _friendsub;
+  Timer? _onlineTimer;
 
   FriendsCubit(this.repository) : super(FriendsInitial());
 
@@ -27,10 +28,32 @@ class FriendsCubit extends Cubit<FriendsState> {
       _friendsub = friendSub.listen(
         (event) {
           emit(FriendsLoaded(event));
+          _startOnlineTimer();
       },);
 
     } catch (e) {
       emit(FriendsError(e.toString()));
     }
+  }
+
+  void _startOnlineTimer() {
+    _onlineTimer?.cancel();
+    _onlineTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _reEvaluateOnline(),
+    );
+  }
+
+  void _reEvaluateOnline() {
+    if (state is FriendsLoaded) {
+      emit(FriendsLoaded((state as FriendsLoaded).friends));
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _onlineTimer?.cancel();
+    _friendsub?.cancel();
+    return super.close();
   }
 }

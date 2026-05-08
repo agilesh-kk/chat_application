@@ -9,6 +9,8 @@ class User {
   final String? profilePic;
   final List<String>? friends;
   final String? bio;
+  final bool isOnline;
+  final DateTime? lastSeen;
 
   User({
     required this.id,
@@ -19,7 +21,13 @@ class User {
     this.profilePic,
     this.friends,
     this.bio,
+    this.isOnline = false,
+    this.lastSeen,
   });
+
+  bool get isEffectivelyOnline =>
+      isOnline && (lastSeen == null ||
+      DateTime.now().difference(lastSeen!) < const Duration(seconds: 40));
 
   @override
   String toString() {
@@ -35,7 +43,9 @@ class User {
     List<String>? friends,
     DateTime? birthDate,
     String? bio,
-    String? gender
+    String? gender,
+    bool? isOnline,
+    DateTime? lastSeen,
   }) {
     return User(
       id: id ?? this.id,
@@ -46,6 +56,8 @@ class User {
       birthDate: birthDate ?? this.birthDate,
       bio: bio ?? this.bio,
       gender: gender ?? this.gender,
+      isOnline: isOnline ?? this.isOnline,
+      lastSeen: lastSeen ?? this.lastSeen,
     );
   }
 }

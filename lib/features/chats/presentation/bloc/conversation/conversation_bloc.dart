@@ -59,7 +59,8 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                       profilepicLink: sub[c.receiverId]?.profilePic ?? "loading",
                       receiverName: sub[c.receiverId]?.name ?? "loading",
                       unread: c.unread,
-                      lastSender: c.lastSender)
+                      lastSender: c.lastSender,
+                      receiverIsOnline: sub[c.receiverId]?.isEffectivelyOnline ?? false)
                     );
                   
 
@@ -88,7 +89,8 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                       profilepicLink: d.friends[c.receiverId]!.profilePic,
                       receiverName: d.friends[c.receiverId]!.name,
                       unread: c.unread,
-                      lastSender: c.lastSender)
+                      lastSender: c.lastSender,
+                      receiverIsOnline: d.friends[c.receiverId]?.isEffectivelyOnline ?? false)
                     );
                   }
                   add(_ConversationUpdated(updated));

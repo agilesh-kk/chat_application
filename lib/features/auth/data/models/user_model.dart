@@ -11,6 +11,8 @@ class UserModel extends User {
     super.profilePic,
     super.friends,
     super.bio,
+    super.isOnline,
+    super.lastSeen,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> map) {
@@ -32,6 +34,10 @@ class UserModel extends User {
             ? map['birthDate']
             : DateTime(2000, 1, 1),
       bio: map['bio'] ?? '',
+      isOnline: map['isOnline'] ?? false,
+      lastSeen: map['lastSeen'] != null
+          ? (map['lastSeen'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -44,6 +50,8 @@ class UserModel extends User {
       'friends':friends,
       'birthDate': Timestamp.fromDate(birthDate),
       'bio' : bio,
+      'isOnline': isOnline,
+      'lastSeen': lastSeen != null ? Timestamp.fromDate(lastSeen!) : null,
     };
   }
 
@@ -56,6 +64,8 @@ class UserModel extends User {
     DateTime? birthDate,
     String? bio,
     String? gender,
+    bool? isOnline,
+    DateTime? lastSeen,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -66,6 +76,8 @@ class UserModel extends User {
       birthDate: birthDate ?? this.birthDate,
       bio: bio ?? this.bio,
       gender: gender ?? this.gender,
+      isOnline: isOnline ?? this.isOnline,
+      lastSeen: lastSeen ?? this.lastSeen,
     );
   }
 }

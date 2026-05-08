@@ -91,19 +91,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   FutureOr<void> _onAuthSignOut(AuthSignOut event, Emitter<AuthState> emit) async{
+    await _appUserCubit.setOnline(false);
     final result = await _userSignOut(NoParams());
 
     result.fold(
       (failure) => emit(AuthFailure(failure.message)),
-      (_) { // Use '_' because the success value is void/null
-         _appUserCubit.updateUser(null); // Ensure AppUserCubit handles null
-         emit(AuthUnauthenticated()); // Reset state to unauthenticated
+      (_) {
+         _appUserCubit.updateUser(null);
+         emit(AuthUnauthenticated());
       },
     );
   }
 
   void _emitAuthSuccess(User user, Emitter<AuthState> emit){
     _appUserCubit.updateUser(user);
+    _appUserCubit.setOnline(true);
     friendsCubit.loadFriends(userId: user.id);
     emit(AuthSuccess(user));
   }

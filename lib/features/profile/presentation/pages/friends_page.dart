@@ -263,37 +263,59 @@ return Scaffold(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: SweepGradient(
-                        colors: [
-                          AppPallete.primaryOrange.withValues(alpha: 0.6),
-                          AppPallete.lightOrange.withValues(alpha: 0.3),
-                          AppPallete.primaryOrange.withValues(alpha: 0.6),
-                        ],
+                  Stack(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: SweepGradient(
+                            colors: [
+                              AppPallete.primaryOrange.withValues(alpha: 0.6),
+                              AppPallete.lightOrange.withValues(alpha: 0.3),
+                              AppPallete.primaryOrange.withValues(alpha: 0.6),
+                            ],
+                          ),
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppPallete.cardBg,
+                          ),
+                          child: friend.profilePic.isNotEmpty
+                              ? CircleAvatar(
+                                  radius: 24,
+                                  backgroundImage: AssetImage(friend.profilePic),
+                                  backgroundColor: AppPallete.cardBg,
+                                )
+                              : Icon(
+                                  Icons.person,
+                                  color: AppPallete.greyText,
+                                  size: 28,
+                                ),
+                        ),
                       ),
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppPallete.cardBg,
-                      ),
-                      child: friend.profilePic.isNotEmpty
-                          ? CircleAvatar(
-                              radius: 24,
-                              backgroundImage: AssetImage(friend.profilePic),
-                              backgroundColor: AppPallete.cardBg,
-                            )
-                          : Icon(
-                              Icons.person,
-                              color: AppPallete.greyText,
-                              size: 28,
+                      Positioned(
+                        right: 2,
+                        bottom: 2,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: friend.isEffectivelyOnline
+                                ? AppPallete.primaryOrange
+                                : AppPallete.greyText,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppPallete.cardBg,
+                              width: 2,
                             ),
-                    ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 16),
                   Expanded(

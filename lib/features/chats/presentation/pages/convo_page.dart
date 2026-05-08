@@ -117,6 +117,7 @@ class _ConversationPageState extends State<ConversationPage> {
           profilePic: convo.profilepicLink, 
           lastUpdateTime: convo.lastupdateTime,
           lastSender: convo.lastSender == widget.userId ? "you" : "",
+          isOnline: convo.receiverIsOnline,
           onTap: () {
             Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
           },

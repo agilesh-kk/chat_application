@@ -9,6 +9,7 @@ class ConvoTile extends StatelessWidget {
   final String lastMessage;
   final int unread;
   final String lastSender;
+  final bool isOnline;
   final GestureTapCallback onTap;
 
   const ConvoTile({
@@ -19,6 +20,7 @@ class ConvoTile extends StatelessWidget {
     required this.profilePic,
     required this.lastUpdateTime,
     required this.lastSender,
+    required this.isOnline,
     required this.onTap,
   });
 
@@ -76,6 +78,22 @@ class ConvoTile extends StatelessWidget {
                                 size: 28,
                               )
                             : null,
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: isOnline ? AppPallete.primaryOrange : AppPallete.greyText,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppPallete.cardBg,
+                            width: 2,
+                          ),
+                        ),
                       ),
                     ),
                     if (unread > 0)

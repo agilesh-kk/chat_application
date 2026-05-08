@@ -8,6 +8,8 @@ class FriendModel {
   final DateTime? birthDate;
   final String? gender;
   final String? bio;
+  final bool isOnline;
+  final DateTime? lastSeen;
 
   FriendModel({
     required this.id,
@@ -16,8 +18,14 @@ class FriendModel {
     required this.profilePic,
     this.birthDate,
     this.gender,
-    this.bio
+    this.bio,
+    this.isOnline = false,
+    this.lastSeen,
   });
+
+  bool get isEffectivelyOnline =>
+      isOnline && (lastSeen == null ||
+      DateTime.now().difference(lastSeen!) < const Duration(seconds: 40));
 
   factory FriendModel.fromJson(Map<String, dynamic> json) {
     return FriendModel(
@@ -29,7 +37,11 @@ class FriendModel {
         ? (json['birthDate'] as Timestamp).toDate()
         : null,
       gender: json['gender'],
-      bio: json['bio']
+      bio: json['bio'],
+      isOnline: json['isOnline'] ?? false,
+      lastSeen: json['lastSeen'] != null
+          ? (json['lastSeen'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -41,7 +53,9 @@ class FriendModel {
       'email': email,
       'birthDate': birthDate?.toIso8601String(),
       'gender': gender,
-      'bio' : bio
+      'bio' : bio,
+      'isOnline': isOnline,
+      'lastSeen': lastSeen?.toIso8601String(),
     };
   }
 }

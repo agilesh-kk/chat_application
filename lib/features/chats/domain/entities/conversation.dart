@@ -7,6 +7,7 @@ class Conversation {
   final String receiverName;
   final int unread;
   final String lastSender;
+  final bool receiverIsOnline;
 
   Conversation({
     required this.convoId,
@@ -17,5 +18,6 @@ class Conversation {
     required this.receiverName,
     required this.unread,
     required this.lastSender,
+    this.receiverIsOnline = false,
   });
 }

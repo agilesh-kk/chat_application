@@ -1,4 +1,5 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+import 'package:chat_application/core/common/data/presence_remote_data_source.dart';
 import 'package:chat_application/core/keys/app_keys.dart';
 import 'package:chat_application/features/achievement/data/datasources/achievement_remote_datasource.dart';
 import 'package:chat_application/features/achievement/data/repository/achievement_repository_impl.dart';
@@ -66,6 +67,8 @@ import 'package:chat_application/features/timeline/presentation/bloc/time_line/t
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/adapters.dart';
@@ -104,7 +107,10 @@ Future<void> initDependencies() async {
   serviceLocator.registerLazySingleton(() => supabase.client);
 
   //registering core dependencies
-  serviceLocator.registerLazySingleton(() => AppUserCubit());
+  serviceLocator.registerFactory<PresenceRemoteDataSource>(
+    () => PresenceRemoteDataSourceImpl(serviceLocator<FirebaseFirestore>()),
+  );
+  serviceLocator.registerLazySingleton(() => AppUserCubit(serviceLocator<PresenceRemoteDataSource>()));
 
   serviceLocator.registerFactory<FriendsRemoteDataSource>(()=>FriendsRemoteDataSourceImpl(serviceLocator<FirebaseFirestore>()));
 

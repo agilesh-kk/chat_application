@@ -221,6 +221,14 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, dynamic profileUser) {
+    final friendsState = context.watch<FriendsCubit>().state;
+    final bool isOnline;
+    if (!isUser && friendsState is FriendsLoaded) {
+      isOnline = friendsState.friends[profileUser.id]?.isEffectivelyOnline ?? false;
+    } else {
+      isOnline = true;
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -362,7 +370,9 @@ class ProfilePage extends StatelessWidget {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: AppPallete.statusGreen,
+                    color: isOnline
+                        ? AppPallete.primaryOrange
+                        : AppPallete.greyText,
                     shape: BoxShape.circle,
                   ),
                 ),
