@@ -40,8 +40,17 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
             emit(ConversationError(failure.message));
           },
           (convoStream) {
-            _convoSub = convoStream.listen(
+            _convoSub = convoStream
+            //timeout to check if no convo arrives
+            .timeout(Duration(seconds: 5),onTimeout: (sink) {
+              sink.add([]);
+            },)
+            .listen(
               (convos) {
+                //checks for empty convo list
+                if(convos.isEmpty){
+                  add(_ConversationUpdated([]));
+                }
                 //print("📦 BLOC RECEIVED: ${convos.length}");
                 var sub = {}; 
                 if(friendsCubit.state is FriendsLoaded){
@@ -99,9 +108,9 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
           },
         );
 
-        if(state is! ConversationLoaded) {
-          emit(ConversationLoaded(conversations: []));
-        }
+        // if(state is! ConversationLoaded) {
+        //   emit(ConversationLoaded(conversations: []));
+        // }
       } catch (e) {
         emit(ConversationError(e.toString()));
       }

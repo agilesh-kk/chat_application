@@ -14,6 +14,7 @@ import 'package:chat_application/features/timeline/presentation/pages/timeline_p
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
+import 'package:chat_application/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -23,8 +24,11 @@ import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:chat_application/features/chats/presentation/cubit/sticky_header_cubit.dart';
+import 'package:chat_application/notification_storage.dart';
 
 class ChatPage extends StatefulWidget {
+  static String? activeConvoId;
+
   final String? convoId;
   final String currentUserId;
   final String receiverId;
@@ -62,6 +66,11 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    ChatPage.activeConvoId = widget.convoId;
+    if (widget.convoId != null) {
+      removeChatMessages(widget.convoId!);
+      flutterLocalNotificationsPlugin.cancel(widget.convoId.hashCode,tag: widget.convoId);
+    }
     _stickyHeaderCubit = StickyHeaderCubit();
     widget.cacheService = CacheService();
     cb = context.read<ChatBloc>()
@@ -72,6 +81,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
+    ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
     cb.add(Closechat());
     super.dispose();
@@ -396,17 +406,6 @@ class _ChatPageState extends State<ChatPage> {
                 });
                 widget.highlightMessageId = null;
               }
-            }
-
-            // Initialize sticky header date label
-            if (messages.isNotEmpty) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  context.read<StickyHeaderCubit>().updateDateLabel(
-                    _getDateLabel(messages.last.createdAt),
-                  );
-                }
-              });
             }
 
             return Stack(

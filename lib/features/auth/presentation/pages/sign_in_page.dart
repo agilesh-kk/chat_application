@@ -47,23 +47,23 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: BlocConsumer<AuthBloc, AuthState>(
-            listener: (context, state) {
-              if(state is AuthFailure){
-                showSnackbar(context, state.message);
-              }
-            },
-            builder: (context, state) {
-              if (state is AuthLoading) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    color: AppPallete.primaryOrange,
-                  ),
-                );
-              }
-              return FadeTransition(
+        child: BlocConsumer<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if(state is AuthFailure){
+              showSnackbar(context, state.message);
+            }
+          },
+          builder: (context, state) {
+            if (state is AuthLoading) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: AppPallete.primaryOrange,
+                ),
+              );
+            }
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: Form(
                   key: formKey,
@@ -82,9 +82,9 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
                     ],
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
