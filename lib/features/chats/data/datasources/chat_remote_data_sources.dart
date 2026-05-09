@@ -270,6 +270,18 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       await batch.commit();
 
+        try {
+          await supabase.from('messages').insert({
+            'chat_id': generateConversationId(userId, receiverId),
+            'sender_id': userId,
+            'receiver_id': receiverId,
+            'name': userName ?? 'Unknown',
+            'text': type == 'text' ? content : '📷 Image',
+          }).select();
+        } catch (e) {
+          print(e);
+        }
+
       
 
       if (!isScheduled) {

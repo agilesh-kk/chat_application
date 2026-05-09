@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:chat_application/core/common/data/presence_remote_data_source.dart';
 import 'package:chat_application/core/common/entities/user.dart';
+import 'package:chat_application/core/data/user_device_data_source.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -10,18 +12,48 @@ part 'app_user_state.dart';
 //This handles the app user's persistent
 class AppUserCubit extends Cubit<AppUserState> {
   final PresenceRemoteDataSource _presenceDataSource;
+  final UserDeviceDataSource _deviceDataSource;
   Timer? _heartbeat;
+  StreamSubscription? _tokenSub;
+  String? _currentToken;
 
-  AppUserCubit(this._presenceDataSource) : super(AppUserInitial());
+  AppUserCubit(this._presenceDataSource, this._deviceDataSource) : super(AppUserInitial());
 
   void updateUser(User? user){
     if(user == null){
       _stopHeartbeat();
+      _deleteToken();
       emit(AppUserInitial());
     }
     else{
       emit(AppUserIsSignedin(user));
       _startHeartbeat();
+      _initToken(user.id);
+    }
+  }
+
+  Future<void> _initToken(String userId) async {
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token != null) {
+      _currentToken = token;
+      await _deviceDataSource.upsertToken(userId, token, defaultTargetPlatform.name);
+    }
+    _tokenSub?.cancel();
+    _tokenSub = FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      if (_currentToken != null) {
+        await _deviceDataSource.deleteToken(_currentToken!);
+      }
+      await _deviceDataSource.upsertToken(userId, newToken, defaultTargetPlatform.name);
+      _currentToken = newToken;
+    });
+  }
+
+  Future<void> _deleteToken() async {
+    _tokenSub?.cancel();
+    _tokenSub = null;
+    if (_currentToken != null) {
+      await _deviceDataSource.deleteToken(_currentToken!);
+      _currentToken = null;
     }
   }
 

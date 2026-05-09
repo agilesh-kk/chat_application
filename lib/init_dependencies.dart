@@ -1,5 +1,6 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/data/presence_remote_data_source.dart';
+import 'package:chat_application/core/data/user_device_data_source.dart';
 import 'package:chat_application/core/keys/app_keys.dart';
 import 'package:chat_application/features/achievement/data/datasources/achievement_remote_datasource.dart';
 import 'package:chat_application/features/achievement/data/repository/achievement_repository_impl.dart';
@@ -110,7 +111,10 @@ Future<void> initDependencies() async {
   serviceLocator.registerFactory<PresenceRemoteDataSource>(
     () => PresenceRemoteDataSourceImpl(serviceLocator<FirebaseFirestore>()),
   );
-  serviceLocator.registerLazySingleton(() => AppUserCubit(serviceLocator<PresenceRemoteDataSource>()));
+  serviceLocator.registerFactory<UserDeviceDataSource>(
+    () => UserDeviceDataSourceImpl(serviceLocator<SupabaseClient>()),
+  );
+  serviceLocator.registerLazySingleton(() => AppUserCubit(serviceLocator<PresenceRemoteDataSource>(), serviceLocator<UserDeviceDataSource>()));
 
   serviceLocator.registerFactory<FriendsRemoteDataSource>(()=>FriendsRemoteDataSourceImpl(serviceLocator<FirebaseFirestore>()));
 
