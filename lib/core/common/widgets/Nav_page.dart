@@ -41,7 +41,11 @@ class _NavigationPageState extends State<NavigationPage> {
       ),
       extendBody: true,
       bottomNavigationBar: Container(
-        margin: const EdgeInsets.only(left: 40, right: 40, bottom: 24),
+        margin: EdgeInsets.only(
+          left: MediaQuery.of(context).size.width * 0.08,
+          right: MediaQuery.of(context).size.width * 0.08,
+          bottom: 24,
+        ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
@@ -66,7 +70,7 @@ class _NavigationPageState extends State<NavigationPage> {
               child: Center(
                 child: SafeArea(
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),

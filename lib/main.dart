@@ -90,9 +90,9 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
         channelDescription: 'New chat message notifications',
         importance: Importance.high,
         priority: Priority.high,
-        color: AppPallete.primaryOrange,
+        //color: AppPallete.primaryOrange,
         groupKey: 'chat_app_group',
-        icon: '@mipmap/ic_launcher',
+        icon: '@drawable/ic_stat_notify',
         onlyAlertOnce: true,
         category: AndroidNotificationCategory.message,
         tag: chatId,
@@ -131,7 +131,7 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
           priority: Priority.high,
           groupKey: 'chat_app_group',
           setAsGroupSummary: true,
-          icon: '@mipmap/ic_launcher',
+          icon: '@drawable/ic_stat_notify',
         ),
       ),
     );
@@ -170,7 +170,7 @@ void main() async {
 
   await flutterLocalNotificationsPlugin.initialize(
     const InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('@drawable/ic_stat_notify'),
       iOS: DarwinInitializationSettings(),
     ),
     onDidReceiveNotificationResponse: (response) {

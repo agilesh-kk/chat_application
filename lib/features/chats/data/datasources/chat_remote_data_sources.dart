@@ -215,6 +215,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       //saving message, refactored for time capsule
       batch.set(messageRef, {
         ...message.toMap(),
+        "name": userName ?? "Unknown",
+        "receiverId": receiverId,
+        "convoId": generateConversationId(userId, receiverId),
         "createdAt": isScheduled
           ? Timestamp.fromDate(sendAt)
           : FieldValue.serverTimestamp(), // server sync later
@@ -269,7 +272,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       }, SetOptions(merge: true));
 
       await batch.commit();
-
+      if (!isScheduled) {
         try {
           await supabase.from('messages').insert({
             'chat_id': generateConversationId(userId, receiverId),
@@ -279,10 +282,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             'text': type == 'text' ? content : '📷 Image',
           }).select();
         } catch (e) {
-          print(e);
+          //print(e);
         }
-
-      
+      }
 
       if (!isScheduled) {
         // await processTimelineEvent(
