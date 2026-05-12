@@ -218,6 +218,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         "name": userName ?? "Unknown",
         "receiverId": receiverId,
         "convoId": generateConversationId(userId, receiverId),
+        "profile": userProfile ?? "assets/profile_images/pfp1.png",
         "createdAt": isScheduled
           ? Timestamp.fromDate(sendAt)
           : FieldValue.serverTimestamp(), // server sync later
@@ -279,7 +280,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             'sender_id': userId,
             'receiver_id': receiverId,
             'name': userName ?? 'Unknown',
-            'text': type == 'text' ? content : '📷 Image',
+            'text': type == 'text' ? content : '📷 Photo',
+            'sender_profile': userProfile
           }).select();
         } catch (e) {
           //print(e);

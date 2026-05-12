@@ -185,8 +185,9 @@ class _ImageMessageTileState extends State<ImageMessageTile>
               widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            margin:
-                const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+            margin: widget.isMe
+                ? const EdgeInsets.only(left: 64, right: 8, top: 6,bottom: 6)
+                : const EdgeInsets.only(left: 8, right: 64, top: 6,bottom: 6),
             padding: const EdgeInsets.all(4),
             constraints: const BoxConstraints(
               maxWidth: 250,

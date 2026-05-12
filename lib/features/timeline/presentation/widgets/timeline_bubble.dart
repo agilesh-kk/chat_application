@@ -143,6 +143,8 @@ child: Container(
                 Text(
                   widget.event.content,
                   softWrap: true,
+                  maxLines: 10,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: AppPallete.whiteColor.withValues(alpha: 0.8),
                     fontSize: 13,

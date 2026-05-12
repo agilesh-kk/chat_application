@@ -223,7 +223,10 @@ class _ChatPageState extends State<ChatPage> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: () {
+              _messageFocusNode.unfocus();
+              Navigator.pop(context);
+            },
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -267,7 +270,7 @@ class _ChatPageState extends State<ChatPage> {
                             height: 10,
                             decoration: BoxDecoration(
                               color: friend.isEffectivelyOnline
-                                  ? AppPallete.primaryOrange
+                                  ? AppPallete.statusGreen
                                   : AppPallete.greyText,
                               shape: BoxShape.circle,
                               border: Border.all(
@@ -312,6 +315,7 @@ class _ChatPageState extends State<ChatPage> {
             icon: Icons.favorite,
             color: AppPallete.primaryOrange,
             onTap: () async {
+              _messageFocusNode.unfocus();
               String? messageId = await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -335,6 +339,7 @@ class _ChatPageState extends State<ChatPage> {
             icon: Icons.lock_clock,
             color: AppPallete.primaryOrange,
             onTap: () {
+              _messageFocusNode.unfocus();
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -369,6 +374,7 @@ class _ChatPageState extends State<ChatPage> {
 
   void _showFriendProfile(BuildContext context, FriendModel? friend) {
     if (friend == null) return;
+    _messageFocusNode.unfocus();
     Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(isUser: false, user: friend)));
   }
 

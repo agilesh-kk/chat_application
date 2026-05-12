@@ -92,6 +92,7 @@ class _NavigationPageState extends State<NavigationPage> {
     
     return GestureDetector(
       onTap: () {
+        FocusManager.instance.primaryFocus?.unfocus();
         _pageController.animateToPage(
           index,
           duration: const Duration(milliseconds: 200),

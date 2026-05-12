@@ -12,6 +12,7 @@ import 'package:chat_application/features/profile/presentation/widgets/user_deta
 import 'package:chat_application/features/timeline/presentation/pages/personal_timeline_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_shortcut_plus/flutter_shortcut.dart';
 
 class ProfilePage extends StatelessWidget {
   final bool isUser;
@@ -175,6 +176,7 @@ class ProfilePage extends StatelessWidget {
                 );
                 if (shouldLogout == true && context.mounted) {
                   context.read<AuthBloc>().add(AuthSignOut());
+                  await FlutterShortcut.clearShortcutItems();
                 }
               },
               color: AppPallete.errorColor,
@@ -371,7 +373,7 @@ class ProfilePage extends StatelessWidget {
                   height: 8,
                   decoration: BoxDecoration(
                     color: isOnline
-                        ? AppPallete.primaryOrange
+                        ? AppPallete.statusGreen
                         : AppPallete.greyText,
                     shape: BoxShape.circle,
                   ),

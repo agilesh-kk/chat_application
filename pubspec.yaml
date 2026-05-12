@@ -31,6 +31,8 @@ dependencies:
   cached_network_image: ^3.4.1
   firebase_messaging: ^16.2.0
   flutter_local_notifications: ^18.0.1
+  flutter_shortcut_plus: ^1.0.1
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:

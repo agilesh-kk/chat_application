@@ -148,7 +148,9 @@ return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin: widget.isMe
+            ? const EdgeInsets.only(left: 64, right: 8, top: 4, bottom: 4)
+            : const EdgeInsets.only(left: 8, right: 64, top: 4, bottom: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         constraints: const BoxConstraints(maxWidth: 500),
         decoration: BoxDecoration(

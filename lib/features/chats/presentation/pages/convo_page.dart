@@ -1,11 +1,13 @@
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
 import 'package:chat_application/features/chats/presentation/widgets/convo_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ConversationPage extends StatefulWidget {
   final String userId;
@@ -26,6 +28,21 @@ class _ConversationPageState extends State<ConversationPage> {
     super.initState();
     context.read<ConversationBloc>()
         .add(LoadConversationsEvent(widget.userId));
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) async{
+      await checkIfOpenedfromNotification();
+    },);
+  }
+
+  Future<void> checkIfOpenedfromNotification()async{
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final receiverName = prefs.getString("sender_name") ?? '';
+    final receiverId = prefs.getString("sender_id") ?? '';
+
+    if(receiverId.isNotEmpty && mounted){
+      Navigator.push(context, MaterialPageRoute(builder: (context) => ChatPage(currentUserId: widget.userId, receiverId: receiverId, receiverName: receiverName),));
+      await prefs.remove("sender_id");
+      await prefs.remove("sender_name");
+    }
   }
 
   @override
@@ -36,7 +53,7 @@ class _ConversationPageState extends State<ConversationPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {    
     return GestureDetector(
       onTap: () {
         _searchFocusNode.unfocus();
@@ -69,7 +86,7 @@ class _ConversationPageState extends State<ConversationPage> {
                     if (state is ConversationLoading) {
                       return const Center(child: Loader());
                     }
-    
+            
                     if (state is ConversationLoaded) {
                       var conversations = state.conversations;
                       
@@ -84,14 +101,14 @@ class _ConversationPageState extends State<ConversationPage> {
                       if (conversations.isEmpty) {
                         return isSearching ? _buildNoResultsState() : _buildEmptyState();
                       }
-    
+            
                       return _buildChatList(conversations);
                     }
-    
+            
                     if (state is ConversationError) {
                       return _buildErrorState(state.message);
                     }
-    
+            
                     return const SizedBox();
                   },
                 ),
@@ -119,6 +136,7 @@ class _ConversationPageState extends State<ConversationPage> {
           lastSender: convo.lastSender == widget.userId ? "you" : "",
           isOnline: convo.receiverIsOnline,
           onTap: () {
+            _searchFocusNode.unfocus();
             Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
           },
         );
@@ -346,6 +364,7 @@ class _ConversationPageState extends State<ConversationPage> {
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: () {
+              _searchFocusNode.unfocus();
               Navigator.push(context, MaterialPageRoute(builder: (context) => SearchPage(currentUserId: widget.userId,)));
             },
             child: Padding(
@@ -474,6 +493,7 @@ class _ConversationPageState extends State<ConversationPage> {
               const SizedBox(height: 24),
               GestureDetector(
                 onTap: () {
+                  _searchFocusNode.unfocus();
                   Navigator.push(context, MaterialPageRoute(builder: (context) => SearchPage(currentUserId: widget.userId,)));
                 },
                 child: Container(

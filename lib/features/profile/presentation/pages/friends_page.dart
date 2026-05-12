@@ -305,7 +305,7 @@ return Scaffold(
                           height: 12,
                           decoration: BoxDecoration(
                             color: friend.isEffectivelyOnline
-                                ? AppPallete.primaryOrange
+                                ? AppPallete.statusGreen
                                 : AppPallete.greyText,
                             shape: BoxShape.circle,
                             border: Border.all(
