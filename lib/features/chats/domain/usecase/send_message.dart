@@ -18,6 +18,10 @@ class SendMessage implements UseCase<void,SendMessageParams>{
       userProfile: params.userProfile,
       sendAt: params.sendAt,
       isScheduled: params.isScheduled,
+      replyToId: params.replyToId,
+      replyToContent: params.replyToContent,
+      replyToSenderId: params.replyToSenderId,
+      replyToType: params.replyToType,
     );
   }
 }
@@ -34,6 +38,12 @@ class SendMessageParams{
   final DateTime? sendAt;
   final bool isScheduled;
 
+  //for reply
+  final String? replyToId;
+  final String? replyToContent;
+  final String? replyToSenderId;
+  final String? replyToType;
+
   SendMessageParams({
     required this.receiverId,
     required this.userId,
@@ -43,5 +53,9 @@ class SendMessageParams{
     this.userProfile,
     this.sendAt,
     this.isScheduled = false,
+    this.replyToId,
+    this.replyToContent,
+    this.replyToSenderId,
+    this.replyToType,
   });
 }

@@ -19,13 +19,14 @@ class MessageOptionsTray {
     required void Function(String emoji) onReact,
     bool hasReacted = false,
     VoidCallback? onRemoveReaction,
+    VoidCallback? onReply,
   }) async {
     final screenSize = MediaQuery.of(context).size;
     const popupWidth = 260.0;
     const emojiRowHeight = 64.0;
     const itemHeight = 48.0;
 
-    int itemCount = (msgType == "text" ? 1 : 0) + (isMe ? 1 : 0) + (hasReacted ? 1 : 0) + 1;
+    int itemCount = (msgType == "text" ? 1 : 0) + (isMe ? 1 : 0) + (hasReacted ? 1 : 0) + 2;
     double popupHeight = emojiRowHeight + 1 + itemCount * itemHeight + 8;
 
     double left = position.dx;
@@ -84,6 +85,15 @@ class MessageOptionsTray {
                       ),
                     ),
                     Divider(height: 1, color: AppPallete.divider.withValues(alpha: 0.5)),
+                    _buildMenuItem(
+                      context: ctx,
+                      icon: Icons.reply,
+                      label: 'Reply',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        if (onReply != null) onReply();
+                      },
+                    ),
                     if (hasReacted)
                       _buildMenuItem(
                         context: ctx,

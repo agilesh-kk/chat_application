@@ -30,7 +30,12 @@ abstract interface class ChatRemoteDataSources {
 
     //time capsule features
     DateTime? sendAt, 
-    //bool? isScheduled,
+
+    //for reply
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
   });
 
   Future<String> uploadImage({required XFile image, required String msgId});
@@ -235,7 +240,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     String? userName,
     String? userProfile,
     DateTime? sendAt,
-    //bool? isScheduled,
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
   }) async {
     try {
       final convoRef = firestore
@@ -246,10 +254,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       final collectionName = sendAt != null ? "scheduled_messages" : "messages";
 
       final messageRef = convoRef.collection(collectionName).doc(msgId);      
-
-      // final receiverDoc = firestore.collection("users").doc(receiverId);
-
-      // final receiverData = (await receiverDoc.get()).data()!;
       
       //this can't be null
       final isScheduled = sendAt != null;
@@ -264,7 +268,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         deletedfor: [],
         sendAt: sendAt,
         isScheduled: isScheduled,
-        
+        replyToId: replyToId,
+        replyToContent: replyToContent,
+        replyToSenderId: replyToSenderId,
+        replyToType: replyToType,
       );
 
       WriteBatch batch = firestore.batch();

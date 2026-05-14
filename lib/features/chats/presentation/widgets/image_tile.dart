@@ -20,9 +20,12 @@ class ImageMessageTile extends StatefulWidget {
   final bool isMe;
   final bool flash;
   final VoidCallback? onDelete;
+  final VoidCallback? onReply;
+  final VoidCallback? onReplyTap;
 
   final String currentUserId;
   final String receiverId;
+  final String? receiverName;
 
   const ImageMessageTile({
     super.key,
@@ -31,9 +34,12 @@ class ImageMessageTile extends StatefulWidget {
     required this.isMe,
     this.flash = false,
     this.onDelete,
+    this.onReply,
+    this.onReplyTap,
 
     required this.currentUserId,
     required this.receiverId,
+    this.receiverName,
   });
 
   @override
@@ -201,6 +207,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
                   );
                 }
               : null,
+          onReply: widget.onReply,
         );
       },
       child: ScaleTransition(
@@ -357,6 +364,59 @@ class _ImageMessageTileState extends State<ImageMessageTile>
     );
   }
 
+  Widget _buildReplyPreview() {
+    if (widget.message.replyToId == null) return const SizedBox();
+
+    final isOwnReply = widget.message.replyToSenderId == widget.currentUserId;
+    final senderName = isOwnReply ? "You" : (widget.receiverName ?? "Unknown");
+    final previewText = widget.message.replyToType == "image"
+        ? "📷 Image"
+        : (widget.message.replyToContent ?? "");
+
+    return GestureDetector(
+      onTap: widget.onReplyTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(8),
+            topRight: Radius.circular(8),
+          ),
+          border: Border(
+            left: BorderSide(
+              color: AppPallete.primaryOrange,
+              width: 3,
+            ),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              senderName,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppPallete.primaryOrange,
+              ),
+            ),
+            Text(
+              previewText,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppPallete.whiteColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildContent(BuildContext context) {
     if (widget.message.deletedForEveryone == true) {
       return _buildDeletedMessage();
@@ -381,62 +441,70 @@ class _ImageMessageTileState extends State<ImageMessageTile>
         }
 
         if (imageBytes != null) {
-          return Stack(
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => FullScreenImagePage(
-                        bytes: imageBytes!,
+              if (widget.message.replyToId != null)
+                _buildReplyPreview(),
+              Expanded(
+                child: Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FullScreenImagePage(
+                              bytes: imageBytes!,
+                              tag: msg.id,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Hero(
                         tag: msg.id,
+                        child: SizedBox(
+                          width: width,
+                          child: Image.memory(
+                            imageBytes!,
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                          ),
+                        ),
                       ),
                     ),
-                  );
-                },
-                child: Hero(
-                  tag: msg.id,
-                  child: SizedBox(
-                    width: width,
-                    height: height,
-                    child: Image.memory(
-                      imageBytes!,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                    ),
-                  ),
-                ),
-              ),
 
-              Positioned(
-                bottom: 5,
-                right: 5,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (widget.message.inTimeline)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: Icon(Icons.favorite, size: 12, color: Colors.red),
+                    Positioned(
+                      bottom: 5,
+                      right: 5,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      Text(
-                        DateFormat('h:mm a').format(msg.createdAt),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppPallete.whiteColor,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (widget.message.inTimeline)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Icon(Icons.favorite, size: 12, color: Colors.red),
+                              ),
+                            Text(
+                              DateFormat('h:mm a').format(msg.createdAt),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppPallete.whiteColor,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            _buildStatus(msg.status, widget.isMe),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 5),
-                      _buildStatus(msg.status, widget.isMe),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],

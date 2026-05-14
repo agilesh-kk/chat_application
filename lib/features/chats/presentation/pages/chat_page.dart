@@ -7,6 +7,7 @@ import 'package:chat_application/features/chats/presentation/helper/cacheservice
 import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
+import 'package:chat_application/features/chats/presentation/widgets/reply_preview_bar.dart';
 import 'package:chat_application/features/chats/presentation/widgets/delete_message_confirmation_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/send_options_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/time_capsule_picker.dart';
@@ -58,6 +59,7 @@ class _ChatPageState extends State<ChatPage> {
   int? highlightedIndex;
   String lastAnimated = "";
   bool firstTime = true;
+  Message? _replyToMessage;
 
   final ItemScrollController _scrollController = ItemScrollController();
   final ItemPositionsListener _positionsListener = ItemPositionsListener.create();
@@ -127,6 +129,24 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  void _onReplyTap(String replyToId) {
+    final state = cb.state;
+    if (state is ChatLoaded) {
+      final index = state.messages.indexWhere((m) => m.id == replyToId);
+      if (index != -1) {
+        _scrollToIndex(index);
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            setState(() => highlightedIndex = index);
+            Future.delayed(const Duration(milliseconds: 1500), () {
+              if (mounted) setState(() => highlightedIndex = null);
+            });
+          }
+        });
+      }
+    }
+  }
+
   void _send() {
     final text = controller.text.trim();
     if (text.isEmpty) return;
@@ -137,8 +157,17 @@ class _ChatPageState extends State<ChatPage> {
           content: text,
           userName: (user is AppUserIsSignedin) ? user.user.name : "Unknown",
           userProfile: (user is AppUserIsSignedin) ? user.user.profilePic : "Unknown",
+          replyToId: _replyToMessage?.id,
+          replyToContent: _replyToMessage?.content,
+          replyToSenderId: _replyToMessage?.senderId,
+          replyToType: _replyToMessage?.type,
         ));
     controller.clear();
+    _clearReply();
+  }
+
+  void _clearReply() {
+    setState(() => _replyToMessage = null);
   }
 
   Future<void> _handleTimeCapsule() async {
@@ -159,8 +188,13 @@ class _ChatPageState extends State<ChatPage> {
           userProfile: (user is AppUserIsSignedin) ? user.user.profilePic : "Unknown",
           sendAt: scheduledTime,
           isScheduled: true,
+          replyToId: _replyToMessage?.id,
+          replyToContent: _replyToMessage?.content,
+          replyToSenderId: _replyToMessage?.senderId,
+          replyToType: _replyToMessage?.type,
         ));
     controller.clear();
+    _clearReply();
   }
 
   Future<void> _pickImage() async {
@@ -176,8 +210,13 @@ class _ChatPageState extends State<ChatPage> {
         userId: user.user.id,
         image: picked,
         receiverId: widget.receiverId,
+        replyToId: _replyToMessage?.id,
+        replyToContent: _replyToMessage?.content,
+        replyToSenderId: _replyToMessage?.senderId,
+        replyToType: _replyToMessage?.type,
       ));
     }
+    _clearReply();
   }
 
   @override
@@ -202,6 +241,7 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               _buildHeader(context),
               _buildMessages(),
+              if (_replyToMessage != null) _buildReplyBar(),
               _buildInput(),
             ],
           ),
@@ -550,6 +590,18 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  Widget _buildReplyBar() {
+    if (_replyToMessage == null) return const SizedBox();
+    final isOwnReply = _replyToMessage!.senderId == widget.currentUserId;
+    final name = isOwnReply ? "You" : widget.receiverName;
+    return ReplyPreviewBar(
+      replyingToName: name,
+      replyContent: _replyToMessage!.content,
+      replyType: _replyToMessage!.type,
+      onCancel: _clearReply,
+    );
+  }
+
   Widget _buildInput() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -620,6 +672,7 @@ class _ChatPageState extends State<ChatPage> {
         return MessageBubble(
           currentUserId: widget.currentUserId,
           receiverId: widget.receiverId,
+          receiverName: widget.receiverName,
           key: ValueKey(msg.id),
           message: msg,
           isMe: isMe,
@@ -639,11 +692,17 @@ class _ChatPageState extends State<ChatPage> {
               },
             );
           },
+          onReply: () {
+            setState(() => _replyToMessage = msg);
+            _messageFocusNode.requestFocus();
+          },
+          onReplyTap: () => _onReplyTap(msg.replyToId!),
         );
       case "image":
         return ImageMessageTile(
           currentUserId: widget.currentUserId,
           receiverId: widget.receiverId,
+          receiverName: widget.receiverName,
           key: ValueKey(msg.id),
           message: msg,
           cacheService: widget.cacheService!,
@@ -663,6 +722,11 @@ class _ChatPageState extends State<ChatPage> {
               },
             );
           },
+          onReply: () {
+            setState(() => _replyToMessage = msg);
+            _messageFocusNode.requestFocus();
+          },
+          onReplyTap: () => _onReplyTap(msg.replyToId!),
         );
       default:
         return const SizedBox();

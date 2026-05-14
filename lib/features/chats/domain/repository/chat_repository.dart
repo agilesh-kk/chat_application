@@ -26,6 +26,12 @@ abstract interface class ChatRepository{
     //for time capsule
     DateTime? sendAt,
     bool isScheduled = false,
+
+    //for reply
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
   });
 
   Future<Either<Failure, void>> sendImage({
@@ -35,6 +41,10 @@ abstract interface class ChatRepository{
     required String msgId,
     String? userName,
     String? userProfile,
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
   });
 
   //Contract to fetch Messages of a Single Conversation

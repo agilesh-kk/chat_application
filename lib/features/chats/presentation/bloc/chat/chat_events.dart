@@ -33,6 +33,11 @@ class SendMessageEvent extends ChatEvent{
   final DateTime? sendAt;
   final bool isScheduled;
 
+  final String? replyToId;
+  final String? replyToContent;
+  final String? replyToSenderId;
+  final String? replyToType;
+
   SendMessageEvent({
     required this.userId,
     required this.receiverId,
@@ -41,6 +46,10 @@ class SendMessageEvent extends ChatEvent{
     this.userProfile,
     this.sendAt,
     this.isScheduled=false,
+    this.replyToId,
+    this.replyToContent,
+    this.replyToSenderId,
+    this.replyToType,
   });
 }
 
@@ -50,12 +59,20 @@ class SendImageEvent extends ChatEvent {
   final XFile image;
   String? userName;
   String? userProfile;
+  final String? replyToId;
+  final String? replyToContent;
+  final String? replyToSenderId;
+  final String? replyToType;
   SendImageEvent({
     required this.userId,
     required this.receiverId,
     required this.image,
     this.userName,
-    this.userProfile
+    this.userProfile,
+    this.replyToId,
+    this.replyToContent,
+    this.replyToSenderId,
+    this.replyToType,
   });
 }
 

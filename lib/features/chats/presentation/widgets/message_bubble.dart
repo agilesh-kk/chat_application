@@ -14,9 +14,12 @@ class MessageBubble extends StatefulWidget {
   final bool animate;
   final bool highlight;
   final VoidCallback? onDelete;
+  final VoidCallback? onReply;
+  final VoidCallback? onReplyTap;
 
   final String currentUserId;
   final String receiverId;
+  final String? receiverName;
 
   const MessageBubble({
     super.key,
@@ -25,9 +28,12 @@ class MessageBubble extends StatefulWidget {
     required this.animate,
     this.highlight = false,
     this.onDelete,
+    this.onReply,
+    this.onReplyTap,
 
     required this.currentUserId,
     required this.receiverId,
+    this.receiverName,
   });
 
   @override
@@ -138,6 +144,7 @@ class _MessageBubbleState extends State<MessageBubble>
                   );
                 }
               : null,
+          onReply: widget.onReply,
         );
       },
       child: widget.highlight 
@@ -168,6 +175,66 @@ class _MessageBubbleState extends State<MessageBubble>
     );
   }
 
+  Widget _buildReplyPreview() {
+    if (widget.message.replyToId == null) return const SizedBox();
+
+    final isOwnReply = widget.message.replyToSenderId == widget.currentUserId;
+    final senderName = isOwnReply ? "You" : (widget.receiverName ?? "Unknown");
+    final previewText = widget.message.replyToType == "image"
+        ? "📷 Image"
+        : (widget.message.replyToContent ?? "");
+
+    return GestureDetector(
+      onTap: widget.onReplyTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: widget.isMe
+              ? AppPallete.primaryOrange.withValues(alpha: 0.2)
+              : AppPallete.darkBg.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(8),
+          border: Border(
+            left: BorderSide(
+              color: widget.isMe
+                  ? AppPallete.lightOrange
+                  : AppPallete.primaryOrange,
+              width: 3,
+            ),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              senderName,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: widget.isMe
+                    ? AppPallete.lightOrange
+                    : AppPallete.primaryOrange,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              previewText,
+              style: TextStyle(
+                fontSize: 13,
+                color: widget.isMe
+                    ? AppPallete.whiteColor.withValues(alpha: 0.8)
+                    : AppPallete.greyText,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMessageContainer(String time, bool normal) {
 return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -180,61 +247,79 @@ return Align(
         constraints: const BoxConstraints(maxWidth: 500),
         decoration: BoxDecoration(
           color: widget.highlight
-            ? AppPallete.primaryOrange.withValues(alpha: 0.3)
+            ? Colors.amberAccent.withValues(alpha: 0.25)
             : (widget.isMe ? const Color(0xFFB84A1A) : AppPallete.cardBg),
           borderRadius: BorderRadius.circular(16),
           border: widget.isMe ? null : Border.all(color: AppPallete.divider),
         ),
-        child: Wrap(
-          alignment: WrapAlignment.end,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          spacing: 6,
-          children: [
-            Row(
+        child: widget.message.replyToId != null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.message.deletedForEveryone == true) ...[
-                  Icon(Icons.block, size: 14, color: AppPallete.greyText),
-                  SizedBox(width: 4),
-                ],
-                Flexible(
-                  child: Text(
-                    widget.message.deletedForEveryone
-                      ? "This message was deleted "
-                      : widget.message.content,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
-                      color: widget.message.deletedForEveryone
-                        ? AppPallete.greyText
-                        : (widget.isMe ? AppPallete.whiteColor : AppPallete.whiteColor),
-                    ),
-                  ),
-                ),
+                SizedBox(width: double.infinity, child: _buildReplyPreview()),
+                _buildContentRow(),
+                Align(alignment: Alignment.centerRight, child: _buildTimeRow(time)),
               ],
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            )
+          : Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: 6,
               children: [
-                if (widget.message.inTimeline)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Icon(Icons.favorite, size: 12, color: Colors.red),
-                  ),
-                Text(
-                  time,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: widget.isMe ? AppPallete.whiteColor.withValues(alpha: 0.7) : AppPallete.greyText,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                if (!widget.message.deletedForEveryone) _buildReceiptStatus(widget.message.status, widget.isMe),
+                _buildContentRow(),
+                _buildTimeRow(time),
               ],
             ),
-          ],
-        ),
       ),
+    );
+  }
+
+  Widget _buildContentRow() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.message.deletedForEveryone == true) ...[
+          Icon(Icons.block, size: 14, color: AppPallete.greyText),
+          SizedBox(width: 4),
+        ],
+        Flexible(
+          child: Text(
+            widget.message.deletedForEveryone
+              ? "This message was deleted "
+              : widget.message.content,
+            style: TextStyle(
+              fontSize: 15,
+              fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
+              color: widget.message.deletedForEveryone
+                ? AppPallete.greyText
+                : (widget.isMe ? AppPallete.whiteColor : AppPallete.whiteColor),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeRow(String time) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.message.inTimeline)
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Icon(Icons.favorite, size: 12, color: Colors.red),
+          ),
+        Text(
+          time,
+          style: TextStyle(
+            fontSize: 10,
+            color: widget.isMe ? AppPallete.whiteColor.withValues(alpha: 0.7) : AppPallete.greyText,
+          ),
+        ),
+        const SizedBox(width: 5),
+        if (!widget.message.deletedForEveryone) _buildReceiptStatus(widget.message.status, widget.isMe),
+      ],
     );
   }
 

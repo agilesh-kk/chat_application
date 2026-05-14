@@ -66,6 +66,10 @@ class ChatRepositoryImpl implements ChatRepository {
     required String msgId,
     String? userName,
     String? userProfile,
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
   }) async {
     try {
       await chatLocalDataSource.saveImage(image, msgId);
@@ -83,6 +87,10 @@ class ChatRepositoryImpl implements ChatRepository {
         content: imageUrl,
         userName: userName,
         userProfile: userProfile,
+        replyToId: replyToId,
+        replyToContent: replyToContent,
+        replyToSenderId: replyToSenderId,
+        replyToType: replyToType,
       );
 
       return right(null);
@@ -104,6 +112,12 @@ class ChatRepositoryImpl implements ChatRepository {
     //time capsule
     DateTime? sendAt,
     bool isScheduled = false,
+
+    //for reply
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
   }) async {
     try {
       await chatRemoteDataSources.sendMessage(
@@ -114,7 +128,10 @@ class ChatRepositoryImpl implements ChatRepository {
         userProfile: userProfile,
         msgId: msgId,
         sendAt: sendAt,
-        //isScheduled: isScheduled,
+        replyToId: replyToId,
+        replyToContent: replyToContent,
+        replyToSenderId: replyToSenderId,
+        replyToType: replyToType,
       );
       return right(null);
     } on ServerExceptions catch (e) {

@@ -16,7 +16,11 @@ class SendImage implements UseCase<void,SendImageParams>{
       image: params.image,
       msgId: params.msgId,
       userName: params.userName,
-      userProfile: params.userProfile
+      userProfile: params.userProfile,
+      replyToId: params.replyToId,
+      replyToContent: params.replyToContent,
+      replyToSenderId: params.replyToSenderId,
+      replyToType: params.replyToType,
     );
   }
 }
@@ -28,6 +32,10 @@ class SendImageParams{
   final String msgId;
   String? userName;
   String? userProfile;
+  final String? replyToId;
+  final String? replyToContent;
+  final String? replyToSenderId;
+  final String? replyToType;
 
   SendImageParams({
     required this.receiverId,
@@ -35,6 +43,10 @@ class SendImageParams{
     required this.image,
     required this.msgId,
     this.userName,
-    this.userProfile
+    this.userProfile,
+    this.replyToId,
+    this.replyToContent,
+    this.replyToSenderId,
+    this.replyToType,
   });
 }

@@ -13,6 +13,10 @@ class Message{
   final bool? isScheduled;
   final bool inTimeline;
   final Map<String, String> reactions;
+  final String? replyToId;
+  final String? replyToContent;
+  final String? replyToSenderId;
+  final String? replyToType;
 
   Message({
     required this.id,
@@ -29,5 +33,9 @@ class Message{
     this.isScheduled,
     this.inTimeline=false,
     this.reactions = const {},
+    this.replyToId,
+    this.replyToContent,
+    this.replyToSenderId,
+    this.replyToType,
   });
 }

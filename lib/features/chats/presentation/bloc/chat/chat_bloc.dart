@@ -69,6 +69,10 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         localPath: event.image.path,
         isLocal: true,
         status: "sending",
+        replyToId: event.replyToId,
+        replyToContent: event.replyToContent,
+        replyToSenderId: event.replyToSenderId,
+        replyToType: event.replyToType,
       );
 
       // ✅ 2. Emit instantly (NO WAIT)
@@ -82,7 +86,11 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           image: event.image,
           msgId: msgId,
           userName: event.userName,
-          userProfile: event.userProfile
+          userProfile: event.userProfile,
+          replyToId: event.replyToId,
+          replyToContent: event.replyToContent,
+          replyToSenderId: event.replyToSenderId,
+          replyToType: event.replyToType,
         ),
       );
     });
@@ -138,6 +146,10 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         deletedfor: const [],
         isLocal: true,
         isScheduled: event.isScheduled,
+        replyToId: event.replyToId,
+        replyToContent: event.replyToContent,
+        replyToSenderId: event.replyToSenderId,
+        replyToType: event.replyToType,
       );
 
       // 2️ Add to current list immediately (UI) if it is a normal message
@@ -162,6 +174,12 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
             //time capsule
             sendAt: event.sendAt,
             isScheduled: true,
+
+            //reply
+            replyToId: event.replyToId,
+            replyToContent: event.replyToContent,
+            replyToSenderId: event.replyToSenderId,
+            replyToType: event.replyToType,
           )
         );
 
@@ -186,6 +204,11 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           //time capsule
           sendAt: event.sendAt,
           isScheduled: event.isScheduled,
+          //reply
+          replyToId: event.replyToId,
+          replyToContent: event.replyToContent,
+          replyToSenderId: event.replyToSenderId,
+          replyToType: event.replyToType,
         ),
       );
 

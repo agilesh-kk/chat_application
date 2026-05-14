@@ -17,6 +17,10 @@ class MessageModel extends Message {
     super.isScheduled,
     super.inTimeline,
     super.reactions,
+    super.replyToId,
+    super.replyToContent,
+    super.replyToSenderId,
+    super.replyToType,
   });
 
   factory MessageModel.fromJson(
@@ -42,17 +46,21 @@ class MessageModel extends Message {
       reactions: map["reactions"] is Map
           ? Map<String, String>.from(map["reactions"] as Map)
           : {},
+      replyToId: map['replyToId'],
+      replyToContent: map['replyToContent'],
+      replyToSenderId: map['replyToSenderId'],
+      replyToType: map['replyToType'],
     );
   }
 
   Map<String, dynamic> toMap() {
-    final data = {
+    final Map<String, dynamic> data = {
       "senderId": senderId,
       "content": content,
       "createdAt": Timestamp.fromDate(createdAt),
       "status": status,
       "deletedfor": deletedfor,
-      "deletedForEveryone": deletedForEveryone ?? false, //delted for everyone parameter
+      "deletedForEveryone": deletedForEveryone ?? false,
       "type": type,
       "isScheduled": sendAt != null,
       "inTimeline": inTimeline,
@@ -61,6 +69,13 @@ class MessageModel extends Message {
 
     if (sendAt != null) {
       data["sendAt"] = Timestamp.fromDate(sendAt!);
+    }
+
+    if (replyToId != null) {
+      data["replyToId"] = replyToId;
+      data["replyToContent"] = replyToContent;
+      data["replyToSenderId"] = replyToSenderId;
+      data["replyToType"] = replyToType;
     }
 
     return data;
