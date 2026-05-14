@@ -67,7 +67,12 @@ abstract interface class ChatRepository{
     required String type,
     bool deleteForEveryone = false,
   });
-  
-  
 
+  Future<void> toggleReaction({
+    required String userId,
+    required String receiverId,
+    required String messageId,
+    required String emoji,
+  });
+  
 }

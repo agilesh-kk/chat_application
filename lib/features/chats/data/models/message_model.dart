@@ -16,6 +16,7 @@ class MessageModel extends Message {
     super.sendAt,
     super.isScheduled,
     super.inTimeline,
+    super.reactions,
   });
 
   factory MessageModel.fromJson(
@@ -38,6 +39,9 @@ class MessageModel extends Message {
         : null,
       isScheduled: map['isScheduled'] ?? false,
       inTimeline: map["inTimeline"] ?? false,
+      reactions: map["reactions"] is Map
+          ? Map<String, String>.from(map["reactions"] as Map)
+          : {},
     );
   }
 
@@ -52,6 +56,7 @@ class MessageModel extends Message {
       "type": type,
       "isScheduled": sendAt != null,
       "inTimeline": inTimeline,
+      "reactions": reactions,
     };
 
     if (sendAt != null) {

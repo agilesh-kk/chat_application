@@ -439,7 +439,9 @@ class _ChatPageState extends State<ChatPage> {
                       firstTime = false;
                   
                       return Padding(
-                        padding: EdgeInsets.only(bottom: message.inTimeline && index == 0 ? 12 : 0),
+                        padding: EdgeInsets.only(
+                          bottom: message.type == "image" ? 8 : (message.inTimeline && index == 0 ? 12 : 0),
+                        ),
                         child: Column(
                           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                           children: [
@@ -450,19 +452,26 @@ class _ChatPageState extends State<ChatPage> {
                               alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                               children: [
                                 buildBubble(message, isMe, isAnimate, highlightedIndex == index),
-                                if (message.inTimeline)
+                                if (message.reactions.isNotEmpty)
                                   Positioned(
                                     left: isMe ? null : -2,
                                     right: isMe ? -2 : null,
                                     bottom: -2,
                                     child: Container(
-                                      padding: const EdgeInsets.all(4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
+                                        color: AppPallete.cardBg,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: AppPallete.divider),
                                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
                                       ),
-                                      child: const Icon(Icons.favorite, size: 10, color: AppPallete.whiteColor),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: message.reactions.values.toSet().map((emoji) => Padding(
+                                          padding: const EdgeInsets.only(right: 1),
+                                          child: Text(emoji, style: const TextStyle(fontSize: 11)),
+                                        )).toList(),
+                                      ),
                                     ),
                                   ),
                               ],

@@ -82,3 +82,17 @@ class DeleteMessageEvent extends ChatEvent{
 }
 
 class Closechat extends ChatEvent{}
+
+class ToggleReactionEvent extends ChatEvent {
+  final String userId;
+  final String receiverId;
+  final String messageId;
+  final String emoji;
+
+  ToggleReactionEvent({
+    required this.userId,
+    required this.receiverId,
+    required this.messageId,
+    required this.emoji,
+  });
+}

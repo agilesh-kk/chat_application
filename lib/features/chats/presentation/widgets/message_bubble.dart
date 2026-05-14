@@ -1,5 +1,6 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_options_helper.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
 import 'package:flutter/material.dart';
@@ -104,6 +105,7 @@ class _MessageBubbleState extends State<MessageBubble>
     return GestureDetector(
       onLongPressStart: (details) {
         if (widget.message.deletedForEveryone == true) return;
+        final currentEmoji = widget.message.reactions[widget.currentUserId];
         MessageOptionsTray.show(
           context: context,
           position: details.globalPosition,
@@ -113,6 +115,29 @@ class _MessageBubbleState extends State<MessageBubble>
           msgType: "text",
           onDelete: widget.onDelete,
           onAddToTimeline: !widget.message.inTimeline ? () => _showAddToTimelineDialog(widget.message) : null,
+          onReact: (emoji) {
+            context.read<ChatBloc>().add(
+              ToggleReactionEvent(
+                userId: widget.currentUserId,
+                receiverId: widget.receiverId,
+                messageId: widget.message.id,
+                emoji: emoji,
+              ),
+            );
+          },
+          hasReacted: currentEmoji != null,
+          onRemoveReaction: currentEmoji != null
+              ? () {
+                  context.read<ChatBloc>().add(
+                    ToggleReactionEvent(
+                      userId: widget.currentUserId,
+                      receiverId: widget.receiverId,
+                      messageId: widget.message.id,
+                      emoji: currentEmoji,
+                    ),
+                  );
+                }
+              : null,
         );
       },
       child: widget.highlight 
@@ -191,6 +216,11 @@ return Align(
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (widget.message.inTimeline)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Icon(Icons.favorite, size: 12, color: Colors.red),
+                  ),
                 Text(
                   time,
                   style: TextStyle(

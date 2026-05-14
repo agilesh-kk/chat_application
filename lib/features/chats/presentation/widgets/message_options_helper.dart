@@ -2,6 +2,10 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+const List<String> reactionEmojis = [
+  '❤️', '😂', '🔥', '👍', '👎', '😮', '😢', '🎉', '💯', 
+];
+
 class MessageOptionsTray {
   static Future<void> show({
     required BuildContext context,
@@ -12,111 +16,161 @@ class MessageOptionsTray {
     required String msgType,
     VoidCallback? onDelete,
     VoidCallback? onAddToTimeline,
+    required void Function(String emoji) onReact,
+    bool hasReacted = false,
+    VoidCallback? onRemoveReaction,
   }) async {
-    final selected = await showMenu(
+    final screenSize = MediaQuery.of(context).size;
+    const popupWidth = 260.0;
+    const emojiRowHeight = 64.0;
+    const itemHeight = 48.0;
+
+    int itemCount = (msgType == "text" ? 1 : 0) + (isMe ? 1 : 0) + (hasReacted ? 1 : 0) + 1;
+    double popupHeight = emojiRowHeight + 1 + itemCount * itemHeight + 8;
+
+    double left = position.dx;
+    double top = position.dy + 8;
+
+    if (left + popupWidth > screenSize.width - 16) {
+      left = screenSize.width - popupWidth - 16;
+    }
+    if (top + popupHeight > screenSize.height - 16) {
+      top = position.dy - popupHeight - 8;
+    }
+    left = left.clamp(8, screenSize.width - popupWidth - 8);
+    top = top.clamp(8, screenSize.height - popupHeight - 8);
+
+    showDialog(
       context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      color: AppPallete.cardBg,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx,
-        position.dy,
-      ),
-      items: [
-        if(msgType == "text")
-        PopupMenuItem(
-          value: 'copy',
-          child: _buildMenuItem(
-            icon: Icons.copy,
-            label: 'Copy',
-          ),
-        ),
-        if (isMe)
-          PopupMenuItem(
-            value: 'delete',
-            child: _buildMenuItem(
-              icon: Icons.delete_outline,
-              label: 'Delete',
-              isDestructive: true,
+      barrierDismissible: true,
+      builder: (ctx) => Stack(
+        children: [
+          Positioned(
+            left: left,
+            top: top,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: popupWidth,
+                decoration: BoxDecoration(
+                  color: AppPallete.cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppPallete.divider),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                      child: Row(
+                        children: reactionEmojis.map((emoji) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              onReact(emoji);
+                            },
+                            child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                          ),
+                        )).toList(),
+                      ),
+                    ),
+                    Divider(height: 1, color: AppPallete.divider.withValues(alpha: 0.5)),
+                    if (hasReacted)
+                      _buildMenuItem(
+                        context: ctx,
+                        icon: Icons.remove_circle_outline,
+                        label: 'Remove reaction',
+                        isDestructive: true,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          if (onRemoveReaction != null) onRemoveReaction();
+                        },
+                      ),
+                    if (msgType == "text")
+                      _buildMenuItem(
+                        context: ctx,
+                        icon: Icons.copy,
+                        label: 'Copy',
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          Clipboard.setData(ClipboardData(text: content));
+                        },
+                      ),
+                    if (isMe)
+                      _buildMenuItem(
+                        context: ctx,
+                        icon: Icons.delete_outline,
+                        label: 'Delete',
+                        isDestructive: true,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          if (onDelete != null) onDelete();
+                        },
+                      ),
+                    _buildMenuItem(
+                      context: ctx,
+                      icon: Icons.favorite,
+                      label: onAddToTimeline != null ? 'Add to Timeline' : 'Already in Timeline',
+                      isDisabled: onAddToTimeline == null,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        if (onAddToTimeline != null) onAddToTimeline();
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                ),
+              ),
             ),
           ),
-        PopupMenuItem(
-          value: 'timeline',
-          enabled: onAddToTimeline != null,
-          child: _buildMenuItem(
-            icon: Icons.favorite,
-            label: onAddToTimeline != null
-                ? 'Add to Timeline'
-                : 'Already in Timeline',
-            isDisabled: onAddToTimeline == null,
-          ),
-        ),
-      ],
-    );
-
-    _handleAction(
-      context: context,
-      action: selected,
-      content: content,
-      onDelete: onDelete,
-      onAddToTimeline: onAddToTimeline,
+        ],
+      ),
     );
   }
 
   static Widget _buildMenuItem({
+    required BuildContext context,
     required IconData icon,
     required String label,
     bool isDestructive = false,
     bool isDisabled = false,
+    VoidCallback? onTap,
   }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 20,
-          color: isDisabled
-              ? AppPallete.greyText.withValues(alpha: 0.5)
-              : (isDestructive ? AppPallete.errorColor : AppPallete.whiteColor),
+    return InkWell(
+      onTap: isDisabled ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: isDisabled
+                  ? AppPallete.greyText.withValues(alpha: 0.5)
+                  : (isDestructive ? AppPallete.errorColor : AppPallete.whiteColor),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                color: isDisabled
+                    ? AppPallete.greyText.withValues(alpha: 0.5)
+                    : (isDestructive ? AppPallete.errorColor : AppPallete.whiteColor),
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Text(
-          label,
-          style: TextStyle(
-            color: isDisabled
-                ? AppPallete.greyText.withValues(alpha: 0.5)
-                : (isDestructive ? AppPallete.errorColor : AppPallete.whiteColor),
-            fontSize: 14,
-          ),
-        ),
-      ],
+      ),
     );
-  }
-
-  static void _handleAction({
-    required BuildContext context,
-    required String? action,
-    required String content,
-    VoidCallback? onDelete,
-    VoidCallback? onAddToTimeline,
-  }) {
-    if (action == null) return;
-
-    switch (action) {
-      case 'copy':
-        Clipboard.setData(ClipboardData(text: content));
-        break;
-
-      case 'delete':
-        if (onDelete != null) onDelete();
-        break;
-
-      case 'timeline':
-        if (onAddToTimeline != null) onAddToTimeline();
-        break;
-    }
   }
 }

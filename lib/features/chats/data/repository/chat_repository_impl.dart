@@ -176,4 +176,23 @@ class ChatRepositoryImpl implements ChatRepository {
       throw ServerExceptions(e.toString());
     }
   }
+
+  @override
+  Future<void> toggleReaction({
+    required String userId,
+    required String receiverId,
+    required String messageId,
+    required String emoji,
+  }) async {
+    try {
+      await chatRemoteDataSources.toggleReaction(
+        userId: userId,
+        receiverId: receiverId,
+        messageId: messageId,
+        emoji: emoji,
+      );
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
 }

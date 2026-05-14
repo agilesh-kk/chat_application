@@ -7,6 +7,7 @@ import 'package:chat_application/features/chats/domain/usecase/get_messages.dart
 import 'package:chat_application/features/chats/domain/usecase/mark_messages_delivered.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
+import 'package:chat_application/features/chats/domain/usecase/toggle_reaction.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
@@ -21,6 +22,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   final SendImage _sendImage;
   final DeleteMessage _deleteMessage;
   final MarkMessagesDelivered _markMessagesDelivered;
+  final ToggleReaction _toggleReaction;
 
   String? _currentUserId;
   String? _currentReceiverId;
@@ -33,6 +35,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     required SendImage sendImage,
     required DeleteMessage deleteMessage,
     required MarkMessagesDelivered markMessagesDelivered,
+    required ToggleReaction toggleReaction,
   })
    :
    _getMessages = getMessages,
@@ -40,6 +43,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
    _sendImage = sendImage,
    _deleteMessage = deleteMessage, 
    _markMessagesDelivered = markMessagesDelivered,
+   _toggleReaction = toggleReaction,
    super(ChatInitial()) {
 
     on<Closechat>((event, emit)async {
@@ -202,6 +206,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
     on<DeleteMessageEvent>(_onDeleteMessageEvent);
     on<MarkMessagesDeliveredEvent>(_onMarkMessagesDeleiveredEvent);
+    on<ToggleReactionEvent>(_onToggleReactionEvent);
 
   }
 
@@ -304,6 +309,17 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         userId: event.userId, 
         receiverId: event.receiverId
       )
+    );
+  }
+
+  FutureOr<void> _onToggleReactionEvent(ToggleReactionEvent event, Emitter<ChatState> emit) async {
+    await _toggleReaction(
+      ToggleReactionParams(
+        userId: event.userId,
+        receiverId: event.receiverId,
+        messageId: event.messageId,
+        emoji: event.emoji,
+      ),
     );
   }
 }

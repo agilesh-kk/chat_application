@@ -29,6 +29,7 @@ import 'package:chat_application/features/chats/domain/usecase/mark_messages_del
 import 'package:chat_application/features/chats/domain/usecase/search_user.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
+import 'package:chat_application/features/chats/domain/usecase/toggle_reaction.dart';
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
@@ -299,6 +300,9 @@ void _initChat()async {
   ..registerFactory(
     () => MarkMessagesDelivered(chatRepository: serviceLocator<ChatRepository>()),
   )
+  ..registerFactory(
+    () => ToggleReaction(chatRepository: serviceLocator<ChatRepository>()),
+  )
 
   ..registerLazySingleton(
     () => ChatBloc(
@@ -307,6 +311,7 @@ void _initChat()async {
       sendMessage: serviceLocator(),
       deleteMessage: serviceLocator(),
       markMessagesDelivered: serviceLocator(),
+      toggleReaction: serviceLocator(),
     )
   )
 

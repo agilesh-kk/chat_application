@@ -61,6 +61,13 @@ abstract interface class ChatRemoteDataSources {
     required String userId, 
     required String receiverId
   });
+
+  Future<void> toggleReaction({
+    required String userId,
+    required String receiverId,
+    required String messageId,
+    required String emoji,
+  });
 }
 
 class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
@@ -130,6 +137,56 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       batch.update(doc.reference, {"status": "seen"});
     }
     await batch.commit();
+  }
+
+  @override
+  Future<void> toggleReaction({
+    required String userId,
+    required String receiverId,
+    required String messageId,
+    required String emoji,
+  }) async {
+    try {
+      final convoId = generateConversationId(userId, receiverId);
+      final msgRef = firestore
+          .collection("Conversations")
+          .doc(convoId)
+          .collection("messages")
+          .doc(messageId);
+
+      await firestore.runTransaction((tx) async {
+        final doc = await tx.get(msgRef);
+        if (!doc.exists) return;
+
+        final data = doc.data()!;
+        final reactions = Map<String, dynamic>.from(data['reactions'] as Map? ?? {});
+        final currentReaction = reactions[userId];
+        final isNewReaction = currentReaction != emoji;
+
+        if (currentReaction == emoji) {
+          reactions.remove(userId);
+        } else {
+          reactions[userId] = emoji;
+        }
+        tx.update(msgRef, {'reactions': reactions});
+
+        if (isNewReaction) {
+          final messageSenderId = data['senderId'] as String?;
+          if (messageSenderId != null) {
+            final convoRef = firestore
+                .collection("Conversations")
+                .doc(convoId);
+            tx.update(convoRef, {
+              "$messageSenderId.lastMessage": "Reacted $emoji to a message",
+              "$messageSenderId.lastSender": userId,
+              //"lastupdateTime": FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      });
+    } catch (e) {
+      //print("Toggle reaction error: $e");
+    }
   }
 
   @override

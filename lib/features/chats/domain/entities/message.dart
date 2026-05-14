@@ -12,6 +12,7 @@ class Message{
   final DateTime? sendAt;
   final bool? isScheduled;
   final bool inTimeline;
+  final Map<String, String> reactions;
 
   Message({
     required this.id,
@@ -27,5 +28,6 @@ class Message{
     this.sendAt,
     this.isScheduled,
     this.inTimeline=false,
+    this.reactions = const {},
   });
 }
