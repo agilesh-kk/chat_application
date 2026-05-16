@@ -444,7 +444,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (widget.message.replyToId != null)
+              if (widget.message.replyToId != null && !widget.message.deletedForEveryone)
                 _buildReplyPreview(),
               Expanded(
                 child: Stack(

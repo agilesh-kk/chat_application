@@ -85,6 +85,8 @@ Future<void> _initNotification() async {
     'Chat Messages',
     description: 'New chat message notifications',
     importance: Importance.max,
+    enableVibration: true,
+    playSound: true,
     groupId: 'chat_app_group',
   );
   await flutterLocalNotificationsPlugin
@@ -149,7 +151,7 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
         'Chat Messages',
         channelDescription: 'New chat message notifications',
         importance: Importance.max,
-        priority: Priority.high,
+        priority: Priority.max,
         //color: AppPallete.primaryOrange,
         groupKey: 'chat_app_group',
         icon: '@drawable/ic_stat_notify',
@@ -186,8 +188,8 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
           'chat_messages',
           'Chat Messages',
           channelDescription: 'New chat message notifications',
-          importance: Importance.high,
-          priority: Priority.high,
+          importance: Importance.max,
+          priority: Priority.max,
           groupKey: 'chat_app_group',
           setAsGroupSummary: true,
           icon: '@drawable/ic_stat_notify',
@@ -339,14 +341,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       navigateFromNotification(msg.data,false);
     });
     FirebaseMessaging.onMessage.listen((message) {
-      print("sdfffffffffffffffffffffffffffff");
+      //print("sdfffffffffffffffffffffffffffff");
       if (message.data.isNotEmpty) {
         final chatId = message.data['chat_id'] as String? ?? '';
         if (ChatPage.activeConvoId != chatId) {
           try{
             _showNotification(message.data);
           }catch(e){
-            print(e);
+            //print(e);
           }
         }
       }

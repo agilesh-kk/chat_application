@@ -43,3 +43,11 @@ final class UpdateStatusPage extends StatusEvent {
   });
   
 }
+
+final class DeleteStatusEvent extends StatusEvent{
+  final String statusId;
+
+  DeleteStatusEvent({
+    required this.statusId,
+  });
+}

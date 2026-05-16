@@ -6,6 +6,7 @@ import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
+import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -544,7 +545,136 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
             ],
           ),
         ),
+        if (widget.isUserStatus && widget.hasInternet)
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            color: AppPallete.cardBg,
+            onSelected: (value) {
+              if (value == 'delete') {
+                pauseStory();
+                showDialog(
+                  context: context,
+                  builder: (ctx) => Dialog(
+                    backgroundColor: AppPallete.cardBg,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: const BorderSide(color: AppPallete.divider),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppPallete.errorColor.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.delete_outline,
+                                  color: AppPallete.errorColor,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Delete Status',
+                                style: TextStyle(
+                                  color: AppPallete.whiteColor,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Are you sure you want to delete this status?',
+                            style: TextStyle(
+                              color: AppPallete.greyText,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              _buildDialogButton(
+                                label: 'Cancel',
+                                isPrimary: false,
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  resumeStory();
+                                },
+                              ),
+                              const SizedBox(width: 12),
+                              _buildDialogButton(
+                                label: 'Delete',
+                                isPrimary: true,
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  context.read<StatusBloc>().add(
+                                    DeleteStatusEvent(statusId: status.id),
+                                  );
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Text('Delete status'),
+                  ],
+                ),
+              ),
+            ],
+          ),
       ],
+    );
+  }
+
+  Widget _buildDialogButton({
+    required String label,
+    required bool isPrimary,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isPrimary ? AppPallete.errorColor : AppPallete.darkTertiary,
+          borderRadius: BorderRadius.circular(12),
+          border: isPrimary ? null : Border.all(color: AppPallete.divider),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: AppPallete.whiteColor,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -64,6 +64,7 @@ class _ChatPageState extends State<ChatPage> {
   final ItemScrollController _scrollController = ItemScrollController();
   final ItemPositionsListener _positionsListener = ItemPositionsListener.create();
   late final StickyHeaderCubit _stickyHeaderCubit;
+  bool _showScrollToBottom = false;
 
   @override
   void initState() {
@@ -107,6 +108,14 @@ class _ChatPageState extends State<ChatPage> {
       final message = state.messages[topIndex];
       final newLabel = _getDateLabel(message.createdAt);
       _stickyHeaderCubit.updateDateLabel(newLabel);
+    }
+
+    final isIndexZeroVisible = positions.any(
+      (p) => p.index == 0 && p.itemTrailingEdge >= 0 && p.itemTrailingEdge <= 1.0,
+    );
+    final shouldShow = !isIndexZeroVisible;
+    if (shouldShow != _showScrollToBottom) {
+      setState(() => _showScrollToBottom = shouldShow);
     }
   }
 
@@ -492,7 +501,7 @@ class _ChatPageState extends State<ChatPage> {
                               alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                               children: [
                                 buildBubble(message, isMe, isAnimate, highlightedIndex == index),
-                                if (message.reactions.isNotEmpty)
+                                if (!message.deletedForEveryone && message.reactions.isNotEmpty)
                                   Positioned(
                                     left: isMe ? null : -2,
                                     right: isMe ? -2 : null,
@@ -537,6 +546,40 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                     );
                   },
+                ),
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: AnimatedOpacity(
+                    opacity: _showScrollToBottom ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: IgnorePointer(
+                      ignoring: !_showScrollToBottom,
+                      child: GestureDetector(
+                        onTap: () => _scrollToIndex(0),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppPallete.cardBg,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppPallete.divider),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.arrow_downward,
+                            color: AppPallete.primaryOrange,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             );

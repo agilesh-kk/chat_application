@@ -26,4 +26,8 @@ abstract interface class StatusRepository {
   Future<Either<Failure, List<StatusView>>> getViews({
     required String statusId,
   });
+
+  Future<Either<Failure, void>> deleteStatus({
+    required String statusId,
+  });
 }

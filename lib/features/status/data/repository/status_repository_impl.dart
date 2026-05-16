@@ -78,7 +78,6 @@ class StatusRepositoryImpl implements StatusRepository {
       }catch(e){
         return left(Failure(e.toString()));
       }
-
     }
   }
 
@@ -114,6 +113,20 @@ class StatusRepositoryImpl implements StatusRepository {
       final views = await statusRemoteDataSource.getViews(statusId);
       return right(views);
     } on ServerExceptions catch (e) {
+      return left(Failure(e.toString()));
+    }
+  }
+  
+  @override
+  Future<Either<Failure, void>> deleteStatus({required String statusId}) async {
+    try{
+      await statusRemoteDataSource.deleteStatus(statusId);
+      return right(null);
+    }
+    on ServerExceptions catch(e){
+      return left(Failure(e.message));
+    }
+    catch(e){
       return left(Failure(e.toString()));
     }
   }

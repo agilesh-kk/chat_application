@@ -252,7 +252,7 @@ return Align(
           borderRadius: BorderRadius.circular(16),
           border: widget.isMe ? null : Border.all(color: AppPallete.divider),
         ),
-        child: widget.message.replyToId != null
+        child: widget.message.replyToId != null && !widget.message.deletedForEveryone
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,

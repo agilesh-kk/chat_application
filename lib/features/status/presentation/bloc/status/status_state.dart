@@ -21,3 +21,5 @@ final class StatusDisplaySuccess extends StatusState{
 
 final class UpdateViewSuccess extends StatusState{}
 
+final class StatusDeleteSuccess extends StatusState{}
+

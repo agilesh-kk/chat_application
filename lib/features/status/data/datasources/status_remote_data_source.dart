@@ -16,6 +16,8 @@ abstract interface class StatusRemoteDataSource {
   Future<void> updateView(StatusViewModel statusView);
 
   Future<List<StatusViewModel>> getViews(String statusId);
+
+  Future<void> deleteStatus(String statusId);
 }
 
 class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
@@ -121,5 +123,33 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
     catch(e){
       throw ServerExceptions(e.toString());
     }
-  }  
+  }
+  
+  @override
+  Future<void> deleteStatus(String statusId) async {
+    try {
+      //deleting image from storage
+      await supabaseClient
+          .storage
+          .from('status_images')
+          .remove([statusId]);
+
+      //deleting related views
+      await supabaseClient
+          .from('status_views')
+          .delete()
+          .eq('status_id', statusId);
+
+      //deleting status
+      await supabaseClient
+          .from('statuses')
+          .delete()
+          .eq('id', statusId);
+
+    } on PostgrestException catch (e) {
+      throw ServerExceptions(e.message);
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
 }

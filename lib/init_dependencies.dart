@@ -50,6 +50,7 @@ import 'package:chat_application/features/status/data/hiveAdapters/hive_model_ad
 import 'package:chat_application/features/status/data/model/status_hive_model.dart';
 import 'package:chat_application/features/status/data/repository/status_repository_impl.dart';
 import 'package:chat_application/features/status/domain/repository/status_repository.dart';
+import 'package:chat_application/features/status/domain/usecase/delete_status.dart';
 import 'package:chat_application/features/status/domain/usecase/get_all_status.dart';
 import 'package:chat_application/features/status/domain/usecase/get_views.dart';
 import 'package:chat_application/features/status/domain/usecase/update_view.dart';
@@ -173,6 +174,11 @@ void _initStatus() async{
         serviceLocator<StatusRepository>()
       )
     )
+    ..registerFactory(
+      () => DeleteStatus(
+        serviceLocator<StatusRepository>()
+      )
+    )
 
     //bloc
     ..registerLazySingleton(
@@ -181,6 +187,7 @@ void _initStatus() async{
         uploadStatus: serviceLocator<UploadStatus>(),
         getAllStatus: serviceLocator<GetAllStatus>(),
         updateView: serviceLocator<UpdateView>(),
+        deleteStatus: serviceLocator<DeleteStatus>(),
       )
     )
     //status views bloc

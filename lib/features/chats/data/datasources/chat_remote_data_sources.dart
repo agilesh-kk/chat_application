@@ -185,6 +185,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
               "$messageSenderId.lastMessage": "Reacted $emoji to a message",
               "$messageSenderId.lastSender": userId,
               //"lastupdateTime": FieldValue.serverTimestamp(),
+              "$userId.lastMessage": "Reacted $emoji to a message",
+              "$userId.lastSender": userId,
+              "$receiverId.lastMessage": "Reacted $emoji to a message",
+              "$receiverId.lastSender": userId,
             });
           }
         }
