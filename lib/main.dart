@@ -81,8 +81,8 @@ Future<void> _initNotification() async {
       );
 
   final channel = AndroidNotificationChannel(
-    'chat_messages',
-    'Chat Messages',
+    'chat_messages1',
+    'Chat Messages v1',
     description: 'New chat message notifications',
     importance: Importance.max,
     enableVibration: true,
@@ -147,8 +147,8 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
     NotificationDetails(
       android: AndroidNotificationDetails(
         shortcutId: senderId,
-        'chat_messages',
-        'Chat Messages',
+        'chat_messages1',
+        'Chat Messages v1',
         channelDescription: 'New chat message notifications',
         importance: Importance.max,
         priority: Priority.max,
@@ -185,8 +185,8 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
       '$totalMessages unread messages',
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'chat_messages',
-          'Chat Messages',
+          'chat_messages1',
+          'Chat Messages v1',
           channelDescription: 'New chat message notifications',
           importance: Importance.max,
           priority: Priority.max,
