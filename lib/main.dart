@@ -37,15 +37,31 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterL
 const int _groupSummaryId = 2001;
 final Map<String, Person> _personCache = {};
 
-Future<void> createConversationShortcut(String senderId, String senderName, String profile) async {
+Future<void> createOrUpdateShortcutIfNeeded(
+  String senderId,
+  String senderName,
+  String profile,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final oldName = prefs.getString('${senderId}_name');
+  final oldProfile = prefs.getString('${senderId}_profile');
+
+  if (oldName == senderName && oldProfile == profile) {
+    return; // no update needed
+  }
+
+  await prefs.setString('${senderId}_name', senderName);
+  await prefs.setString('${senderId}_profile', profile);
+
   await FlutterShortcut.pushShortcutItem(
     shortcut: ShortcutItem(
       conversationShortcut: true,
-      id: senderId, 
+      id: senderId,
       shortLabel: senderName,
       icon: profile,
       action: "shortcut.messages",
-      shortcutIconAsset: ShortcutIconAsset.flutterAsset
+      shortcutIconAsset: ShortcutIconAsset.flutterAsset,
     ),
   );
 }
@@ -81,7 +97,7 @@ Future<void> _initNotification() async {
       );
 
   final channel = AndroidNotificationChannel(
-    'chat_messages_1',
+    'chat_messages',
     'Chat Messages',
     description: 'New chat message notifications',
     importance: Importance.max,
@@ -100,24 +116,26 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
   final messageText = data['message'] as String? ?? '';
   final senderId = data['sender_id'] as String? ?? '';
   final profile = data['sender_profile'] as String? ?? '';
+  final time = data['created_at'] as String? ?? '';
 
-  createConversationShortcut(senderId, senderName, profile);
+  createOrUpdateShortcutIfNeeded(senderId, senderName, profile);
 
   if (chatId.isEmpty) return;
 
-  final List<Map<String, dynamic>> messages = await loadChatMessages(chatId);
+  List<Map<String, dynamic>> messages = await loadChatMessages(chatId);
   messages.add({
     'sender_name': senderName,
     'sender_id': senderId,
     'text': messageText,
-    'time': DateTime.now().toIso8601String(),
+    'time': time,
   });
 
-  messages.sortWithDate((e)=>DateTime.parse(e['time']));
+  messages = messages.sortWithDate((e)=>DateTime.parse(e['time']));
 
-  if (messages.length > 5) {
+  if (messages.length > 10) {
     messages.removeAt(0);
   }
+  
   await saveChatMessages(chatId, messages);
 
   final collapsedTitle = "new message";
