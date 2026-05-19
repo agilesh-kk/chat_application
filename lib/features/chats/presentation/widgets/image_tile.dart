@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
@@ -47,39 +49,18 @@ class ImageMessageTile extends StatefulWidget {
 }
 
 class _ImageMessageTileState extends State<ImageMessageTile>
-    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
   Uint8List? imageBytes;
   bool isLoading = true;
-
-  /// 🔥 Animation
-  late AnimationController _controller;
-  late Animation<double> _scale;
+  double _displayW = 242;
+  static final Map<String, double> _imageSizeCache = {};
 
   @override
   void initState() {
     super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _scale = TweenSequence([
-      TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 1.15)
-            .chain(CurveTween(curve: Curves.easeOut)),
-        weight: 50,
-      ),
-      TweenSequenceItem(
-        tween: Tween(begin: 1.15, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeIn)),
-        weight: 50,
-      ),
-    ]).animate(_controller);
-
     _loadImage();
   }
 
@@ -90,27 +71,27 @@ class _ImageMessageTileState extends State<ImageMessageTile>
     if (oldWidget.message.id != widget.message.id) {
       _loadImage();
     }
-
-    /// 🔥 Trigger zoom animation
-    if (widget.flash && !oldWidget.flash) {
-      _controller.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   Future<void> _loadImage() async {
+    if (!isLoading && imageBytes != null) return;
+
     final msg = widget.message;
 
-    /// 🧠 MEMORY CACHE
     if (widget.cacheService.cache.containsKey(msg.id)) {
       imageBytes = widget.cacheService.cache[msg.id];
       isLoading = false;
+
+      final cached = _imageSizeCache[msg.id];
+      if (cached != null) {
+        _displayW = cached;
+      }
+
       if (mounted) setState(() {});
+
+      if (cached == null) {
+        _cacheImageSize(msg.id, imageBytes!);
+      }
       return;
     }
 
@@ -119,7 +100,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
         final response = await http.get(Uri.parse(msg.localPath!));
         if (response.statusCode == 200) {
           imageBytes = response.bodyBytes;
-          widget.cacheService.cache[msg.id] = imageBytes!;
+          widget.cacheService.cache[msg.id] = response.bodyBytes;
           isLoading = false;
           if (mounted) setState(() {});
           return;
@@ -130,7 +111,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
         final response = await http.get(Uri.parse(msg.content));
         if (response.statusCode == 200) {
           imageBytes = response.bodyBytes;
-          widget.cacheService.cache[msg.id] = imageBytes!;
+          widget.cacheService.cache[msg.id] = response.bodyBytes;
           isLoading = false;
           if (mounted) setState(() {});
           return;
@@ -148,18 +129,43 @@ class _ImageMessageTileState extends State<ImageMessageTile>
       imageBytes = bytes;
       isLoading = false;
       if (mounted) setState(() {});
+      _cacheImageSize(msg.id, bytes);
       return;
     }
 
-    /// 🔵 NETWORK
     if (msg.content.isNotEmpty) {
       await widget.cacheService.getOrDownload(msg.content, msg.id);
-
       imageBytes = widget.cacheService.cache[msg.id];
       isLoading = false;
-
       if (mounted) setState(() {});
+      if (imageBytes != null) {
+        _cacheImageSize(msg.id, imageBytes!);
+      }
     }
+  }
+
+  Future<void> _cacheImageSize(String id, Uint8List bytes) async {
+    if (_imageSizeCache.containsKey(id)) return;
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final rawW = frame.image.width.toDouble();
+      final rawH = frame.image.height.toDouble();
+      frame.image.dispose();
+      codec.dispose();
+      double w = rawW, h = rawH;
+      if (w > 242) {
+        h *= 242 / w;
+        w = 242;
+      }
+      if (h > 292) {
+        w *= 292 / h;
+      }
+      _imageSizeCache[id] = w;
+      if (mounted && widget.message.id == id) {
+        setState(() { _displayW = w; });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -210,27 +216,22 @@ class _ImageMessageTileState extends State<ImageMessageTile>
           onReply: widget.onReply,
         );
       },
-      child: ScaleTransition(
-        scale: _scale,
-        child: Align(
-          alignment:
-              widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: widget.isMe
-                ? const EdgeInsets.only(left: 64, right: 8, top: 6,bottom: 6)
-                : const EdgeInsets.only(left: 8, right: 64, top: 6,bottom: 6),
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(
-              maxWidth: 250,
-              maxHeight: 300,
-            ),
-            decoration: BoxDecoration(
-              color: widget.flash
-                  ? AppPallete.primaryOrange.withValues(alpha: 0.3)
-                  : (widget.isMe
-                      ? const Color(0xFFB84A1A)
-                      : AppPallete.cardBg),
+      child: Align(
+        alignment:
+            widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: widget.isMe
+              ? const EdgeInsets.only(left: 64, right: 8, top: 6,bottom: 6)
+              : const EdgeInsets.only(left: 8, right: 64, top: 6,bottom: 6),
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(maxWidth: 250),
+          decoration: BoxDecoration(
+            color: widget.flash
+                ? Colors.amberAccent.withValues(alpha: 0.25)
+                : (widget.isMe
+                    ? const Color(0xFFB84A1A)
+                    : AppPallete.cardBg),
               borderRadius: BorderRadius.circular(16),
               border: widget.isMe
                   ? null
@@ -240,7 +241,6 @@ class _ImageMessageTileState extends State<ImageMessageTile>
               borderRadius: BorderRadius.circular(12),
               child: _buildContent(context),
             ),
-          ),
         ),
       ),
     );
@@ -423,97 +423,90 @@ class _ImageMessageTileState extends State<ImageMessageTile>
     }
     final msg = widget.message;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
+    if (isLoading) {
+      return const SizedBox(
+        height: 200,
+        child: Center(
+          child: CircularProgressIndicator(color: AppPallete.primaryOrange),
+        ),
+      );
+    }
 
-        if (isLoading) {
-          return SizedBox(
-            width: width,
-            height: height,
-            child: Center(
-              child: CircularProgressIndicator(
-                color: AppPallete.primaryOrange,
-              ),
-            ),
-          );
-        }
+    if (imageBytes != null) {
+      final hasReply = widget.message.replyToId != null && !widget.message.deletedForEveryone;
 
-        if (imageBytes != null) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.message.replyToId != null && !widget.message.deletedForEveryone)
-                _buildReplyPreview(),
-              Expanded(
-                child: Stack(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FullScreenImagePage(
-                              bytes: imageBytes!,
-                              tag: msg.id,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Hero(
-                        tag: msg.id,
-                        child: SizedBox(
-                          width: width,
-                          child: Image.memory(
-                            imageBytes!,
-                            fit: BoxFit.cover,
-                            gaplessPlayback: true,
-                          ),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hasReply) ...[
+            SizedBox(width: _displayW, child: _buildReplyPreview()),
+            const SizedBox(height: 4),
+          ],
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 242, maxHeight: 292),
+            child: Stack(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FullScreenImagePage(
+                          bytes: imageBytes!,
+                          tag: msg.id,
                         ),
                       ),
+                    );
+                  },
+                  child: Hero(
+                    tag: msg.id,
+                    child: Image.memory(
+                      imageBytes!,
+                      fit: BoxFit.scaleDown,
+                      gaplessPlayback: true,
                     ),
-
-                    Positioned(
-                      bottom: 5,
-                      right: 5,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (widget.message.inTimeline)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 4),
-                                child: Icon(Icons.favorite, size: 12, color: Colors.red),
-                              ),
-                            Text(
-                              DateFormat('h:mm a').format(msg.createdAt),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: AppPallete.whiteColor,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            _buildStatus(msg.status, widget.isMe),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        }
 
-        return const SizedBox();
-      },
-    );
+                Positioned(
+                  bottom: 5,
+                  right: 5,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (widget.message.inTimeline)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Icon(Icons.favorite, size: 12, color: Colors.red),
+                          ),
+                        Text(
+                          DateFormat('h:mm a').format(msg.createdAt),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppPallete.whiteColor,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        _buildStatus(msg.status, widget.isMe),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return const SizedBox();
   }
 
   Widget _buildStatus(String status, bool isMe) {

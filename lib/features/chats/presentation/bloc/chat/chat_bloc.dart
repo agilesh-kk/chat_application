@@ -8,6 +8,7 @@ import 'package:chat_application/features/chats/domain/usecase/mark_messages_del
 import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
 import 'package:chat_application/features/chats/domain/usecase/toggle_reaction.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';

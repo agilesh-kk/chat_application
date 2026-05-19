@@ -41,9 +41,8 @@ class MessageBubble extends StatefulWidget {
 }
 
 class _MessageBubbleState extends State<MessageBubble>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final AnimationController _scaleController;
 
   late final Animation<double> fade;
   late final Animation<Offset> slide;
@@ -57,11 +56,6 @@ class _MessageBubbleState extends State<MessageBubble>
       duration: const Duration(milliseconds: 250),
     );
 
-    _scaleController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
     fade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -69,7 +63,6 @@ class _MessageBubbleState extends State<MessageBubble>
       ),
     );
 
-    // Slide animation - only for initial animate, not for highlight
     final slideX = widget.isMe ? 0.5 : -0.5;
     slide = Tween<Offset>(
       begin: Offset(slideX, 0.0),
@@ -83,22 +76,6 @@ class _MessageBubbleState extends State<MessageBubble>
       _controller.forward();
     } else {
       _controller.value = 1;
-    }
-    
-    if (widget.highlight) {
-      _scaleController.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant MessageBubble oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (widget.highlight && !oldWidget.highlight) {
-      _scaleController.repeat(reverse: true);
-    } else if (!widget.highlight && oldWidget.highlight) {
-      _scaleController.stop();
-      _scaleController.reset();
     }
   }
 
@@ -147,31 +124,15 @@ class _MessageBubbleState extends State<MessageBubble>
           onReply: widget.onReply,
         );
       },
-      child: widget.highlight 
-        ? Align(
-            alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
-            child: AnimatedBuilder(
-              animation: _scaleController,
-              builder: (context, child) {
-                final scale = 1.0 + (_scaleController.value * 0.15);
-                return Transform.scale(
-                  scale: scale,
-                  alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
-                  child: child,
-                );
-              },
+      child: widget.animate
+        ? FadeTransition(
+            opacity: fade,
+            child: SlideTransition(
+              position: slide,
               child: bubble,
             ),
           )
-        : widget.animate
-          ? FadeTransition(
-              opacity: fade,
-              child: SlideTransition(
-                position: slide,
-                child: bubble,
-              ),
-            )
-          : bubble,
+        : bubble,
     );
   }
 
@@ -444,7 +405,6 @@ return Align(
   @override
   void dispose() {
     _controller.dispose();
-    _scaleController.dispose();
     super.dispose();
   }
 }
