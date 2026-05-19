@@ -12,6 +12,7 @@ class Message{
   final DateTime? sendAt;
   final bool? isScheduled;
   final bool inTimeline;
+  final bool isEdited;
   final Map<String, String> reactions;
   final String? replyToId;
   final String? replyToContent;
@@ -32,6 +33,7 @@ class Message{
     this.sendAt,
     this.isScheduled,
     this.inTimeline=false,
+    this.isEdited = false,
     this.reactions = const {},
     this.replyToId,
     this.replyToContent,

@@ -113,3 +113,17 @@ class ToggleReactionEvent extends ChatEvent {
     required this.emoji,
   });
 }
+
+class EditMessageEvent extends ChatEvent {
+  final String userId;
+  final String receiverId;
+  final String msgId;
+  final String newContent;
+
+  EditMessageEvent({
+    required this.userId,
+    required this.receiverId,
+    required this.msgId,
+    required this.newContent,
+  });
+}

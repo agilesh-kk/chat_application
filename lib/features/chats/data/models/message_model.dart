@@ -16,6 +16,7 @@ class MessageModel extends Message {
     super.sendAt,
     super.isScheduled,
     super.inTimeline,
+    super.isEdited,
     super.reactions,
     super.replyToId,
     super.replyToContent,
@@ -43,6 +44,7 @@ class MessageModel extends Message {
         : null,
       isScheduled: map['isScheduled'] ?? false,
       inTimeline: map["inTimeline"] ?? false,
+      isEdited: map['isEdited'] ?? false,
       reactions: map["reactions"] is Map
           ? Map<String, String>.from(map["reactions"] as Map)
           : {},
@@ -64,6 +66,7 @@ class MessageModel extends Message {
       "type": type,
       "isScheduled": sendAt != null,
       "inTimeline": inTimeline,
+      "isEdited": isEdited,
       "reactions": reactions,
     };
 

@@ -16,6 +16,7 @@ class MessageBubble extends StatefulWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onReply;
   final VoidCallback? onReplyTap;
+  final VoidCallback? onEdit;
 
   final String currentUserId;
   final String receiverId;
@@ -30,6 +31,7 @@ class MessageBubble extends StatefulWidget {
     this.onDelete,
     this.onReply,
     this.onReplyTap,
+    this.onEdit,
 
     required this.currentUserId,
     required this.receiverId,
@@ -122,6 +124,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 }
               : null,
           onReply: widget.onReply,
+          onEdit: widget.onEdit,
         );
       },
       child: widget.animate
@@ -247,14 +250,14 @@ return Align(
         Flexible(
           child: Text(
             widget.message.deletedForEveryone
-              ? "This message was deleted "
-              : widget.message.content,
+                ? "This message was deleted "
+                : widget.message.content,
             style: TextStyle(
               fontSize: 15,
               fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
               color: widget.message.deletedForEveryone
-                ? AppPallete.greyText
-                : (widget.isMe ? AppPallete.whiteColor : AppPallete.whiteColor),
+                  ? AppPallete.greyText
+                  : (widget.isMe ? AppPallete.whiteColor : AppPallete.whiteColor),
             ),
           ),
         ),
@@ -270,6 +273,13 @@ return Align(
           Padding(
             padding: const EdgeInsets.only(right: 4),
             child: Icon(Icons.favorite, size: 12, color: Colors.red),
+          ),
+        if (widget.message.isEdited && !widget.message.deletedForEveryone)
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Icon(Icons.edit, size: 12, color: widget.isMe
+                ? AppPallete.whiteColor.withValues(alpha: 0.7)
+                : AppPallete.greyText),
           ),
         Text(
           time,

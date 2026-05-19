@@ -84,5 +84,11 @@ abstract interface class ChatRepository{
     required String messageId,
     required String emoji,
   });
-  
+
+  Future<void> editMessage({
+    required String userId,
+    required String receiverId,
+    required String msgId,
+    required String newContent,
+  });
 }

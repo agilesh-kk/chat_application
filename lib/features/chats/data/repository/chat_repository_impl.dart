@@ -212,4 +212,23 @@ class ChatRepositoryImpl implements ChatRepository {
       throw ServerExceptions(e.toString());
     }
   }
+
+  @override
+  Future<void> editMessage({
+    required String userId,
+    required String receiverId,
+    required String msgId,
+    required String newContent,
+  }) async {
+    try {
+      await chatRemoteDataSources.editMessage(
+        userId: userId,
+        receiverId: receiverId,
+        msgId: msgId,
+        newContent: newContent,
+      );
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
 }

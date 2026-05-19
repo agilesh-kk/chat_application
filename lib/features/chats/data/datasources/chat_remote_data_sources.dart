@@ -73,6 +73,13 @@ abstract interface class ChatRemoteDataSources {
     required String messageId,
     required String emoji,
   });
+
+  Future<void> editMessage({
+    required String userId,
+    required String receiverId,
+    required String msgId,
+    required String newContent,
+  });
 }
 
 class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
@@ -159,14 +166,23 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           .collection("messages")
           .doc(messageId);
 
+      final convoRef = firestore.collection("Conversations").doc(convoId);
+
       await firestore.runTransaction((tx) async {
         final doc = await tx.get(msgRef);
         if (!doc.exists) return;
 
         final data = doc.data()!;
+        final messageSenderId = data['senderId'] as String?;
+        if (messageSenderId == null) return;
+
+        final convoDoc = await tx.get(convoRef);
+        if (!convoDoc.exists) return;
+        final convoData = convoDoc.data()!;
+
         final reactions = Map<String, dynamic>.from(data['reactions'] as Map? ?? {});
         final currentReaction = reactions[userId];
-        final isNewReaction = currentReaction != emoji;
+        final isAddOrChange = currentReaction != emoji;
 
         if (currentReaction == emoji) {
           reactions.remove(userId);
@@ -175,26 +191,75 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }
         tx.update(msgRef, {'reactions': reactions});
 
-        if (isNewReaction) {
-          final messageSenderId = data['senderId'] as String?;
-          if (messageSenderId != null) {
-            final convoRef = firestore
-                .collection("Conversations")
-                .doc(convoId);
+        if (isAddOrChange) {
+          tx.update(convoRef, {
+            "$messageSenderId.lastMessage": "Reacted $emoji to a message",
+            "$messageSenderId.lastSender": userId,
+          });
+        } else {
+          final sourceId = userId == messageSenderId ? receiverId : userId;
+          final lastMessage = convoData[sourceId]?["lastMessage"] ?? "";
+          final lastMessageId = convoData[sourceId]?["lastMessageId"] ?? "";
+          final lastSender = convoData[sourceId]?["lastSender"] ?? "";
+
+          tx.update(convoRef, {
+            "$messageSenderId.lastMessage": lastMessage,
+            "$messageSenderId.lastMessageId": lastMessageId,
+            "$messageSenderId.lastSender": lastSender,
+          });
+        }
+      });
+    } catch (e) {
+      //print("Toggle reaction error: $e");
+    }
+  }
+
+  @override
+  Future<void> editMessage({
+    required String userId,
+    required String receiverId,
+    required String msgId,
+    required String newContent,
+  }) async {
+    try {
+      final convoId = generateConversationId(userId, receiverId);
+      final msgRef = firestore
+          .collection("Conversations")
+          .doc(convoId)
+          .collection("messages")
+          .doc(msgId);
+
+      final convoRef = firestore.collection("Conversations").doc(convoId);
+
+      await firestore.runTransaction((tx) async {
+        final doc = await tx.get(msgRef);
+        if (!doc.exists) return;
+
+        final convoDoc = await tx.get(convoRef);
+
+        tx.update(msgRef, {
+          "content": newContent,
+          "isEdited": true,
+          "editedAt": FieldValue.serverTimestamp(),
+        });
+
+        if (convoDoc.exists) {
+          final convoData = convoDoc.data()!;
+          final isLastMessage =
+              convoData[userId]?["lastMessageId"] == msgId ||
+              convoData[receiverId]?["lastMessageId"] == msgId;
+
+          if (isLastMessage) {
             tx.update(convoRef, {
-              "$messageSenderId.lastMessage": "Reacted $emoji to a message",
-              "$messageSenderId.lastSender": userId,
-              //"lastupdateTime": FieldValue.serverTimestamp(),
-              "$userId.lastMessage": "Reacted $emoji to a message",
-              "$userId.lastSender": userId,
-              "$receiverId.lastMessage": "Reacted $emoji to a message",
-              "$receiverId.lastSender": userId,
+              "$userId.lastMessage": newContent,
+              "$receiverId.lastMessage": newContent,
+              "lastupdateTime": FieldValue.serverTimestamp(),
             });
           }
         }
       });
     } catch (e) {
-      //print("Toggle reaction error: $e");
+      //print("Edit message error: $e");
     }
   }
 

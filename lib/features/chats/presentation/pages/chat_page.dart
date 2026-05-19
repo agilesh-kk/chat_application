@@ -60,6 +60,9 @@ class _ChatPageState extends State<ChatPage> {
   String lastAnimated = "";
   bool firstTime = true;
   Message? _replyToMessage;
+  String? _editingMessageId;
+
+  bool get _isEditing => _editingMessageId != null;
 
   final ItemScrollController _scrollController = ItemScrollController();
   final ItemPositionsListener _positionsListener = ItemPositionsListener.create();
@@ -159,6 +162,19 @@ class _ChatPageState extends State<ChatPage> {
   void _send() {
     final text = controller.text.trim();
     if (text.isEmpty) return;
+
+    if (_isEditing) {
+      context.read<ChatBloc>().add(EditMessageEvent(
+        userId: widget.currentUserId,
+        receiverId: widget.receiverId,
+        msgId: _editingMessageId!,
+        newContent: text,
+      ));
+      controller.clear();
+      _clearEdit();
+      return;
+    }
+
     final user = context.read<AppUserCubit>().state;
     context.read<ChatBloc>().add(SendMessageEvent(
           userId: widget.currentUserId,
@@ -177,6 +193,20 @@ class _ChatPageState extends State<ChatPage> {
 
   void _clearReply() {
     setState(() => _replyToMessage = null);
+  }
+
+  void _onEditMessage(Message msg) {
+    setState(() {
+      _editingMessageId = msg.id;
+      controller.text = msg.content;
+      _replyToMessage = null;
+    });
+    _messageFocusNode.requestFocus();
+  }
+
+  void _clearEdit() {
+    setState(() => _editingMessageId = null);
+    controller.clear();
   }
 
   Future<void> _handleTimeCapsule() async {
@@ -250,7 +280,8 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               _buildHeader(context),
               _buildMessages(),
-              if (_replyToMessage != null) _buildReplyBar(),
+              if (_isEditing) _buildEditBar()
+              else if (_replyToMessage != null) _buildReplyBar(),
               _buildInput(),
             ],
           ),
@@ -633,6 +664,38 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  Widget _buildEditBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppPallete.primaryOrange.withValues(alpha: 0.15),
+        border: Border(
+          top: BorderSide(color: AppPallete.divider.withValues(alpha: 0.3)),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.edit, color: AppPallete.primaryOrange, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              "Editing message",
+              style: const TextStyle(
+                color: AppPallete.primaryOrange,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: _clearEdit,
+            child: const Icon(Icons.close, color: AppPallete.greyText, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildReplyBar() {
     if (_replyToMessage == null) return const SizedBox();
     final isOwnReply = _replyToMessage!.senderId == widget.currentUserId;
@@ -650,19 +713,20 @@ class _ChatPageState extends State<ChatPage> {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: _pickImage,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppPallete.cardBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppPallete.divider),
+          if (!_isEditing)
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppPallete.cardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppPallete.divider),
+                ),
+                child: const Icon(Icons.image, color: AppPallete.greyText, size: 22),
               ),
-              child: const Icon(Icons.image, color: AppPallete.greyText, size: 22),
             ),
-          ),
-          const SizedBox(width: 12),
+          if (!_isEditing) const SizedBox(width: 12),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -676,11 +740,11 @@ class _ChatPageState extends State<ChatPage> {
                 minLines: 1,
                 maxLines: 5,
                 style: const TextStyle(color: AppPallete.whiteColor),
-                decoration: const InputDecoration(
-                  hintText: "Type message...",
-                  hintStyle: TextStyle(color: AppPallete.greyText),
+                decoration: InputDecoration(
+                  hintText: _isEditing ? "Edit message..." : "Type message...",
+                  hintStyle: const TextStyle(color: AppPallete.greyText),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
               ),
             ),
@@ -688,7 +752,7 @@ class _ChatPageState extends State<ChatPage> {
           const SizedBox(width: 12),
           GestureDetector(
             onTap: _send,
-            onLongPress: () {
+            onLongPress: _isEditing ? null : () {
               showDialog(
                 context: context,
                 builder: (_) => SendOptionsDialog(onSendNormally: _send, onTimeCapsule: _handleTimeCapsule),
@@ -701,7 +765,7 @@ class _ChatPageState extends State<ChatPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [BoxShadow(color: AppPallete.primaryOrange.withValues(alpha: 0.3), blurRadius: 10, offset: Offset(0, 4))],
               ),
-              child: const Icon(Icons.send, color: AppPallete.whiteColor, size: 22),
+              child: Icon(_isEditing ? Icons.check : Icons.send, color: AppPallete.whiteColor, size: 22),
             ),
           ),
         ],
@@ -740,6 +804,7 @@ class _ChatPageState extends State<ChatPage> {
             _messageFocusNode.requestFocus();
           },
           onReplyTap: () => _onReplyTap(msg.replyToId!),
+          onEdit: isMe ? () => _onEditMessage(msg) : null,
         );
       case "image":
         return ImageMessageTile(
@@ -770,6 +835,7 @@ class _ChatPageState extends State<ChatPage> {
             _messageFocusNode.requestFocus();
           },
           onReplyTap: () => _onReplyTap(msg.replyToId!),
+          onEdit: null,
         );
       default:
         return const SizedBox();

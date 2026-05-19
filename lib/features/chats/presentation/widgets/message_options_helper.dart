@@ -20,13 +20,14 @@ class MessageOptionsTray {
     bool hasReacted = false,
     VoidCallback? onRemoveReaction,
     VoidCallback? onReply,
+    VoidCallback? onEdit,
   }) async {
     final screenSize = MediaQuery.of(context).size;
     const popupWidth = 260.0;
     const emojiRowHeight = 64.0;
     const itemHeight = 48.0;
 
-    int itemCount = (msgType == "text" ? 1 : 0) + (isMe ? 1 : 0) + (hasReacted ? 1 : 0) + 2;
+    int itemCount = (msgType == "text" ? 1 : 0) + (isMe ? 1 : 0) + (hasReacted ? 1 : 0) + (isMe && msgType == "text" ? 1 : 0) + 2;
     double popupHeight = emojiRowHeight + 1 + itemCount * itemHeight + 8;
 
     double left = position.dx;
@@ -113,6 +114,16 @@ class MessageOptionsTray {
                         onTap: () {
                           Navigator.pop(ctx);
                           Clipboard.setData(ClipboardData(text: content));
+                        },
+                      ),
+                    if (isMe && msgType == "text")
+                      _buildMenuItem(
+                        context: ctx,
+                        icon: Icons.edit,
+                        label: 'Edit',
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          if (onEdit != null) onEdit();
                         },
                       ),
                     if (isMe)

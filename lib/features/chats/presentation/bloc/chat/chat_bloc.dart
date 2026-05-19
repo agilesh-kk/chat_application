@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/usecase/delete_message.dart';
+import 'package:chat_application/features/chats/domain/usecase/edit_message.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
 import 'package:chat_application/features/chats/domain/usecase/mark_messages_delivered.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
@@ -24,6 +25,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   final DeleteMessage _deleteMessage;
   final MarkMessagesDelivered _markMessagesDelivered;
   final ToggleReaction _toggleReaction;
+  final EditMessage _editMessage;
 
   String? _currentUserId;
   String? _currentReceiverId;
@@ -37,6 +39,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     required DeleteMessage deleteMessage,
     required MarkMessagesDelivered markMessagesDelivered,
     required ToggleReaction toggleReaction,
+    required EditMessage editMessage,
   })
    :
    _getMessages = getMessages,
@@ -45,6 +48,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
    _deleteMessage = deleteMessage, 
    _markMessagesDelivered = markMessagesDelivered,
    _toggleReaction = toggleReaction,
+   _editMessage = editMessage,
    super(ChatInitial()) {
 
     on<Closechat>((event, emit)async {
@@ -231,6 +235,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<DeleteMessageEvent>(_onDeleteMessageEvent);
     on<MarkMessagesDeliveredEvent>(_onMarkMessagesDeleiveredEvent);
     on<ToggleReactionEvent>(_onToggleReactionEvent);
+    on<EditMessageEvent>(_onEditMessageEvent);
 
   }
 
@@ -345,5 +350,14 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         emoji: event.emoji,
       ),
     );
+  }
+
+  FutureOr<void> _onEditMessageEvent(EditMessageEvent event, Emitter<ChatState> emit) async {
+    await _editMessage(EditMessageParams(
+      userId: event.userId,
+      receiverId: event.receiverId,
+      msgId: event.msgId,
+      newContent: event.newContent,
+    ));
   }
 }

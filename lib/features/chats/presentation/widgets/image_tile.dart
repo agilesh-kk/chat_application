@@ -24,6 +24,7 @@ class ImageMessageTile extends StatefulWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onReply;
   final VoidCallback? onReplyTap;
+  final VoidCallback? onEdit;
 
   final String currentUserId;
   final String receiverId;
@@ -38,6 +39,7 @@ class ImageMessageTile extends StatefulWidget {
     this.onDelete,
     this.onReply,
     this.onReplyTap,
+    this.onEdit,
 
     required this.currentUserId,
     required this.receiverId,
@@ -214,6 +216,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
                 }
               : null,
           onReply: widget.onReply,
+          onEdit: widget.onEdit,
         );
       },
       child: Align(
