@@ -72,6 +72,7 @@ Future<void> createOrUpdateShortcutIfNeeded(
 
 @pragma('vm:entry-point')
 void notificationActionHandler(final response)async{
+  await Firebase.initializeApp();
       if (response.actionId == 'REPLY') {
         final input = response.input;
         final payload = response.payload;
@@ -142,13 +143,13 @@ Future<void> _showRepliedNotification(String chatId, String text, String current
 
 
   final messagingStyle = MessagingStyleInformation(
-    _personCache[data['sender_id']]!,
+    Person(name: data['sender_name'], key: data['sender_id'],important: true,icon: DrawableResourceAndroidIcon("empty")),
     messages: messages.map(
       (m){
         return Message(
           m['text'] ?? '',
           DateTime.parse(m['time'] as String),
-          (m['sender_id']==currentUserId)?_personCache['you']:null,
+          (m['sender_id']==currentUserId)?Person(name: "You",key: "you",icon: DrawableResourceAndroidIcon("empty")):null,
           );
     }).toList(),
     groupConversation: true,
@@ -182,8 +183,6 @@ Future<void> _showRepliedNotification(String chatId, String text, String current
                 allowFreeFormInput: true,
               ),
             ],
-            cancelNotification: true,
-            showsUserInterface: true
           ),
         ],
       ),
@@ -231,7 +230,6 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
   final collapsedTitle = "new message";
   final collapsedBody = "message";
 
-  _personCache['you'] = Person(name: "You",icon: DrawableResourceAndroidIcon('empty'),important: true);
   _personCache[senderId] ??= Person(name: senderName, key: senderId,important: true,icon: DrawableResourceAndroidIcon("empty"));
   for (final m in messages) {
     final sid = m['sender_id'] as String;
@@ -269,6 +267,7 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
         styleInformation: messagingStyle,
         actions: [
           AndroidNotificationAction(
+            allowGeneratedReplies: true,
             'REPLY',
             'Reply',
             inputs: [
@@ -277,8 +276,6 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
                 allowFreeFormInput: true,
               ),
             ],
-            cancelNotification: true,
-            showsUserInterface: true
           ),
         ],
       ),
