@@ -6,6 +6,7 @@ import 'package:chat_application/core/data/user_device_data_source.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part 'app_user_state.dart';
 
@@ -21,15 +22,31 @@ class AppUserCubit extends Cubit<AppUserState> {
 
   void updateUser(User? user){
     if(user == null){
+      _clearUserFromPrefs();
       _stopHeartbeat();
       _deleteToken();
       emit(AppUserInitial());
     }
     else{
       emit(AppUserIsSignedin(user));
+      _saveUserToPrefs(user);
       _startHeartbeat();
       _initToken(user.id);
     }
+  }
+
+  Future<void> _saveUserToPrefs(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('current_user_id', user.id);
+    await prefs.setString('current_user_name', user.name);
+    await prefs.setString('current_user_profile', user.profilePic ?? '');
+  }
+
+  Future<void> _clearUserFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('current_user_id');
+    await prefs.remove('current_user_name');
+    await prefs.remove('current_user_profile');
   }
 
   Future<void> _initToken(String userId) async {
