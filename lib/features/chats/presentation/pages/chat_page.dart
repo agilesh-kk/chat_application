@@ -78,8 +78,6 @@ class _ChatPageState extends State<ChatPage> {
     widget.cacheService = CacheService();
     cb = context.read<ChatBloc>()
       ..add(LoadMessagesEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
-    context.read<ChatBloc>().add(
-        MarkMessagesDeliveredEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
   }
 
   @override

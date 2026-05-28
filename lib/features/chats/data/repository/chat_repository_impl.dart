@@ -134,6 +134,11 @@ class ChatRepositoryImpl implements ChatRepository {
             await chatLocalDataSource.markMessagesSeen(msgIds, seenByUserId);
           }
           break;
+
+        case 'timeline':
+          final msgId = opData['messageId'] as String? ?? docId;
+          final added = opData['addedToTimeline'] as bool? ?? false;
+          await chatLocalDataSource.updateMessageTimeline(msgId, added);
       }
 
       // Delete the operation after successful processing
@@ -165,25 +170,9 @@ class ChatRepositoryImpl implements ChatRepository {
     try {
       final opCollection = _getMyOpCollection(userId, receiverId);
 
-      await chatRemoteDataSources.sendMessage(
-        receiverId: receiverId,
-        userId: userId,
-        content: content,
-        userName: userName,
-        userProfile: userProfile,
-        msgId: msgId,
-        sendAt: sendAt,
-        replyToId: replyToId,
-        replyToContent: replyToContent,
-        replyToSenderId: replyToSenderId,
-        replyToType: replyToType,
-        opCollection: isScheduled ? null : opCollection,
-      );
-
-      // Confirm local message (replace optimistic entry)
       if (!isScheduled) {
         final convoId = generateConversationId(userId, receiverId);
-        await chatLocalDataSource.confirmLocalMessage(msgId, {
+        chatLocalDataSource.confirmLocalMessage(msgId, {
           'senderId': userId,
           'content': content,
           'type': 'text',
@@ -205,6 +194,21 @@ class ChatRepositoryImpl implements ChatRepository {
           'convoId': convoId,
         });
       }
+
+      await chatRemoteDataSources.sendMessage(
+        receiverId: receiverId,
+        userId: userId,
+        content: content,
+        userName: userName,
+        userProfile: userProfile,
+        msgId: msgId,
+        sendAt: sendAt,
+        replyToId: replyToId,
+        replyToContent: replyToContent,
+        replyToSenderId: replyToSenderId,
+        replyToType: replyToType,
+        opCollection: isScheduled ? null : opCollection,
+      );
 
       return right(null);
     } on ServerExceptions catch (e) {
@@ -233,21 +237,6 @@ class ChatRepositoryImpl implements ChatRepository {
         msgId: msgId,
       );
 
-      await chatRemoteDataSources.sendMessage(
-        type: "image",
-        receiverId: receiverId,
-        userId: userId,
-        msgId: msgId,
-        content: imageUrl,
-        userName: userName,
-        userProfile: userProfile,
-        replyToId: replyToId,
-        replyToContent: replyToContent,
-        replyToSenderId: replyToSenderId,
-        replyToType: replyToType,
-        opCollection: _getMyOpCollection(userId, receiverId),
-      );
-
       // Confirm local message
       final convoId = generateConversationId(userId, receiverId);
       await chatLocalDataSource.confirmLocalMessage(msgId, {
@@ -271,6 +260,21 @@ class ChatRepositoryImpl implements ChatRepository {
         'profile': userProfile,
         'convoId': convoId,
       });
+
+      await chatRemoteDataSources.sendMessage(
+        type: "image",
+        receiverId: receiverId,
+        userId: userId,
+        msgId: msgId,
+        content: imageUrl,
+        userName: userName,
+        userProfile: userProfile,
+        replyToId: replyToId,
+        replyToContent: replyToContent,
+        replyToSenderId: replyToSenderId,
+        replyToType: replyToType,
+        opCollection: _getMyOpCollection(userId, receiverId),
+      );
 
       return right(null);
     } catch (e) {

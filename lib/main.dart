@@ -370,9 +370,73 @@ Future<void> sendReplyFromNotification(String replyText, String payload) async {
   final msgId = const Uuid().v4();
   final firestore = FirebaseFirestore.instance;
   final convoRef = firestore.collection("Conversations").doc(chatId);
+  _showRepliedNotification(chatId, replyText, currentUserId, currentUserName ?? 'Unknown', data);
 
   try {
+
+    try {
+      final supabase = SupabaseClient(AppKeys.supabaseUrl, AppKeys.anonKey);
+      supabase.from('messages').insert({
+        'chat_id': chatId,
+        'sender_id': currentUserId,
+        'receiver_id': receiverId,
+        'name': currentUserName ?? 'Unknown',
+        'text': replyText,
+        'sender_profile': currentUserProfile,
+      });
+    } catch (_) {}
+
     final batch = firestore.batch();
+
+    final opRef = convoRef.collection('operation_1').doc();
+    final opRef2 = convoRef.collection('operation_2').doc();
+        batch.set(opRef, {
+          "type": "new_message",
+          "messageId": msgId,
+          "senderId": currentUserId,
+          "content": replyText,
+          "messageType": "text",
+          "status": "sent",
+          "receiverId": receiverId,
+          "convoId": chatId,
+          "name": currentUserName ?? "Unknown",
+          "profile": currentUserProfile ?? "assets/profile_images/pfp1.png",
+          "deletedfor": [],
+          "deletedForEveryone": false,
+          "reactions": {},
+          "replyToId": null,
+          "replyToContent": null,
+          "replyToSenderId": null,
+          "replyToType": null,
+          "isScheduled": false,
+          "inTimeline": false,
+          "createdAt": FieldValue.serverTimestamp(),
+          "timestamp": FieldValue.serverTimestamp(),
+    });
+
+    batch.set(opRef2, {
+          "type": "new_message",
+          "messageId": msgId,
+          "senderId": currentUserId,
+          "content": replyText,
+          "messageType": "text",
+          "status": "sent",
+          "receiverId": receiverId,
+          "convoId": chatId,
+          "name": currentUserName ?? "Unknown",
+          "profile": currentUserProfile ?? "assets/profile_images/pfp1.png",
+          "deletedfor": [],
+          "deletedForEveryone": false,
+          "reactions": {},
+          "replyToId": null,
+          "replyToContent": null,
+          "replyToSenderId": null,
+          "replyToType": null,
+          "isScheduled": false,
+          "inTimeline": false,
+          "createdAt": FieldValue.serverTimestamp(),
+          "timestamp": FieldValue.serverTimestamp(),
+    });
 
     batch.set(convoRef.collection("messages").doc(msgId), {
       'id': msgId,
@@ -428,21 +492,7 @@ Future<void> sendReplyFromNotification(String replyText, String payload) async {
     }, SetOptions(merge: true));
 
     await batch.commit();
-
-    try {
-      final supabase = SupabaseClient(AppKeys.supabaseUrl, AppKeys.anonKey);
-      await supabase.from('messages').insert({
-        'chat_id': chatId,
-        'sender_id': currentUserId,
-        'receiver_id': receiverId,
-        'name': currentUserName ?? 'Unknown',
-        'text': replyText,
-        'sender_profile': currentUserProfile,
-      });
-    } catch (_) {}
-  } finally {
-    _showRepliedNotification(chatId, replyText, currentUserId, currentUserName ?? 'Unknown', data);
-  }
+  }catch(_){}
 }
 
 void main() async {

@@ -22,6 +22,7 @@ abstract interface class ChatLocalDataSource {
   Future<void> confirmLocalMessage(String msgId, Map<String, dynamic> remoteData);
   Future<void> updateMessageDeletion(String msgId, List<String> deletedfor, bool deletedForEveryone);
   Future<void> updateMessageReaction(String msgId, Map<String, String> reactions);
+  Future<void> updateMessageTimeline(String msgId, bool added);
   Future<void> markMessagesSeen(List<String> msgIds, String seenByUserId);
   Future<void> deleteMessageLocally(String msgId);
   Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds);
@@ -294,6 +295,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       row['createdAt'] = originalCreatedAt;
     }
     row['isLocal'] = 0;
+    print(row['localPath']); 
     row['localPath'] = null;
     await _db!.insert('messages', row, conflictAlgorithm: ConflictAlgorithm.replace);
     if (convoId.isNotEmpty) _notify(convoId);
@@ -324,6 +326,22 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     await _db!.update(
       'messages',
       {'reactions': jsonEncode(reactions)},
+      where: 'id = ?',
+      whereArgs: [msgId],
+    );
+    final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
+    if (rows.isNotEmpty) {
+      final convoId = rows.first['conversationId'] as String;
+      _notify(convoId);
+    }
+  }
+
+  @override
+  Future<void> updateMessageTimeline(String msgId, bool added) async {
+    if (_db == null || kIsWeb) return;
+    await _db!.update(
+      'messages',
+      {'inTimeLine': added?1:0},
       where: 'id = ?',
       whereArgs: [msgId],
     );

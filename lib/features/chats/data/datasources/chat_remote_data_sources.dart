@@ -410,10 +410,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         "friends": FieldValue.arrayUnion([userId]),
       }, SetOptions(merge: true));
 
-      await batch.commit();
       if (!isScheduled) {
         try {
-          await supabase.from('messages').insert({
+           supabase.from('messages').insert({
             'chat_id': generateConversationId(userId, receiverId),
             'sender_id': userId,
             'receiver_id': receiverId,
@@ -426,6 +425,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }
       }
 
+      await batch.commit();
+
       if (!isScheduled) {
         // await processTimelineEvent(
         //   messageId: msgId,
@@ -436,7 +437,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         //   createdAt: Timestamp.now(),
         // );
 
-        final timelineService = TimelineService(firestore);
+        final timelineService = TimelineService(firestore,opCollection!);
 
         await timelineService.handleMessage(
           messageId: msgId,

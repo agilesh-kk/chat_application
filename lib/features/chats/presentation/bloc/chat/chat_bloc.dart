@@ -29,6 +29,10 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
   StreamSubscription<List<Message>>? _messageSub;
 
+  String? _currentUserId;
+  String? _currentReceiverId;
+  bool _alreadyMarkedRecently = false;
+
   ChatBloc({
     required GetMessages getMessages,
     required SendMessage sendMessage,
@@ -134,6 +138,9 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       // Stop previous op listener
       await _chatRepository.stopOperationListener();
 
+      _currentUserId = event.userId;
+      _currentReceiverId = event.receiverId;
+
       // Init local DB
       await _chatLocalDataSource.initDatabase();
 
@@ -149,14 +156,9 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         (failure) => emit(ChatError(failure.message)),
         (messageStream) {
           _messageSub = messageStream.listen(
-            (messages) => add(MessagesUpdatedEvent(messages)),
+            
+            (messages)  {print("1111111111111111111111111111111111111111111");add(MessagesUpdatedEvent(messages));},
           );
-
-          // Mark messages as delivered
-          add(MarkMessagesDeliveredEvent(
-            userId: event.userId,
-            receiverId: event.receiverId,
-          ));
         }
       );
     });
@@ -266,13 +268,14 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     });
 
     on<MessagesUpdatedEvent>((event, emit) {
-      emit(ChatLoaded(event.messages));
+      _updateMessages(event.messages, emit);
     });
 
     on<DeleteMessageEvent>(_onDeleteMessageEvent);
     on<MarkMessagesDeliveredEvent>(_onMarkMessagesDeleiveredEvent);
     on<ToggleReactionEvent>(_onToggleReactionEvent);
   }
+  
 
   @override
   Future<void> close() {
@@ -323,5 +326,31 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         emoji: event.emoji,
       ),
     );
+  }
+
+  void _updateMessages(List<Message> received, Emitter<ChatState> emit) {
+    final hasUnseen = received.any(
+      (msg) =>
+          msg.status == "sent" &&
+          !msg.isLocal,
+    );
+
+
+    if (hasUnseen &&
+        _currentUserId != null &&
+        _currentReceiverId != null) {
+      _alreadyMarkedRecently = true;
+
+      add(MarkMessagesDeliveredEvent(
+        userId: _currentUserId!,
+        receiverId: _currentReceiverId!,
+      ));
+
+      // Future.delayed(const Duration(milliseconds: 500), () {
+      //   _alreadyMarkedRecently = false;
+      // });
+    }
+
+    emit(ChatLoaded(received));
   }
 }
