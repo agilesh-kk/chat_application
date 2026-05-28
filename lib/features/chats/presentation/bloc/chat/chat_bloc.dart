@@ -1,7 +1,8 @@
 import 'dart:async';
 
-import 'package:chat_application/features/chats/data/models/message_model.dart';
+import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
+import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/chats/domain/usecase/delete_message.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_messages.dart';
 import 'package:chat_application/features/chats/domain/usecase/mark_messages_delivered.dart';
@@ -23,10 +24,9 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   final DeleteMessage _deleteMessage;
   final MarkMessagesDelivered _markMessagesDelivered;
   final ToggleReaction _toggleReaction;
+  final ChatRepository _chatRepository;
+  final ChatLocalDataSource _chatLocalDataSource;
 
-  String? _currentUserId;
-  String? _currentReceiverId;
-  bool _alreadyMarkedRecently = false;
   StreamSubscription<List<Message>>? _messageSub;
 
   ChatBloc({
@@ -36,6 +36,8 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     required DeleteMessage deleteMessage,
     required MarkMessagesDelivered markMessagesDelivered,
     required ToggleReaction toggleReaction,
+    required ChatRepository chatRepository,
+    required ChatLocalDataSource chatLocalDataSource,
   })
    :
    _getMessages = getMessages,
@@ -44,21 +46,23 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
    _deleteMessage = deleteMessage, 
    _markMessagesDelivered = markMessagesDelivered,
    _toggleReaction = toggleReaction,
+   _chatRepository = chatRepository,
+   _chatLocalDataSource = chatLocalDataSource,
    super(ChatInitial()) {
 
-    on<Closechat>((event, emit)async {
-      await _messageSub!.cancel();
+    on<Closechat>((event, emit) async {
+      await _messageSub?.cancel();
+      await _chatRepository.stopOperationListener();
       emit(ChatClosed());
-    },);
+    });
 
     on<SendImageEvent>((
       SendImageEvent event, Emitter<ChatState> emit) async {
 
       final current = state as ChatLoaded;
-
       final msgId = const Uuid().v4();
 
-      // ✅ 1. Create LOCAL MESSAGE
+      // 1. Create local message
       final localMessage = Message(
         senderId: event.userId,
         createdAt: DateTime.now(),
@@ -75,10 +79,35 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         replyToType: event.replyToType,
       );
 
-      // ✅ 2. Emit instantly (NO WAIT)
+      // 2. Add to local DB (optimistic)
+      final convoId = _generateConversationId(event.userId, event.receiverId);
+      await _chatLocalDataSource.upsertMessageFromFirestore({
+        'senderId': event.userId,
+        'content': '',
+        'type': 'image',
+        'messageType': 'image',
+        'status': 'sending',
+        'createdAt': DateTime.now(),
+        'deletedfor': <String>[],
+        'deletedForEveryone': false,
+        'reactions': <String, String>{},
+        'replyToId': event.replyToId,
+        'replyToContent': event.replyToContent,
+        'replyToSenderId': event.replyToSenderId,
+        'replyToType': event.replyToType,
+        'isScheduled': false,
+        'inTimeline': false,
+        'name': event.userName ?? 'Unknown',
+        'receiverId': event.receiverId,
+        'profile': event.userProfile,
+        'convoId': convoId,
+        'isLocal': true,
+      }, msgId);
+
+      // 3. Emit instantly
       emit(ChatLoaded([localMessage, ...current.messages]));
 
-      // ✅ 3. Call usecase (async)
+      // 4. Send in background
       await _sendImage(
         SendImageParams(
           receiverId: event.receiverId,
@@ -96,16 +125,19 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     });
 
     on<LoadMessagesEvent>((event, emit) async {
-      _currentUserId = event.userId;
-      _currentReceiverId = event.receiverId;
-
       emit(ChatLoading());
 
-      if(_messageSub!=null) {
+      if (_messageSub != null) {
         await _messageSub?.cancel();
       }
-      
-      //getting messages
+
+      // Stop previous op listener
+      await _chatRepository.stopOperationListener();
+
+      // Init local DB
+      await _chatLocalDataSource.initDatabase();
+
+      // Getting messages (repository handles initial load + local DB stream)
       final stream = await _getMessages(
         GetMessageParams(
           receiverId: event.receiverId,
@@ -114,31 +146,29 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       );
 
       stream.fold(
-        (failure) => ChatError(failure.message),
-        (convoStream){
-          _messageSub = convoStream.listen(
-            (messages)=>updateMessages(messages, emit),
+        (failure) => emit(ChatError(failure.message)),
+        (messageStream) {
+          _messageSub = messageStream.listen(
+            (messages) => add(MessagesUpdatedEvent(messages)),
           );
+
+          // Mark messages as delivered
+          add(MarkMessagesDeliveredEvent(
+            userId: event.userId,
+            receiverId: event.receiverId,
+          ));
         }
       );
     });
 
     on<SendMessageEvent>((event, emit) async {
-
       final currentState = state as ChatLoaded;
+      final msgId = const Uuid().v1();
+      final convoId = _generateConversationId(event.userId, event.receiverId);
 
-      var uid = Uuid();
-
-      //deciding whether it is a scheduled message or not and assigning the createdAt time.
-      //use it in future
-      // final DateTime createdTime =
-      //   event.isScheduled && event.sendAt != null
-      //   ? event.sendAt!
-      //   : DateTime.now();
-
-      // 1️ Create temporary message
-      final tempMessage = MessageModel(
-        id: uid.v1(),
+      // 1. Create temp message
+      final tempMessage = Message(
+        id: msgId,
         status: "uploading",
         senderId: event.userId,
         content: event.content,
@@ -152,16 +182,38 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         replyToType: event.replyToType,
       );
 
-      // 2️ Add to current list immediately (UI) if it is a normal message
-      // once the shceduled message is sent or pushed it will be updated to the chat UI.
-      if(!event.isScheduled){
+      // 2. Add to local DB (optimistic)
+      if (!event.isScheduled) {
+        await _chatLocalDataSource.upsertMessageFromFirestore({
+          'senderId': event.userId,
+          'content': event.content,
+          'type': 'text',
+          'messageType': 'text',
+          'status': 'uploading',
+          'createdAt': DateTime.now(),
+          'deletedfor': <String>[],
+          'deletedForEveryone': false,
+          'reactions': <String, String>{},
+          'replyToId': event.replyToId,
+          'replyToContent': event.replyToContent,
+          'replyToSenderId': event.replyToSenderId,
+          'replyToType': event.replyToType,
+          'isScheduled': false,
+          'inTimeline': false,
+          'name': event.userName ?? 'Unknown',
+          'receiverId': event.receiverId,
+          'profile': event.userProfile,
+          'convoId': convoId,
+          'isLocal': true,
+        }, msgId);
+
         final updatedMessages = List<Message>.from(currentState.messages)
-          ..insert(0,tempMessage);
+          ..insert(0, tempMessage);
         emit(ChatLoaded(updatedMessages));
       }
 
-      //if the message is scheduled
-      if(event.isScheduled){
+      // 3. Send to remote
+      if (event.isScheduled) {
         final res = await _sendMessage(
           SendMessageParams(
             msgId: tempMessage.id,
@@ -170,12 +222,8 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
             content: event.content,
             userName: event.userName,
             userProfile: event.userProfile,
-
-            //time capsule
             sendAt: event.sendAt,
             isScheduled: true,
-
-            //reply
             replyToId: event.replyToId,
             replyToContent: event.replyToContent,
             replyToSenderId: event.replyToSenderId,
@@ -187,12 +235,9 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           (failure) => emit(ChatError(failure.message)),
           (_) {},
         );
-
-        return; 
+        return;
       }
-    
 
-      // 3️ Send to Firestore in background
       final res = await _sendMessage(
         SendMessageParams(
           msgId: tempMessage.id,
@@ -201,10 +246,8 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           content: event.content,
           userName: event.userName,
           userProfile: event.userProfile,
-          //time capsule
           sendAt: event.sendAt,
           isScheduled: event.isScheduled,
-          //reply
           replyToId: event.replyToId,
           replyToContent: event.replyToContent,
           replyToSenderId: event.replyToSenderId,
@@ -217,8 +260,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           emit(ChatError(failure.message));
         },
         (_) {
-          // Do nothing
-          // Stream will update automatically
+          // Local DB updated by repository; stream will auto-emit
         },
       );
     });
@@ -230,80 +272,20 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<DeleteMessageEvent>(_onDeleteMessageEvent);
     on<MarkMessagesDeliveredEvent>(_onMarkMessagesDeleiveredEvent);
     on<ToggleReactionEvent>(_onToggleReactionEvent);
-
-  }
-
-  void updateMessages(List<Message> received, emit) {
-    // =========================
-    // 🔥 STEP 1: DETECT UNSEEN MESSAGES
-    // =========================
-    final hasUnseen = received.any(
-      (msg) =>
-          msg.senderId == _currentReceiverId && // ✅ only incoming
-          msg.status == "sent" &&
-          !msg.isLocal,
-    );
-
-    if (hasUnseen &&
-        !_alreadyMarkedRecently &&
-        _currentUserId != null &&
-        _currentReceiverId != null) {
-
-      _alreadyMarkedRecently = true;
-
-      add(MarkMessagesDeliveredEvent(
-        userId: _currentUserId!,
-        receiverId: _currentReceiverId!,
-      ));
-
-      // debounce reset
-      Future.delayed(const Duration(milliseconds: 500), () {
-        _alreadyMarkedRecently = false;
-      });
-    }
-
-    // =========================
-    // 🔥 STEP 2: YOUR EXISTING LOGIC
-    // =========================
-    if (state is ChatLoaded) {
-      final currentState = state as ChatLoaded;
-
-      final Map<String, Message> messageMap = {};
-
-      for (var msg in received) {
-        messageMap[msg.id] = msg;
-      }
-
-      for (var msg in currentState.messages) {
-        if (msg.isLocal && !messageMap.containsKey(msg.id)) {
-          messageMap[msg.id] = msg;
-        }
-      }
-
-      List<Message> updated = messageMap.values.toList();
-
-      updated.sort((a, b) {
-        return b.createdAt.compareTo(a.createdAt);
-      });
-
-      add(MessagesUpdatedEvent(updated));
-    } else {
-      add(MessagesUpdatedEvent(received));
-    }
-  }
-
-  String generateConversationId(String user1,String user2){
-    final sorted = [user1, user2]..sort();
-    return "${sorted[0]}_${sorted[1]}";
   }
 
   @override
   Future<void> close() {
     _messageSub?.cancel();
+    _chatRepository.stopOperationListener();
     return super.close();
   }
 
-  //event function for deleteMessage
+  String _generateConversationId(String user1, String user2) {
+    final sorted = [user1, user2]..sort();
+    return "${sorted[0]}_${sorted[1]}";
+  }
+
   FutureOr<void> _onDeleteMessageEvent(DeleteMessageEvent event, Emitter<ChatState> emit) async {
     final res = await _deleteMessage(
       DeleteMessageParams(
@@ -319,14 +301,11 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       (failure) {
         emit(ChatError(failure.message));
       },
-      (_) {
-        // If delete succeeds, the message stream should update automatically.
-        // No immediate state change is required here unless you want optimistic UI.
-      },
+      (_) {},
     );
   }
 
-  FutureOr<void> _onMarkMessagesDeleiveredEvent(MarkMessagesDeliveredEvent event, Emitter<ChatState> emit) async{
+  FutureOr<void> _onMarkMessagesDeleiveredEvent(MarkMessagesDeliveredEvent event, Emitter<ChatState> emit) async {
     await _markMessagesDelivered(
       MarkMessagesDeliveredParams(
         userId: event.userId, 

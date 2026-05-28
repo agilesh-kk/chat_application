@@ -84,5 +84,12 @@ abstract interface class ChatRepository{
     required String messageId,
     required String emoji,
   });
-  
+
+  // Operation sync lifecycle
+  Future<void> startOperationListener({
+    required String userId,
+    required String receiverId,
+  });
+
+  Future<void> stopOperationListener();
 }

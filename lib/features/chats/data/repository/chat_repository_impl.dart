@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
@@ -12,6 +14,8 @@ import 'package:image_picker/image_picker.dart';
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
   final ChatLocalDataSource chatLocalDataSource;
+
+  StreamSubscription<Map<String, dynamic>>? _opSub;
 
   ChatRepositoryImpl({
     required this.chatRemoteDataSources,
@@ -37,25 +41,175 @@ class ChatRepositoryImpl implements ChatRepository {
     required String userId,
   }) async {
     try {
-      Stream<List<Message>> res = await chatRemoteDataSources.getMessages(
-        receiverId: receiverId,
-        userId: userId,
-      );
-      return right(res);
-    } on ServerExceptions catch (e) {
-      return left(Failure(e.message));
+      final convoId = generateConversationId(userId, receiverId);
+
+      await chatLocalDataSource.initDatabase();
+
+      // Initial load if local DB is empty
+      final hasLocal = await chatLocalDataSource.hasMessages(convoId);
+      if (!hasLocal) {
+        final docs = await chatRemoteDataSources.fetchAllMessages(
+          conversationId: convoId,
+        );
+        if (docs.isNotEmpty) {
+          final docIds = docs.map((d) => d['_docId'] as String).toList();
+          await chatLocalDataSource.bulkInsertMessages(docs, docIds);
+        }
+      }
+
+      // Start operation listener in background
+      startOperationListener(userId: userId, receiverId: receiverId);
+
+      return right(chatLocalDataSource.getMessagesStream(convoId));
+    } catch (e) {
+      return left(Failure(e.toString()));
     }
   }
 
   @override
-  Future<void> markMessagesDelivered({
+  Future<void> startOperationListener({
     required String userId,
     required String receiverId,
-  }) {
-    return chatRemoteDataSources.markMessagesDelivered(
-      receiverId: receiverId,
-      userId: userId,
+  }) async {
+    await _opSub?.cancel();
+    final convoId = generateConversationId(userId, receiverId);
+    final opCollection = _getOtherOpCollection(userId, receiverId);
+
+    final stream = await chatRemoteDataSources.listenToOperations(
+      conversationId: convoId,
+      opCollection: opCollection,
     );
+
+    _opSub = stream.listen(
+      (opData) async {
+        await _processOperation(opData, convoId, opCollection);
+      },
+      onError: (error) {
+        // Operation listener error (e.g., permissions) - log and retry is handled by Firestore SDK
+      },
+    );
+  }
+
+  @override
+  Future<void> stopOperationListener() async {
+    await _opSub?.cancel();
+    _opSub = null;
+  }
+
+  Future<void> _processOperation(
+    Map<String, dynamic> opData,
+    String convoId,
+    String opCollection,
+  ) async {
+    final type = opData['type'] as String?;
+    final docId = opData['_docId'] as String?;
+
+    if (type == null || docId == null) return;
+
+    try {
+      switch (type) {
+        case 'new_message':
+          await chatLocalDataSource.upsertMessageFromFirestore(opData, docId);
+          break;
+
+        case 'delete_message':
+          final msgId = opData['messageId'] as String? ?? docId;
+          final deletedfor = List<String>.from(opData['deletedfor'] ?? []);
+          final deletedForEveryone = opData['deletedForEveryone'] ?? false;
+          await chatLocalDataSource.updateMessageDeletion(
+            msgId, deletedfor, deletedForEveryone,
+          );
+          break;
+
+        case 'reaction':
+          final msgId = opData['messageId'] as String? ?? docId;
+          final reactions = Map<String, String>.from(opData['reactions'] as Map? ?? {});
+          await chatLocalDataSource.updateMessageReaction(msgId, reactions);
+          break;
+
+        case 'seen':
+          final msgIds = List<String>.from(opData['messageIds'] ?? []);
+          final seenByUserId = opData['seenByUserId'] as String? ?? '';
+          if (msgIds.isNotEmpty) {
+            await chatLocalDataSource.markMessagesSeen(msgIds, seenByUserId);
+          }
+          break;
+      }
+
+      // Delete the operation after successful processing
+      await chatRemoteDataSources.deleteOperation(
+        conversationId: convoId,
+        opCollection: opCollection,
+        opId: docId,
+      );
+    } catch (e) {
+      // If processing fails, don't delete the op - it will be retried
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> sendMessage({
+    required String receiverId,
+    required String userId,
+    required String content,
+    required String msgId,
+    String? userName,
+    String? userProfile,
+    DateTime? sendAt,
+    bool isScheduled = false,
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
+  }) async {
+    try {
+      final opCollection = _getMyOpCollection(userId, receiverId);
+
+      await chatRemoteDataSources.sendMessage(
+        receiverId: receiverId,
+        userId: userId,
+        content: content,
+        userName: userName,
+        userProfile: userProfile,
+        msgId: msgId,
+        sendAt: sendAt,
+        replyToId: replyToId,
+        replyToContent: replyToContent,
+        replyToSenderId: replyToSenderId,
+        replyToType: replyToType,
+        opCollection: isScheduled ? null : opCollection,
+      );
+
+      // Confirm local message (replace optimistic entry)
+      if (!isScheduled) {
+        final convoId = generateConversationId(userId, receiverId);
+        await chatLocalDataSource.confirmLocalMessage(msgId, {
+          'senderId': userId,
+          'content': content,
+          'type': 'text',
+          'messageType': 'text',
+          'status': 'sent',
+          'createdAt': DateTime.now(),
+          'deletedfor': <String>[],
+          'deletedForEveryone': false,
+          'reactions': <String, String>{},
+          'replyToId': replyToId,
+          'replyToContent': replyToContent,
+          'replyToSenderId': replyToSenderId,
+          'replyToType': replyToType,
+          'isScheduled': false,
+          'inTimeline': false,
+          'name': userName ?? 'Unknown',
+          'receiverId': receiverId,
+          'profile': userProfile,
+          'convoId': convoId,
+        });
+      }
+
+      return right(null);
+    } on ServerExceptions catch (e) {
+      return left(Failure(e.message));
+    }
   }
 
   @override
@@ -91,49 +245,84 @@ class ChatRepositoryImpl implements ChatRepository {
         replyToContent: replyToContent,
         replyToSenderId: replyToSenderId,
         replyToType: replyToType,
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
+
+      // Confirm local message
+      final convoId = generateConversationId(userId, receiverId);
+      await chatLocalDataSource.confirmLocalMessage(msgId, {
+        'senderId': userId,
+        'content': imageUrl,
+        'type': 'image',
+        'messageType': 'image',
+        'status': 'sent',
+        'createdAt': DateTime.now(),
+        'deletedfor': <String>[],
+        'deletedForEveryone': false,
+        'reactions': <String, String>{},
+        'replyToId': replyToId,
+        'replyToContent': replyToContent,
+        'replyToSenderId': replyToSenderId,
+        'replyToType': replyToType,
+        'isScheduled': false,
+        'inTimeline': false,
+        'name': userName ?? 'Unknown',
+        'receiverId': receiverId,
+        'profile': userProfile,
+        'convoId': convoId,
+      });
 
       return right(null);
     } catch (e) {
-      //print(e.toString());
       return left(Failure(e.toString()));
     }
   }
 
   @override
-  Future<Either<Failure, void>> sendMessage({
-    required String receiverId,
-    required String userId,
-    required String content,
+  Future<void> deleteMessage({
     required String msgId,
-    String? userName,
-    String? userProfile,
-
-    //time capsule
-    DateTime? sendAt,
-    bool isScheduled = false,
-
-    //for reply
-    String? replyToId,
-    String? replyToContent,
-    String? replyToSenderId,
-    String? replyToType,
+    required String userId,
+    required String receiverId,
+    required String type,
+    bool deleteForEveryone = false,
   }) async {
     try {
-      await chatRemoteDataSources.sendMessage(
-        receiverId: receiverId,
-        userId: userId,
-        content: content,
-        userName: userName,
-        userProfile: userProfile,
+      await chatRemoteDataSources.deleteMessage(
         msgId: msgId,
-        sendAt: sendAt,
-        replyToId: replyToId,
-        replyToContent: replyToContent,
-        replyToSenderId: replyToSenderId,
-        replyToType: replyToType,
+        userId: userId,
+        receiverId: receiverId,
+        deleteForEveryone: deleteForEveryone,
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
-      return right(null);
+
+      // Update local DB
+      if (deleteForEveryone) {
+        await chatLocalDataSource.updateMessageDeletion(
+          msgId, [userId, receiverId], true,
+        );
+      } else {
+        await chatLocalDataSource.updateMessageDeletion(
+          msgId, [userId], false,
+        );
+      }
+
+      if (type == "image") {
+        await chatLocalDataSource.deleteImage(msgId);
+      }
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
+
+  @override
+  Future<Either<Failure, Stream<List<Message>>>> getScheduledMessages({
+    required String receiverId,
+    required String userId,
+  }) async {
+    try {
+      Stream<List<Message>> res = await chatRemoteDataSources
+          .getScheduledMessages(receiverId: receiverId, userId: userId);
+      return right(res);
     } on ServerExceptions catch (e) {
       return left(Failure(e.message));
     }
@@ -154,44 +343,16 @@ class ChatRepositoryImpl implements ChatRepository {
       return left(Failure(e.message));
     }
   }
-  
+
   @override
-  Future<Either<Failure, Stream<List<Message>>>> getScheduledMessages({required String receiverId, required String userId}) async{
-    try {
-      Stream<List<Message>> res = await chatRemoteDataSources.getScheduledMessages(
-        receiverId: receiverId,
-        userId: userId,
-      );
-      return right(res);
-    } on ServerExceptions catch (e) {
-      return left(Failure(e.message));
-    }
-  }
-  
-  @override
-  Future<void> deleteMessage({
-    required String msgId,
+  Future<void> markMessagesDelivered({
     required String userId,
     required String receiverId,
-    required String type,
-    bool deleteForEveryone = false,
   }) async {
-    try {
-      await chatRemoteDataSources.deleteMessage(
-        msgId: msgId,
-        userId: userId,
-        receiverId: receiverId,
-        deleteForEveryone: deleteForEveryone,
-      );
-
-      if(type == "image"){
-        //print(type);
-        await chatLocalDataSource.deleteImage(msgId);
-      }
-      
-    } catch (e) {
-      throw ServerExceptions(e.toString());
-    }
+    await chatRemoteDataSources.markMessagesDelivered(
+      receiverId: receiverId,
+      userId: userId,
+    );
   }
 
   @override
@@ -207,9 +368,32 @@ class ChatRepositoryImpl implements ChatRepository {
         receiverId: receiverId,
         messageId: messageId,
         emoji: emoji,
+        opCollection: _getMyOpCollection(userId, receiverId),
+      );
+
+      // Update local DB
+      await chatLocalDataSource.updateMessageReaction(
+        messageId, {userId: emoji},
       );
     } catch (e) {
       throw ServerExceptions(e.toString());
     }
+  }
+
+  // ===================== Helpers =====================
+
+  String generateConversationId(String user1, String user2) {
+    final sorted = [user1, user2]..sort();
+    return "${sorted[0]}_${sorted[1]}";
+  }
+
+  String _getMyOpCollection(String userId, String receiverId) {
+    final sorted = [userId, receiverId]..sort();
+    return sorted[0] == userId ? "operation_1" : "operation_2";
+  }
+
+  String _getOtherOpCollection(String userId, String receiverId) {
+    final sorted = [userId, receiverId]..sort();
+    return sorted[0] == userId ? "operation_2" : "operation_1";
   }
 }
