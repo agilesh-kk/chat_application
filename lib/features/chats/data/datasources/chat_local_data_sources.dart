@@ -342,8 +342,8 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       batch.update(
         'messages',
         {'status': 'seen'},
-        where: 'id = ? AND senderId = ?',
-        whereArgs: [msgId, seenByUserId],
+        where: 'id = ?',
+        whereArgs: [msgId],
       );
     }
     await batch.commit(noResult: true);
