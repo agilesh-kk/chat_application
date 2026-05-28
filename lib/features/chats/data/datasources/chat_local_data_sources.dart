@@ -282,7 +282,17 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   Future<void> confirmLocalMessage(String msgId, Map<String, dynamic> remoteData) async {
     if (_db == null || kIsWeb) return;
     final convoId = remoteData['convoId'] as String? ?? '';
+
+    final existing = await _db!.query('messages',
+        where: 'id = ?', whereArgs: [msgId], limit: 1);
+    final originalCreatedAt = existing.isNotEmpty
+        ? existing.first['createdAt']
+        : null;
+
     final row = _firestoreToDb(remoteData, msgId, convoId);
+    if (originalCreatedAt != null) {
+      row['createdAt'] = originalCreatedAt;
+    }
     row['isLocal'] = 0;
     row['localPath'] = null;
     await _db!.insert('messages', row, conflictAlgorithm: ConflictAlgorithm.replace);
@@ -383,12 +393,12 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   Stream<List<Message>> getMessagesStream(String conversationId) {
     if (_controllers[conversationId] == null || _controllers[conversationId]!.isClosed) {
       _controllers[conversationId] = StreamController<List<Message>>.broadcast();
-      _queryMessagesSafe(conversationId).then((messages) {
-        if (!_controllers[conversationId]!.isClosed) {
-          _controllers[conversationId]?.add(messages);
-        }
-      });
     }
+    _queryMessagesSafe(conversationId).then((messages) {
+      if (!_controllers[conversationId]!.isClosed) {
+        _controllers[conversationId]?.add(messages);
+      }
+    });
     return _controllers[conversationId]!.stream;
   }
 

@@ -169,7 +169,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       // 1. Create temp message
       final tempMessage = Message(
         id: msgId,
-        status: "uploading",
+        status: "sent",
         senderId: event.userId,
         content: event.content,
         createdAt: DateTime.now(),
@@ -189,7 +189,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           'content': event.content,
           'type': 'text',
           'messageType': 'text',
-          'status': 'uploading',
+          'status': 'sent',
           'createdAt': DateTime.now(),
           'deletedfor': <String>[],
           'deletedForEveryone': false,
