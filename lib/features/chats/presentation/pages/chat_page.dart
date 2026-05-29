@@ -8,6 +8,7 @@ import 'package:chat_application/features/chats/presentation/pages/time_capsule_
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
 import 'package:chat_application/features/chats/presentation/widgets/reply_preview_bar.dart';
+import 'package:chat_application/features/chats/presentation/widgets/swipe_to_reply.dart';
 import 'package:chat_application/features/chats/presentation/widgets/delete_message_confirmation_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/send_options_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/time_capsule_picker.dart';
@@ -525,12 +526,11 @@ class _ChatPageState extends State<ChatPage> {
                           children: [
                             if (_shouldShowDateHeader(messages, index))
                               _buildDateHeader(message.createdAt),
-                            GestureDetector(
-                              onHorizontalDragEnd: (details) {
-                                if (details.primaryVelocity != null && details.primaryVelocity! < -300) {
-                                  setState(() => _replyToMessage = message);
-                                  _messageFocusNode.requestFocus();
-                                }
+                            SwipeToReply(
+                              isMe: isMe,
+                              onReply: message.deletedForEveryone ? null : () {
+                                setState(() => _replyToMessage = message);
+                                _messageFocusNode.requestFocus();
                               },
                               child: Stack(
                                 clipBehavior: Clip.none,
