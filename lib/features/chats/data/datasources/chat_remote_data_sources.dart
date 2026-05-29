@@ -701,19 +701,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           "deletedfor": FieldValue.arrayUnion([userId]),
         });
 
-        // Write operation doc
-        if (opCollection != null) {
-          final opRef = convoRef.collection(opCollection).doc(msgId);
-          batch.set(opRef, {
-            "type": "delete_message",
-            "messageId": msgId,
-            "timestamp": FieldValue.serverTimestamp(),
-            "deletedfor": [userId],
-            "deletedForEveryone": false,
-            "performedBy": userId,
-          });
-        }
-
         // Only normal messages affect conversation UI
         if (isMessage) {
           final convoSnap = await convoRef.get();

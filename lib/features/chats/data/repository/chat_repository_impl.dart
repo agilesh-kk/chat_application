@@ -123,8 +123,11 @@ class ChatRepositoryImpl implements ChatRepository {
 
         case 'reaction':
           final msgId = opData['messageId'] as String? ?? docId;
+          final userId = opData['userId'] as String;
+          final emoji = opData['emoji'] as String;
           final reactions = Map<String, String>.from(opData['reactions'] as Map? ?? {});
-          await chatLocalDataSource.updateMessageReaction(msgId, reactions);
+
+          await chatLocalDataSource.updateMessageReaction(msgId, reactions, emoji, userId);
           break;
 
         case 'seen':
@@ -377,7 +380,7 @@ class ChatRepositoryImpl implements ChatRepository {
 
       // Update local DB
       await chatLocalDataSource.updateMessageReaction(
-        messageId, {userId: emoji},
+        messageId, {userId: emoji}, emoji, userId
       );
     } catch (e) {
       throw ServerExceptions(e.toString());

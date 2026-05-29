@@ -10,6 +10,7 @@ import 'package:chat_application/features/chats/domain/usecase/send_image.dart';
 import 'package:chat_application/features/chats/domain/usecase/send_message.dart';
 import 'package:chat_application/features/chats/domain/usecase/toggle_reaction.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
@@ -350,6 +351,8 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       //   _alreadyMarkedRecently = false;
       // });
     }
+
+    received.removeWhere((e)=>(e.deletedfor.contains(_currentUserId)&&!e.deletedForEveryone));
 
     emit(ChatLoaded(received));
   }

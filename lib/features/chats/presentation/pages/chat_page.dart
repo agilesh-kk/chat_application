@@ -130,8 +130,8 @@ class _ChatPageState extends State<ChatPage> {
   void _scrollToIndex(int index) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.isAttached) {
-        _scrollController.scrollTo(
-            index: index, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+        _scrollController.jumpTo(
+            index: index);
       }
     });
   }
