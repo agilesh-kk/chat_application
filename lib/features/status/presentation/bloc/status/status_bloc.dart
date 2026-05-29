@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chat_application/core/usecase/usecase.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
+import 'package:chat_application/features/status/domain/usecase/add_like.dart';
 import 'package:chat_application/features/status/domain/usecase/delete_status.dart';
 import 'package:chat_application/features/status/domain/usecase/get_all_status.dart';
 import 'package:chat_application/features/status/domain/usecase/update_view.dart';
@@ -20,6 +21,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
   final GetAllStatus _getAllStatus;
   final UpdateView _updateView;
   final DeleteStatus _deleteStatus;
+  final AddLike _addLike;
   final FriendsCubit _friendsCubit;
   StreamSubscription? friendsStream;
   
@@ -29,12 +31,14 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
     required GetAllStatus getAllStatus,
     required UpdateView updateView,
     required DeleteStatus deleteStatus,
+    required AddLike addLike,
     required FriendsCubit friends_cubit,
   }) : 
   _uploadStatus = uploadStatus,
   _getAllStatus = getAllStatus,
   _updateView = updateView,
   _deleteStatus = deleteStatus,
+  _addLike = addLike,
   _friendsCubit = friends_cubit,
   
   super(StatusInitial()) {
@@ -44,6 +48,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
     on<UpdateViewEvent>(_onUpdateViewEvent);
     on<UpdateStatusPage>(_updateStatus);
     on<DeleteStatusEvent>(_onDeleteStatus);
+    on<AddLikeEvent>(_onAddLikeEvent);
   }
 
   FutureOr<void> _onUploadStatusEvent(UploadStatusEvent event, Emitter<StatusState> emit) async{
@@ -98,7 +103,8 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
               createdAt: s.createdAt, 
               expiresAt: s.expiresAt, 
               userName: d.friends[s.userId]?.name ?? "unknown", 
-              profilepic: d.friends[s.userId]?.profilePic ?? "not found"
+              profilepic: d.friends[s.userId]?.profilePic ?? "not found",
+              likedBy: s.likedBy,
             )
           );
         }
@@ -122,7 +128,8 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
               createdAt: s.createdAt, 
               expiresAt: s.expiresAt, 
               userName: friends.friends[s.userId]?.name ?? "unknown", 
-              profilepic: friends.friends[s.userId]?.profilePic ?? "not found"
+              profilepic: friends.friends[s.userId]?.profilePic ?? "not found",
+              likedBy: s.likedBy,
             )
           );
       }
@@ -168,4 +175,38 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
     );
   }
 
+  FutureOr<void> _onAddLikeEvent(AddLikeEvent event, Emitter<StatusState> emit) async {
+    if (state is StatusDisplaySuccess) {
+      final current = (state as StatusDisplaySuccess).status;
+      final updated = current.map((s) {
+        if (s.id == event.statusId) {
+          final newLikedBy = List<String>.from(s.likedBy);
+          if (newLikedBy.contains(event.userId)) {
+            newLikedBy.remove(event.userId);
+          } else {
+            newLikedBy.add(event.userId);
+          }
+          return Status(
+            id: s.id,
+            userId: s.userId,
+            imageUrl: s.imageUrl,
+            caption: s.caption,
+            createdAt: s.createdAt,
+            expiresAt: s.expiresAt,
+            userName: s.userName,
+            profilepic: s.profilepic,
+            localPath: s.localPath,
+            likedBy: newLikedBy,
+          );
+        }
+        return s;
+      }).toList();
+      emit(StatusDisplaySuccess(updated));
+    }
+
+    await _addLike(AddLikeParams(
+      statusId: event.statusId,
+      userId: event.userId,
+    ));
+  }
 }

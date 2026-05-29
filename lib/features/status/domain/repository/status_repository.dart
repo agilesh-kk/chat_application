@@ -30,4 +30,9 @@ abstract interface class StatusRepository {
   Future<Either<Failure, void>> deleteStatus({
     required String statusId,
   });
+
+  Future<Either<Failure, void>> addLike({
+    required String statusId,
+    required String userId,
+  });
 }

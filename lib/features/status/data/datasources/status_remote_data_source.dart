@@ -18,6 +18,11 @@ abstract interface class StatusRemoteDataSource {
   Future<List<StatusViewModel>> getViews(String statusId);
 
   Future<void> deleteStatus(String statusId);
+
+  Future<void> addLike({
+    required String statusId,
+    required String userId,
+  });
 }
 
 class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
@@ -145,6 +150,52 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
           .from('statuses')
           .delete()
           .eq('id', statusId);
+
+    } on PostgrestException catch (e) {
+      throw ServerExceptions(e.message);
+    } catch (e) {
+      throw ServerExceptions(e.toString());
+    }
+  }
+  
+  @override
+  Future<void> addLike({
+    required String statusId,
+    required String userId,
+  }) async {
+    try {
+      final response = await supabaseClient
+          .from('statuses')
+          .select('liked_by')
+          .eq('id', statusId)
+          .single();
+
+      List<String> likedBy = List<String>.from(
+        response['liked_by'] ?? [],
+      );
+
+      final bool isLiked = likedBy.contains(userId);
+
+      if (isLiked) {
+        likedBy.remove(userId);
+      } else {
+        likedBy.add(userId);
+      }
+
+      await supabaseClient
+          .from('statuses')
+          .update({
+            'liked_by': likedBy,
+          })
+          .eq('id', statusId);
+
+      await supabaseClient
+          .from('status_views')
+          .update({
+            'liked': !isLiked,
+          })
+          .eq('status_id', statusId)
+          .eq('viewer_id', userId);
 
     } on PostgrestException catch (e) {
       throw ServerExceptions(e.message);

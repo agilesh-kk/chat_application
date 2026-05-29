@@ -51,3 +51,13 @@ final class DeleteStatusEvent extends StatusEvent{
     required this.statusId,
   });
 }
+
+final class AddLikeEvent extends StatusEvent {
+  final String statusId;
+  final String userId;
+
+  AddLikeEvent({
+    required this.statusId,
+    required this.userId,
+  });
+}

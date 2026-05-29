@@ -31,6 +31,9 @@ class StatusHiveModel{
   @HiveField(8)
   final String profilepic;
 
+  @HiveField(9)
+  final List<String> likedBy;
+
   StatusHiveModel({
     required this.id,
     required this.userId,
@@ -40,7 +43,8 @@ class StatusHiveModel{
     required this.expiresAt,
     required this.userName,
     required this.localPath,
-    required this.profilepic
+    required this.profilepic,
+    required this.likedBy,
   });
 
   factory StatusHiveModel.fromJson(Map<String, dynamic> map) {
@@ -53,7 +57,8 @@ class StatusHiveModel{
       expiresAt: DateTime.parse(map['expires_at']),
       userName: map['name'] ?? "",
       localPath: map['localpath'] ?? "",
-      profilepic: map['profilepic'] ?? ""
+      profilepic: map['profilepic'] ?? "",
+      likedBy: List<String>.from(map['liked_by'] ?? []),
     );
   }
 
@@ -67,7 +72,8 @@ class StatusHiveModel{
       expiresAt: expiresAt,
       userName: userName,
       localPath: localPath,
-      profilepic: profilepic
+      profilepic: profilepic,
+      likedBy: likedBy,
     );
   }
 
@@ -81,7 +87,8 @@ class StatusHiveModel{
       expiresAt: status.expiresAt,
       userName: status.userName,
       localPath: status.localPath ?? "Not Loaded",
-      profilepic: status.profilepic 
+      profilepic: status.profilepic,
+      likedBy: status.likedBy,
     );
   }
 
@@ -94,7 +101,8 @@ class StatusHiveModel{
     DateTime? expiresAt,
     String? userName,
     String? localPath,
-    String? profilepic
+    String? profilepic,
+    List<String>? likedBy,
   }) {
     return StatusHiveModel(
       id: id ?? this.id,
@@ -105,7 +113,8 @@ class StatusHiveModel{
       expiresAt: expiresAt ?? this.expiresAt,
       userName: userName ?? this.userName,
       localPath: localPath ?? this.localPath,
-      profilepic: profilepic ?? this.profilepic
+      profilepic: profilepic ?? this.profilepic,
+      likedBy: likedBy ?? this.likedBy,
     );
   }
 
