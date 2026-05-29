@@ -23,6 +23,7 @@ abstract interface class ChatLocalDataSource {
   Future<void> updateMessageDeletion(String msgId, List<String> deletedfor, bool deletedForEveryone);
   Future<void> updateMessageReaction(String msgId, Map<String, String> reactions, String emoji, String reacterId);
   Future<void> updateMessageTimeline(String msgId, bool added);
+  Future<void> updateMessageContent(String msgId, String newContent, );
   Future<void> markMessagesSeen(List<String> msgIds, String seenByUserId);
   Future<void> deleteMessageLocally(String msgId);
   Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds);
@@ -50,8 +51,17 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
     _db = await openDatabase(
       dbPath,
-      version: 1,
+      version: 2,
       onCreate: _createTables,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Add the missing column to the existing table
+          await db.execute('''
+            ALTER TABLE messages 
+            ADD COLUMN isEdited INTEGER DEFAULT 0
+          ''');
+        }
+      },
     );
   }
 
@@ -67,6 +77,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
         createdAt INTEGER NOT NULL,
         deletedfor TEXT DEFAULT '[]',
         deletedForEveryone INTEGER DEFAULT 0,
+        isEdited INTEGER DEFAULT 0,
         reactions TEXT DEFAULT '{}',
         replyToId TEXT,
         replyToContent TEXT,
@@ -153,6 +164,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       'createdAt': data['createdAt'] != null
           ? _toMillis(data['createdAt'])
           : DateTime.now().millisecondsSinceEpoch,
+      'isEdited' : (data['isEdited'] ?? false) ? 1 : 0,
       'deletedfor': _jsonEncode(data['deletedfor']),
       'deletedForEveryone': (data['deletedForEveryone'] ?? false) ? 1 : 0,
       'reactions': _jsonEncode(data['reactions']),
@@ -196,6 +208,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       id: row['id'] as String,
       senderId: row['senderId'] as String,
       content: row['content'] as String? ?? '',
+      isEdited: (row['isEdited'] as int? ?? 0) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['createdAt'] as int),
       status: row['status'] as String? ?? 'sent',
       deletedfor: _jsonDecodeList(row['deletedfor']),
@@ -351,6 +364,22 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     await _db!.update(
       'messages',
       {'inTimeLine': added?1:0},
+      where: 'id = ?',
+      whereArgs: [msgId],
+    );
+    final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
+    if (rows.isNotEmpty) {
+      final convoId = rows.first['conversationId'] as String;
+      _notify(convoId);
+    }
+  }
+
+  @override
+  Future<void> updateMessageContent(String msgId, String newContent)async {
+   if (_db == null || kIsWeb) return;
+    await _db!.update(
+      'messages',
+      {'content': newContent,'isEdited' : 1},
       where: 'id = ?',
       whereArgs: [msgId],
     );

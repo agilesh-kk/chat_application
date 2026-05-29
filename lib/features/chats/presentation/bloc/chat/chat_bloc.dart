@@ -280,6 +280,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<DeleteMessageEvent>(_onDeleteMessageEvent);
     on<MarkMessagesDeliveredEvent>(_onMarkMessagesDeleiveredEvent);
     on<ToggleReactionEvent>(_onToggleReactionEvent);
+    on<EditMessageEvent>(_onEditMessageEvent);
   }
   
 

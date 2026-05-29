@@ -142,6 +142,13 @@ class ChatRepositoryImpl implements ChatRepository {
           final msgId = opData['messageId'] as String? ?? docId;
           final added = opData['addedToTimeline'] as bool? ?? false;
           await chatLocalDataSource.updateMessageTimeline(msgId, added);
+          break;
+
+        case 'edit_message':
+          final msgId = opData['messageId'] as String? ?? docId;
+          final newContent = opData['new_content'] as String? ?? '';
+          await chatLocalDataSource.updateMessageContent(msgId, newContent);
+          break;
       }
 
       // Delete the operation after successful processing
@@ -395,11 +402,14 @@ class ChatRepositoryImpl implements ChatRepository {
     required String newContent,
   }) async {
     try {
+      chatLocalDataSource.updateMessageContent(msgId, newContent);
+
       await chatRemoteDataSources.editMessage(
         userId: userId,
         receiverId: receiverId,
         msgId: msgId,
         newContent: newContent,
+        opCollection: _getMyOpCollection(userId, receiverId)
       );
     } catch (e) {
       throw ServerExceptions(e.toString());

@@ -95,6 +95,7 @@ abstract interface class ChatRemoteDataSources {
     required String receiverId,
     required String msgId,
     required String newContent,
+    required String opCollection
   });
 }
 
@@ -246,6 +247,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     required String receiverId,
     required String msgId,
     required String newContent,
+    required String opCollection
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
@@ -257,11 +259,23 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       final convoRef = firestore.collection("Conversations").doc(convoId);
 
+      final opRef = convoRef
+      .collection(opCollection)
+      .doc();
+
       await firestore.runTransaction((tx) async {
         final doc = await tx.get(msgRef);
         if (!doc.exists) return;
 
         final convoDoc = await tx.get(convoRef);
+
+        tx.set(opRef, {
+          "type" : "edit_message",
+          "messageId" : msgId,
+          "senderId" : userId,
+          "new_content" : newContent,
+          "editedAt": FieldValue.serverTimestamp(),
+        });
 
         tx.update(msgRef, {
           "content": newContent,
