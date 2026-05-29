@@ -1,10 +1,13 @@
+import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/data/models/timeline_rule_model.dart';
+import 'package:chat_application/init_dependencies.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TimelineService {
   final FirebaseFirestore firestore;
+  String opCollection;
 
-  TimelineService(this.firestore);
+  TimelineService(this.firestore,this.opCollection);
 
   List<TimelineRule> _cachedRules = [];
   bool _rulesLoaded = false;
@@ -151,9 +154,11 @@ class TimelineService {
     // 🔥 MARK MESSAGE (OPTIONAL)
     // =========================
     if (triggeredEvents.isNotEmpty) {
-      final messageRef = firestore
+      final convoRef = firestore
           .collection("Conversations")
-          .doc(convoId)
+          .doc(convoId);
+
+      final messageRef = convoRef
           .collection("messages")
           .doc(messageId);
 
@@ -161,6 +166,16 @@ class TimelineService {
         {"inTimeline": true},
         SetOptions(merge: true),
       );
+
+      serviceLocator<ChatLocalDataSource>().updateMessageTimeline(messageId, true);
+
+      convoRef.collection(opCollection).doc()
+      .set({
+        "type" : "timeline",
+        "messageId" : messageId,
+        "addedToTimeline" : true
+      });
+
     }
   }
 

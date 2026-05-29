@@ -72,6 +72,7 @@ Future<void> createOrUpdateShortcutIfNeeded(
 
 @pragma('vm:entry-point')
 void notificationActionHandler(final response)async{
+  await Firebase.initializeApp();
       if (response.actionId == 'REPLY') {
         final input = response.input;
         final payload = response.payload;
@@ -142,13 +143,13 @@ Future<void> _showRepliedNotification(String chatId, String text, String current
 
 
   final messagingStyle = MessagingStyleInformation(
-    _personCache[data['sender_id']]!,
+    Person(name: data['sender_name'], key: data['sender_id'],important: true,icon: DrawableResourceAndroidIcon("empty")),
     messages: messages.map(
       (m){
         return Message(
           m['text'] ?? '',
           DateTime.parse(m['time'] as String),
-          (m['sender_id']==currentUserId)?_personCache['you']:null,
+          (m['sender_id']==currentUserId)?Person(name: "You",key: "you",icon: DrawableResourceAndroidIcon("empty")):null,
           );
     }).toList(),
     groupConversation: true,
@@ -182,8 +183,6 @@ Future<void> _showRepliedNotification(String chatId, String text, String current
                 allowFreeFormInput: true,
               ),
             ],
-            cancelNotification: true,
-            showsUserInterface: true
           ),
         ],
       ),
@@ -231,7 +230,6 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
   final collapsedTitle = "new message";
   final collapsedBody = "message";
 
-  _personCache['you'] = Person(name: "You",icon: DrawableResourceAndroidIcon('empty'),important: true);
   _personCache[senderId] ??= Person(name: senderName, key: senderId,important: true,icon: DrawableResourceAndroidIcon("empty"));
   for (final m in messages) {
     final sid = m['sender_id'] as String;
@@ -269,6 +267,7 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
         styleInformation: messagingStyle,
         actions: [
           AndroidNotificationAction(
+            allowGeneratedReplies: true,
             'REPLY',
             'Reply',
             inputs: [
@@ -277,8 +276,6 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
                 allowFreeFormInput: true,
               ),
             ],
-            cancelNotification: true,
-            showsUserInterface: true
           ),
         ],
       ),
@@ -373,9 +370,73 @@ Future<void> sendReplyFromNotification(String replyText, String payload) async {
   final msgId = const Uuid().v4();
   final firestore = FirebaseFirestore.instance;
   final convoRef = firestore.collection("Conversations").doc(chatId);
+  _showRepliedNotification(chatId, replyText, currentUserId, currentUserName ?? 'Unknown', data);
 
   try {
+
+    try {
+      final supabase = SupabaseClient(AppKeys.supabaseUrl, AppKeys.anonKey);
+      supabase.from('messages').insert({
+        'chat_id': chatId,
+        'sender_id': currentUserId,
+        'receiver_id': receiverId,
+        'name': currentUserName ?? 'Unknown',
+        'text': replyText,
+        'sender_profile': currentUserProfile,
+      });
+    } catch (_) {}
+
     final batch = firestore.batch();
+
+    final opRef = convoRef.collection('operation_1').doc();
+    final opRef2 = convoRef.collection('operation_2').doc();
+        batch.set(opRef, {
+          "type": "new_message",
+          "messageId": msgId,
+          "senderId": currentUserId,
+          "content": replyText,
+          "messageType": "text",
+          "status": "sent",
+          "receiverId": receiverId,
+          "convoId": chatId,
+          "name": currentUserName ?? "Unknown",
+          "profile": currentUserProfile ?? "assets/profile_images/pfp1.png",
+          "deletedfor": [],
+          "deletedForEveryone": false,
+          "reactions": {},
+          "replyToId": null,
+          "replyToContent": null,
+          "replyToSenderId": null,
+          "replyToType": null,
+          "isScheduled": false,
+          "inTimeline": false,
+          "createdAt": FieldValue.serverTimestamp(),
+          "timestamp": FieldValue.serverTimestamp(),
+    });
+
+    batch.set(opRef2, {
+          "type": "new_message",
+          "messageId": msgId,
+          "senderId": currentUserId,
+          "content": replyText,
+          "messageType": "text",
+          "status": "sent",
+          "receiverId": receiverId,
+          "convoId": chatId,
+          "name": currentUserName ?? "Unknown",
+          "profile": currentUserProfile ?? "assets/profile_images/pfp1.png",
+          "deletedfor": [],
+          "deletedForEveryone": false,
+          "reactions": {},
+          "replyToId": null,
+          "replyToContent": null,
+          "replyToSenderId": null,
+          "replyToType": null,
+          "isScheduled": false,
+          "inTimeline": false,
+          "createdAt": FieldValue.serverTimestamp(),
+          "timestamp": FieldValue.serverTimestamp(),
+    });
 
     batch.set(convoRef.collection("messages").doc(msgId), {
       'id': msgId,
@@ -431,21 +492,7 @@ Future<void> sendReplyFromNotification(String replyText, String payload) async {
     }, SetOptions(merge: true));
 
     await batch.commit();
-
-    try {
-      final supabase = SupabaseClient(AppKeys.supabaseUrl, AppKeys.anonKey);
-      await supabase.from('messages').insert({
-        'chat_id': chatId,
-        'sender_id': currentUserId,
-        'receiver_id': receiverId,
-        'name': currentUserName ?? 'Unknown',
-        'text': replyText,
-        'sender_profile': currentUserProfile,
-      });
-    } catch (_) {}
-  } finally {
-    _showRepliedNotification(chatId, replyText, currentUserId, currentUserName ?? 'Unknown', data);
-  }
+  }catch(_){}
 }
 
 void main() async {

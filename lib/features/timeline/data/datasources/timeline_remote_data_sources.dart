@@ -1,7 +1,9 @@
 import 'package:chat_application/core/errors/exceptions.dart';
+import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/timeline/data/models/event_model.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
+import 'package:chat_application/init_dependencies.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 abstract interface class TimelineRemoteDataSources {
@@ -114,15 +116,24 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
       "isManual": true,
     });
 
-    final messageRef = firebaseFirestore
+    final operationRef = firebaseFirestore
         .collection("Conversations")
         .doc(convoId)
-        .collection("messages")
-        .doc(message.id);
+        .collection(_getMyOpCollection(userId, receiverId))
+        .doc();
 
-    await messageRef.update({
-      "inTimeline": true, // 🔥 NEW FIELD
+    serviceLocator<ChatLocalDataSource>().updateMessageTimeline(message.id, true);
+
+    await operationRef.set({
+      "type" : "timeline",
+      "messageId" : message.id,
+      "addedToTimeline" : true
     });
+  }
+
+  String _getMyOpCollection(String userId, String receiverId) {
+    final sorted = [userId, receiverId]..sort();
+    return sorted[0] == userId ? "operation_1" : "operation_2";
   }
 
   @override
@@ -163,6 +174,21 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
           transaction.set(messageRef, {
             "inTimeline": false,
           }, SetOptions(merge: true));
+
+
+        final operationRef = firebaseFirestore
+            .collection("Conversations")
+            .doc(convoId)
+            .collection(_getMyOpCollection(userId, receiverId))
+            .doc();
+
+        serviceLocator<ChatLocalDataSource>().updateMessageTimeline(messageId, false);
+
+        await operationRef.set({
+          "type" : "timeline",
+          "messageId" : messageId,
+          "addedToTimeline" : false
+        });
         }
       });
     } catch (e) {

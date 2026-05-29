@@ -254,7 +254,7 @@ void _initAuth() {
 void _initChat()async {
   //Data Source
   serviceLocator
-  ..registerFactory<ChatLocalDataSource>(
+  ..registerLazySingleton<ChatLocalDataSource>(
     () => ChatLocalDataSourceImpl(),
   )
 
@@ -324,6 +324,8 @@ void _initChat()async {
       markMessagesDelivered: serviceLocator(),
       toggleReaction: serviceLocator(),
       editMessage: serviceLocator(),
+      chatRepository: serviceLocator<ChatRepository>(),
+      chatLocalDataSource: serviceLocator<ChatLocalDataSource>(),
     )
   )
 

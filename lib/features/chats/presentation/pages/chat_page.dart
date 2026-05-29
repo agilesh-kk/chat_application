@@ -81,8 +81,6 @@ class _ChatPageState extends State<ChatPage> {
     widget.cacheService = CacheService();
     cb = context.read<ChatBloc>()
       ..add(LoadMessagesEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
-    context.read<ChatBloc>().add(
-        MarkMessagesDeliveredEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
   }
 
   @override
@@ -135,8 +133,8 @@ class _ChatPageState extends State<ChatPage> {
   void _scrollToIndex(int index) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.isAttached) {
-        _scrollController.scrollTo(
-            index: index, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+        _scrollController.jumpTo(
+            index: index);
       }
     });
   }

@@ -36,13 +36,15 @@ abstract interface class ChatRemoteDataSources {
     String? replyToContent,
     String? replyToSenderId,
     String? replyToType,
+
+    //operation sync
+    String? opCollection,
   });
 
   Future<String> uploadImage({required XFile image, required String msgId});
 
-  Future<Stream<List<MessageModel>>> getMessages({
-    required String receiverId,
-    required String userId,
+  Future<List<Map<String, dynamic>>> fetchAllMessages({
+    required String conversationId,
   });
 
   Future<Stream<List<MessageModel>>> getScheduledMessages({
@@ -60,6 +62,7 @@ abstract interface class ChatRemoteDataSources {
     required String userId,
     required String receiverId,
     bool deleteForEveryone = false,
+    String? opCollection,
   });
 
   Future markMessagesDelivered({
@@ -72,6 +75,19 @@ abstract interface class ChatRemoteDataSources {
     required String receiverId,
     required String messageId,
     required String emoji,
+    String? opCollection,
+  });
+
+  // Operation sync methods
+  Future<Stream<Map<String, dynamic>>> listenToOperations({
+    required String conversationId,
+    required String opCollection,
+  });
+
+  Future<void> deleteOperation({
+    required String conversationId,
+    required String opCollection,
+    required String opId,
   });
 
   Future<void> editMessage({
@@ -105,25 +121,21 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
   }
 
   @override
-  Future<Stream<List<MessageModel>>> getMessages({
-    required String receiverId,
-    required String userId,
+  Future<List<Map<String, dynamic>>> fetchAllMessages({
+    required String conversationId,
   }) async {
-    return firestore
+    final snapshot = await firestore
         .collection("Conversations")
-        .doc(generateConversationId(userId, receiverId))
+        .doc(conversationId)
         .collection("messages")
         .orderBy("createdAt", descending: true)
-        .snapshots()
-        .map((snapshot) {
-          //markMessagesDelivered(userId, receiverId);
+        .get();
 
-          //filtering out the deleted for messages.
-          return snapshot.docs
-            .map((doc) => MessageModel.fromJson(doc.data(), doc.id))
-            .where((msg) => !msg.deletedfor.contains(userId))
-            .toList();
-        });
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      data['_docId'] = doc.id;
+      return data;
+    }).toList();
   }
 
   @override
@@ -131,9 +143,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     required String userId, 
     required String receiverId
   }) async {
+    final convoId = generateConversationId(userId, receiverId);
     final convoRef = firestore
         .collection("Conversations")
-        .doc(generateConversationId(userId, receiverId))
+        .doc(convoId)
       ..update({"$userId.unread": 0});
 
     final snapshot = 
@@ -143,11 +156,26 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             .where("status", isEqualTo: "sent")
             .get();
 
+    if (snapshot.docs.isEmpty) return;
+
     final batch = firestore.batch();
 
+    final seenMsgIds = <String>[];
     for (final doc in snapshot.docs) {
       batch.update(doc.reference, {"status": "seen"});
+      seenMsgIds.add(doc.id);
     }
+
+    // Write seen operation
+    final opCollection = _getMyOpCollection(userId, receiverId);
+    final opRef = convoRef.collection(opCollection).doc();
+    batch.set(opRef, {
+      "type": "seen",
+      "messageIds": seenMsgIds,
+      "seenByUserId": userId,
+      "timestamp": FieldValue.serverTimestamp(),
+    });
+
     await batch.commit();
   }
 
@@ -157,32 +185,21 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     required String receiverId,
     required String messageId,
     required String emoji,
+    String? opCollection,
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
-      final msgRef = firestore
-          .collection("Conversations")
-          .doc(convoId)
-          .collection("messages")
-          .doc(messageId);
-
       final convoRef = firestore.collection("Conversations").doc(convoId);
+      final msgRef = convoRef.collection("messages").doc(messageId);
 
       await firestore.runTransaction((tx) async {
         final doc = await tx.get(msgRef);
         if (!doc.exists) return;
 
         final data = doc.data()!;
-        final messageSenderId = data['senderId'] as String?;
-        if (messageSenderId == null) return;
-
-        final convoDoc = await tx.get(convoRef);
-        if (!convoDoc.exists) return;
-        final convoData = convoDoc.data()!;
-
         final reactions = Map<String, dynamic>.from(data['reactions'] as Map? ?? {});
         final currentReaction = reactions[userId];
-        final isAddOrChange = currentReaction != emoji;
+        final isNewReaction = currentReaction != emoji;
 
         if (currentReaction == emoji) {
           reactions.remove(userId);
@@ -191,21 +208,30 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }
         tx.update(msgRef, {'reactions': reactions});
 
-        if (isAddOrChange) {
-          tx.update(convoRef, {
-            "$messageSenderId.lastMessage": "Reacted $emoji to a message",
-            "$messageSenderId.lastSender": userId,
-          });
-        } else {
-          final sourceId = userId == messageSenderId ? receiverId : userId;
-          final lastMessage = convoData[sourceId]?["lastMessage"] ?? "";
-          final lastMessageId = convoData[sourceId]?["lastMessageId"] ?? "";
-          final lastSender = convoData[sourceId]?["lastSender"] ?? "";
+        if (isNewReaction) {
+          final messageSenderId = data['senderId'] as String?;
+          if (messageSenderId != null) {
+            tx.update(convoRef, {
+              "$messageSenderId.lastMessage": "Reacted $emoji to a message",
+              "$messageSenderId.lastSender": userId,
+              "$userId.lastMessage": "Reacted $emoji to a message",
+              "$userId.lastSender": userId,
+              "$receiverId.lastMessage": "Reacted $emoji to a message",
+              "$receiverId.lastSender": userId,
+            });
+          }
+        }
 
-          tx.update(convoRef, {
-            "$messageSenderId.lastMessage": lastMessage,
-            "$messageSenderId.lastMessageId": lastMessageId,
-            "$messageSenderId.lastSender": lastSender,
+        // Write operation doc in same transaction with full reactions map
+        if (opCollection != null) {
+          final opRef = convoRef.collection(opCollection).doc(messageId);
+          tx.set(opRef, {
+            "type": "reaction",
+            "messageId": messageId,
+            "userId": userId,
+            "emoji": emoji,
+            "reactions": reactions,
+            "timestamp": FieldValue.serverTimestamp(),
           });
         }
       });
@@ -261,7 +287,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     } catch (e) {
       //print("Edit message error: $e");
     }
-  }
+    }
 
   @override
   Future<Stream<List<MessageModel>>> getScheduledMessages({
@@ -313,11 +339,15 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     String? replyToContent,
     String? replyToSenderId,
     String? replyToType,
+
+    //operation sync
+    String? opCollection,
   }) async {
     try {
+      final convoId = generateConversationId(userId, receiverId);
       final convoRef = firestore
           .collection("Conversations")
-          .doc(generateConversationId(userId, receiverId));
+          .doc(convoId);
 
       //time capsule refactorings
       final collectionName = sendAt != null ? "scheduled_messages" : "messages";
@@ -326,6 +356,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       
       //this can't be null
       final isScheduled = sendAt != null;
+
+      //skip operation for scheduled messages and when opCollection is not provided
+      final shouldWriteOp = opCollection != null && !isScheduled;
 
       final message = MessageModel(
         id: msgId,
@@ -350,13 +383,41 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         ...message.toMap(),
         "name": userName ?? "Unknown",
         "receiverId": receiverId,
-        "convoId": generateConversationId(userId, receiverId),
+        "convoId": convoId,
         "profile": userProfile ?? "assets/profile_images/pfp1.png",
         "createdAt": isScheduled
           ? Timestamp.fromDate(sendAt)
           : FieldValue.serverTimestamp(), // server sync later
         "index": null,
       });
+
+      // Write operation doc in same batch (only for non-scheduled messages)
+      if (shouldWriteOp) {
+        final opRef = convoRef.collection(opCollection).doc(msgId);
+        batch.set(opRef, {
+          "type": "new_message",
+          "messageId": msgId,
+          "senderId": userId,
+          "content": content,
+          "messageType": type,
+          "status": "sent",
+          "receiverId": receiverId,
+          "convoId": convoId,
+          "name": userName ?? "Unknown",
+          "profile": userProfile ?? "assets/profile_images/pfp1.png",
+          "deletedfor": [],
+          "deletedForEveryone": false,
+          "reactions": {},
+          "replyToId": replyToId,
+          "replyToContent": replyToContent,
+          "replyToSenderId": replyToSenderId,
+          "replyToType": replyToType,
+          "isScheduled": false,
+          "inTimeline": false,
+          "createdAt": FieldValue.serverTimestamp(),
+          "timestamp": FieldValue.serverTimestamp(),
+        });
+      }
 
       // Updating conversation only if not scheduled
       if (!isScheduled) {
@@ -405,10 +466,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         "friends": FieldValue.arrayUnion([userId]),
       }, SetOptions(merge: true));
 
-      await batch.commit();
       if (!isScheduled) {
         try {
-          await supabase.from('messages').insert({
+           supabase.from('messages').insert({
             'chat_id': generateConversationId(userId, receiverId),
             'sender_id': userId,
             'receiver_id': receiverId,
@@ -421,6 +481,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }
       }
 
+      await batch.commit();
+
       if (!isScheduled) {
         // await processTimelineEvent(
         //   messageId: msgId,
@@ -431,7 +493,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         //   createdAt: Timestamp.now(),
         // );
 
-        final timelineService = TimelineService(firestore);
+        final timelineService = TimelineService(firestore,opCollection!);
 
         await timelineService.handleMessage(
           messageId: msgId,
@@ -616,6 +678,11 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     return "${sorted[0]}_${sorted[1]}";
   }
 
+  String _getMyOpCollection(String userId, String receiverId) {
+    final sorted = [userId, receiverId]..sort();
+    return sorted[0] == userId ? "operation_1" : "operation_2";
+  }
+
   //refactored search user
   @override
   Future<List<User>> searchUser({
@@ -656,6 +723,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     required String userId,
     required String receiverId,
     bool deleteForEveryone = false,
+    String? opCollection,
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
@@ -753,12 +821,22 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       // =========================================================
       // 🔴 DELETE FOR EVERYONE
       // =========================================================
-      //batch.delete(docRef);
       batch.update(docRef, {
-        //"isDeleted": true,
         "deletedForEveryone": true,
-        //"content": "This message was deleted",
       });
+
+      // Write operation doc
+      if (opCollection != null) {
+        final opRef = convoRef.collection(opCollection).doc(msgId);
+        batch.set(opRef, {
+          "type": "delete_message",
+          "messageId": msgId,
+          "timestamp": FieldValue.serverTimestamp(),
+          "deletedfor": [userId, receiverId],
+          "deletedForEveryone": true,
+          "performedBy": userId,
+        });
+      }
 
       if (isMessage) {
         final convoSnap = await convoRef.get();
@@ -870,4 +948,46 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     }
   }
 
+  @override
+  Future<Stream<Map<String, dynamic>>> listenToOperations({
+    required String conversationId,
+    required String opCollection,
+  }) async {
+    return firestore
+        .collection("Conversations")
+        .doc(conversationId)
+        .collection(opCollection)
+        .snapshots()
+        .map((snapshot) {
+          final results = <Map<String, dynamic>>[];
+          for (final change in snapshot.docChanges) {
+            if (change.type == DocumentChangeType.added) {
+              final data = change.doc.data()!;
+              data['_docId'] = change.doc.id;
+              results.add(data);
+            }
+          }
+          return results;
+        })
+        .where((ops) => ops.isNotEmpty)
+        .expand((ops) => ops);
+  }
+
+  @override
+  Future<void> deleteOperation({
+    required String conversationId,
+    required String opCollection,
+    required String opId,
+  }) async {
+    try {
+      await firestore
+          .collection("Conversations")
+          .doc(conversationId)
+          .collection(opCollection)
+          .doc(opId)
+          .delete();
+    } catch (e) {
+      //print("Delete operation error: $e");
+    }
+  }
 }
