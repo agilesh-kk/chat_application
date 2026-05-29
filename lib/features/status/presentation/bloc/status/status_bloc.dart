@@ -98,7 +98,8 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
               createdAt: s.createdAt, 
               expiresAt: s.expiresAt, 
               userName: d.friends[s.userId]?.name ?? "unknown", 
-              profilepic: d.friends[s.userId]?.profilePic ?? "not found"
+              profilepic: d.friends[s.userId]?.profilePic ?? "not found",
+              likedBy: [],
             )
           );
         }
@@ -122,7 +123,8 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
               createdAt: s.createdAt, 
               expiresAt: s.expiresAt, 
               userName: friends.friends[s.userId]?.name ?? "unknown", 
-              profilepic: friends.friends[s.userId]?.profilePic ?? "not found"
+              profilepic: friends.friends[s.userId]?.profilePic ?? "not found",
+              likedBy: []
             )
           );
       }

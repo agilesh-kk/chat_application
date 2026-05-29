@@ -7,6 +7,7 @@ class StatusViewModel extends StatusView {
     required super.viewerId,
     required super.viewerName,
     required super.viewedAt,
+    super.isLiked,
   });
 
   factory StatusViewModel.fromJson(Map<String, dynamic> json){
@@ -15,7 +16,8 @@ class StatusViewModel extends StatusView {
       statusId: json['status_id'], 
       viewerId: json['viewer_id'], 
       viewerName: json['viewer_name'], 
-       viewedAt: DateTime.parse(json['viewed_at']),
+      viewedAt: DateTime.parse(json['viewed_at']),
+      isLiked: json['liked'] ?? false,
     );
   }
 
@@ -26,6 +28,7 @@ class StatusViewModel extends StatusView {
       'viewer_id' : viewerId,
       'viewer_name' : viewerName,
       'viewed_at' : viewedAt.toIso8601String(),
+      'liked': isLiked,
     };
   }
 
@@ -35,6 +38,7 @@ class StatusViewModel extends StatusView {
     String? viewerId,
     String? viewerName,
     DateTime? viewedAt,
+    bool? isLiked,
   }) {
     return StatusViewModel(
       id: id ?? this.id,
@@ -42,6 +46,7 @@ class StatusViewModel extends StatusView {
       viewerId: viewerId ?? this.viewerId,
       viewerName: viewerName ?? this.viewerName,
       viewedAt: viewedAt ?? this.viewedAt,
+      isLiked: isLiked ?? this.isLiked,
     );
   }
 }
