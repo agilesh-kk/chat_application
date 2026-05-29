@@ -480,9 +480,11 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         "friends": FieldValue.arrayUnion([userId]),
       }, SetOptions(merge: true));
 
+      await batch.commit();
+
       if (!isScheduled) {
         try {
-           supabase.from('messages').insert({
+           await supabase.from('messages').insert({
             'chat_id': generateConversationId(userId, receiverId),
             'sender_id': userId,
             'receiver_id': receiverId,
@@ -490,12 +492,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             'text': type == 'text' ? content : '📷 Photo',
             'sender_profile': userProfile
           }).select();
-        } catch (e) {
-          //print(e);
+        } catch (_) {
         }
       }
-
-      await batch.commit();
 
       if (!isScheduled) {
         // await processTimelineEvent(

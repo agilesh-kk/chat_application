@@ -182,7 +182,7 @@ class ChatRepositoryImpl implements ChatRepository {
 
       if (!isScheduled) {
         final convoId = generateConversationId(userId, receiverId);
-        chatLocalDataSource.confirmLocalMessage(msgId, {
+        await chatLocalDataSource.confirmLocalMessage(msgId, {
           'senderId': userId,
           'content': content,
           'type': 'text',
