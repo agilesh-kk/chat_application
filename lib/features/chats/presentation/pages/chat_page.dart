@@ -1,11 +1,14 @@
 ﻿// ignore_for_file: must_be_immutable
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
+import 'package:chat_application/features/status/domain/entities/status.dart';
+import 'package:chat_application/features/status/presentation/pages/view_status_page.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
 import 'package:chat_application/features/chats/presentation/widgets/reply_preview_bar.dart';
@@ -159,6 +162,57 @@ class _ChatPageState extends State<ChatPage> {
             });
           }
         });
+      }
+    }
+  }
+
+  void _onStatusReplyTap(Message msg) {
+    try {
+      final data = jsonDecode(msg.replyToContent ?? '{}') as Map<String, dynamic>;
+      final expiresAt = DateTime.parse(data['expiresAt'] as String);
+      if (expiresAt.isBefore(DateTime.now())) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Status has expired"),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      final status = Status(
+        id: msg.replyToId!,
+        userId: msg.replyToSenderId ?? '',
+        imageUrl: data['imageUrl'] as String? ?? '',
+        caption: data['caption'] as String? ?? '',
+        createdAt: DateTime.parse(data['createdAt'] as String),
+        expiresAt: expiresAt,
+        userName: data['userName'] as String? ?? widget.receiverName,
+        profilepic: data['profilepic'] as String? ?? '',
+        likedBy: const [],
+      );
+
+      if (mounted) {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => ViewStatusPage(
+            statuses: [status],
+            isUserStatus: false,
+            hasInternet: true,
+            userProfilePic: status.profilepic,
+            userName: status.userName,
+          ),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Could not load status"),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -876,7 +930,9 @@ class _ChatPageState extends State<ChatPage> {
             setState(() => _replyToMessage = msg);
             _messageFocusNode.requestFocus();
           },
-          onReplyTap: () => _onReplyTap(msg.replyToId!),
+          onReplyTap: msg.replyToType == "status"
+              ? () => _onStatusReplyTap(msg)
+              : () => _onReplyTap(msg.replyToId!),
           onEdit: isMe ? () => _onEditMessage(msg) : null,
         );
       case "image":
@@ -907,7 +963,9 @@ class _ChatPageState extends State<ChatPage> {
             setState(() => _replyToMessage = msg);
             _messageFocusNode.requestFocus();
           },
-          onReplyTap: () => _onReplyTap(msg.replyToId!),
+          onReplyTap: msg.replyToType == "status"
+              ? () => _onStatusReplyTap(msg)
+              : () => _onReplyTap(msg.replyToId!),
           onEdit: null,
         );
       default:

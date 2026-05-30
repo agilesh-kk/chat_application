@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:chat_application/core/usecase/usecase.dart';
+import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/domain/usecase/add_like.dart';
@@ -10,7 +12,9 @@ import 'package:chat_application/features/status/domain/usecase/update_view.dart
 import 'package:chat_application/features/status/domain/usecase/upload_status.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
 
 part 'status_event.dart';
@@ -23,6 +27,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
   final DeleteStatus _deleteStatus;
   final AddLike _addLike;
   final FriendsCubit _friendsCubit;
+  final ChatRepository _chatRepository;
   StreamSubscription? friendsStream;
   
 
@@ -33,6 +38,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
     required DeleteStatus deleteStatus,
     required AddLike addLike,
     required FriendsCubit friends_cubit,
+    required ChatRepository chatRepository,
   }) : 
   _uploadStatus = uploadStatus,
   _getAllStatus = getAllStatus,
@@ -40,6 +46,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
   _deleteStatus = deleteStatus,
   _addLike = addLike,
   _friendsCubit = friends_cubit,
+  _chatRepository = chatRepository,
   
   super(StatusInitial()) {
     //on<StatusEvent>((event, emit) => emit(StatusLoading()));
@@ -49,6 +56,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
     on<UpdateStatusPage>(_updateStatus);
     on<DeleteStatusEvent>(_onDeleteStatus);
     on<AddLikeEvent>(_onAddLikeEvent);
+    on<ReplyToStatusEvent>(_onReplyToStatusEvent);
   }
 
   FutureOr<void> _onUploadStatusEvent(UploadStatusEvent event, Emitter<StatusState> emit) async{
@@ -208,5 +216,31 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
       statusId: event.statusId,
       userId: event.userId,
     ));
+  }
+
+  FutureOr<void> _onReplyToStatusEvent(ReplyToStatusEvent event, Emitter<StatusState> emit) async {
+    final result = await _chatRepository.sendMessage(
+      receiverId: event.receiverId,
+      userId: event.userId,
+      content: event.content,
+      msgId: const Uuid().v1(),
+      userName: event.userName,
+      userProfile: event.userProfile,
+      replyToId: event.statusId,
+      replyToContent: jsonEncode({
+        'caption': event.statusCaption,
+        'imageUrl': event.statusImageUrl,
+        'createdAt': event.statusCreatedAt.toIso8601String(),
+        'expiresAt': event.statusExpiresAt.toIso8601String(),
+        'userName': event.statusUserName,
+        'profilepic': event.statusProfilepic,
+      }),
+      replyToSenderId: event.statusUserId,
+      replyToType: "status",
+    );
+    result.fold(
+      (failure) => emit(StatusFailure(failure.message)),
+      (_) {},
+    );
   }
 }
