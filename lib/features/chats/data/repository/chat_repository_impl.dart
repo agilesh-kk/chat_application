@@ -106,10 +106,12 @@ class ChatRepositoryImpl implements ChatRepository {
 
     if (type == null || docId == null) return;
 
+
     try {
       switch (type) {
         case 'new_message':
-          await chatLocalDataSource.upsertMessageFromFirestore(opData, docId);
+        final msgId = opData['messageId'] as String? ?? docId;
+          await chatLocalDataSource.upsertMessageFromFirestore(opData, msgId);
           break;
 
         case 'delete_message':
@@ -182,7 +184,7 @@ class ChatRepositoryImpl implements ChatRepository {
 
       if (!isScheduled) {
         final convoId = generateConversationId(userId, receiverId);
-        chatLocalDataSource.confirmLocalMessage(msgId, {
+        await chatLocalDataSource.confirmLocalMessage(msgId, {
           'senderId': userId,
           'content': content,
           'type': 'text',

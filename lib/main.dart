@@ -274,6 +274,7 @@ Future<void> _showNotification(Map<String, dynamic> data) async {
               AndroidNotificationActionInput(
                 label: 'Reply message...',
                 allowFreeFormInput: true,
+                choices: ["Hello","Okay","What is it?"]
               ),
             ],
           ),

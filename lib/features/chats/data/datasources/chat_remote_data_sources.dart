@@ -275,6 +275,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           "senderId" : userId,
           "new_content" : newContent,
           "editedAt": FieldValue.serverTimestamp(),
+          "timestamp": FieldValue.serverTimestamp(),
         });
 
         tx.update(msgRef, {
@@ -480,9 +481,11 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         "friends": FieldValue.arrayUnion([userId]),
       }, SetOptions(merge: true));
 
+      await batch.commit();
+
       if (!isScheduled) {
         try {
-           supabase.from('messages').insert({
+           await supabase.from('messages').insert({
             'chat_id': generateConversationId(userId, receiverId),
             'sender_id': userId,
             'receiver_id': receiverId,
@@ -490,12 +493,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             'text': type == 'text' ? content : '📷 Photo',
             'sender_profile': userProfile
           }).select();
-        } catch (e) {
-          //print(e);
+        } catch (_) {
         }
       }
-
-      await batch.commit();
 
       if (!isScheduled) {
         // await processTimelineEvent(
@@ -967,10 +967,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     required String conversationId,
     required String opCollection,
   }) async {
+    try{
     return firestore
         .collection("Conversations")
         .doc(conversationId)
         .collection(opCollection)
+        .orderBy("timestamp", descending: true)
         .snapshots()
         .map((snapshot) {
           final results = <Map<String, dynamic>>[];
@@ -985,6 +987,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         })
         .where((ops) => ops.isNotEmpty)
         .expand((ops) => ops);
+    }catch(e){
+      print(e);
+      return Stream.empty();
+    }
   }
 
   @override
