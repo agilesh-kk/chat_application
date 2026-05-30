@@ -163,7 +163,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         (messageStream) {
           _messageSub = messageStream.listen(
             
-            (messages)  {print("1111111111111111111111111111111111111111111");add(MessagesUpdatedEvent(messages));},
+            (messages)  {add(MessagesUpdatedEvent(messages));},
           );
         }
       );

@@ -601,24 +601,24 @@ class ProfilePage extends StatelessWidget {
           if (isUser)
             Row(
               children: [
-                Expanded(
-                  child: _buildFeatureCard(
-                    icon: Icons.emoji_events,
-                    title: "Achievements",
-                    subtitle: "Your badges & rewards",
-                    gradientColors: [
-                      AppPallete.storyGradientStart,
-                      AppPallete.storyGradientEnd,
-                    ],
-                    onTap: () {
-                      Navigator.push(
-                        context, 
-                        MaterialPageRoute(builder: (context) => AchievementPage(userId: profileUser.id) )
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 14),
+                // Expanded(
+                //   child: _buildFeatureCard(
+                //     icon: Icons.emoji_events,
+                //     title: "Achievements",
+                //     subtitle: "Your badges & rewards",
+                //     gradientColors: [
+                //       AppPallete.storyGradientStart,
+                //       AppPallete.storyGradientEnd,
+                //     ],
+                //     onTap: () {
+                //       Navigator.push(
+                //         context, 
+                //         MaterialPageRoute(builder: (context) => AchievementPage(userId: profileUser.id) )
+                //       );
+                //     },
+                //   ),
+                // ),
+                // const SizedBox(width: 14),
                 Expanded(
                   child: _buildFeatureCard(
                     icon: Icons.favorite,
