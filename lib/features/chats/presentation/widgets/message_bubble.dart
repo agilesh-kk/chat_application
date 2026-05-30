@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
+import 'dart:convert';
+
 import 'package:emoji_regex/emoji_regex.dart';
 
 class MessageBubble extends StatefulWidget {
@@ -145,9 +147,20 @@ class _MessageBubbleState extends State<MessageBubble>
 
     final isOwnReply = widget.message.replyToSenderId == widget.currentUserId;
     final senderName = isOwnReply ? "You" : (widget.receiverName ?? "Unknown");
-    final previewText = widget.message.replyToType == "image"
-        ? "📷 Image"
-        : (widget.message.replyToContent ?? "");
+    String previewText;
+    if (widget.message.replyToType == "image") {
+      previewText = "📷 Image";
+    } else if (widget.message.replyToType == "status") {
+      try {
+        final data = jsonDecode(widget.message.replyToContent ?? '{}') as Map;
+        final caption = data['caption'] as String? ?? '';
+        previewText = caption.isNotEmpty ? "📸 $caption" : "📸 Status";
+      } catch (_) {
+        previewText = "📸 Status";
+      }
+    } else {
+      previewText = widget.message.replyToContent ?? "";
+    }
 
     return GestureDetector(
       onTap: widget.onReplyTap,

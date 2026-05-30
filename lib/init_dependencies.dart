@@ -196,6 +196,7 @@ void _initStatus() async{
         updateView: serviceLocator<UpdateView>(),
         deleteStatus: serviceLocator<DeleteStatus>(),
         addLike: serviceLocator<AddLike>(),
+        chatRepository: serviceLocator<ChatRepository>(),
       )
     )
     //status views bloc

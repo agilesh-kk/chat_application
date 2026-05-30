@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -372,9 +373,20 @@ class _ImageMessageTileState extends State<ImageMessageTile>
 
     final isOwnReply = widget.message.replyToSenderId == widget.currentUserId;
     final senderName = isOwnReply ? "You" : (widget.receiverName ?? "Unknown");
-    final previewText = widget.message.replyToType == "image"
-        ? "📷 Image"
-        : (widget.message.replyToContent ?? "");
+    String previewText;
+    if (widget.message.replyToType == "image") {
+      previewText = "📷 Image";
+    } else if (widget.message.replyToType == "status") {
+      try {
+        final data = jsonDecode(widget.message.replyToContent ?? '{}') as Map;
+        final caption = data['caption'] as String? ?? '';
+        previewText = caption.isNotEmpty ? "📸 $caption" : "📸 Status";
+      } catch (_) {
+        previewText = "📸 Status";
+      }
+    } else {
+      previewText = widget.message.replyToContent ?? "";
+    }
 
     return GestureDetector(
       onTap: widget.onReplyTap,
