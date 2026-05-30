@@ -21,6 +21,7 @@ import 'package:chat_application/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fpdart/fpdart.dart' as fp;
 import 'package:path_provider/path_provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:intl/intl.dart';
@@ -65,6 +66,7 @@ class _ChatPageState extends State<ChatPage> {
   bool firstTime = true;
   Message? _replyToMessage;
   String? _editingMessageId;
+  String? lastMessageId;
 
   bool get _isEditing => _editingMessageId != null;
 
@@ -510,6 +512,14 @@ class _ChatPageState extends State<ChatPage> {
           if (state is ChatLoaded) {
             final messages = state.messages;
 
+            if(lastMessageId==null){
+              lastMessageId = messages[0].id;
+            }
+            else if(lastMessageId != messages[0].id && _scrollController.isAttached){
+              _scrollController.scrollTo(index: 0, duration: Duration(milliseconds: 350),curve: Curves.easeIn);
+              lastMessageId = messages[0].id;
+            }
+
             if (widget.scrolltoIndex != null) {
               _scrollToIndex(widget.scrolltoIndex!);
               widget.scrolltoIndex = null;
@@ -619,7 +629,7 @@ class _ChatPageState extends State<ChatPage> {
                       child: AnimatedOpacity(
                         opacity: state.showHeader ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 300),
-                        child: _buildStickyDateHeader(state.dateLabel!),
+                        child: _buildStickyDateHeader(state.dateLabel!,messages),
                       ),
                     );
                   },
@@ -667,19 +677,32 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _buildStickyDateHeader(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(color: AppPallete.darkBg.withValues(alpha: 0)),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppPallete.cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppPallete.divider),
+  Widget _buildStickyDateHeader(String label,List<Message> messages) {
+    return GestureDetector(
+      onLongPress: ()async{
+        print(messages[0].createdAt);
+        DateTime? picked = await showDatePicker(context: context, firstDate: messages[messages.length-1].createdAt, lastDate: DateTime.now());
+
+        if(picked != null){
+          final index = messages.lastIndexWhere((element) => element.createdAt.eqvYearMonthDay(picked),);
+          if(index != null) {
+            _scrollToIndex(index);
+          }
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(color: AppPallete.darkBg.withValues(alpha: 0)),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppPallete.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppPallete.divider),
+            ),
+            child: Text(label, style: const TextStyle(color: AppPallete.greyText, fontSize: 12, fontWeight: FontWeight.w600)),
           ),
-          child: Text(label, style: const TextStyle(color: AppPallete.greyText, fontSize: 12, fontWeight: FontWeight.w600)),
         ),
       ),
     );
