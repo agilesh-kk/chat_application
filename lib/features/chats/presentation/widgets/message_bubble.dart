@@ -253,7 +253,7 @@ return Align(
                 ? "This message was deleted "
                 : widget.message.content,
             style: TextStyle(
-              fontSize: 15,
+              fontSize: _emojiFontSize(widget.message.content),
               fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
               color: widget.message.deletedForEveryone
                   ? AppPallete.greyText
@@ -263,6 +263,17 @@ return Align(
         ),
       ],
     );
+  }
+
+  double _emojiFontSize(String text) {
+    final emojiRegex = RegExp(r'(\p{Emoji})', unicode: true);
+    final matches = emojiRegex.allMatches(text);
+    final emojiCount = matches.length;
+    final onlyEmojis = text.trim().replaceAll(emojiRegex, '').trim().isEmpty;
+    if (!onlyEmojis || emojiCount == 0) return 15;
+    if (emojiCount == 1) return 48;
+    if (emojiCount == 2) return 36;
+    return 15;
   }
 
   Widget _buildTimeRow(String time) {

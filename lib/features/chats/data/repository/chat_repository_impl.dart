@@ -106,10 +106,12 @@ class ChatRepositoryImpl implements ChatRepository {
 
     if (type == null || docId == null) return;
 
+
     try {
       switch (type) {
         case 'new_message':
-          await chatLocalDataSource.upsertMessageFromFirestore(opData, docId);
+        final msgId = opData['messageId'] as String? ?? docId;
+          await chatLocalDataSource.upsertMessageFromFirestore(opData, msgId);
           break;
 
         case 'delete_message':

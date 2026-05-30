@@ -743,6 +743,7 @@ class _ChatPageState extends State<ChatPage> {
               child: TextField(
                 controller: controller,
                 focusNode: _messageFocusNode,
+                //contentInsertionConfiguration: ,
                 minLines: 1,
                 maxLines: 5,
                 style: const TextStyle(color: AppPallete.whiteColor),

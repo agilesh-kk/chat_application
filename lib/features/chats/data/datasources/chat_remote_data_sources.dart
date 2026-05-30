@@ -275,6 +275,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           "senderId" : userId,
           "new_content" : newContent,
           "editedAt": FieldValue.serverTimestamp(),
+          "timestamp": FieldValue.serverTimestamp(),
         });
 
         tx.update(msgRef, {
@@ -966,10 +967,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     required String conversationId,
     required String opCollection,
   }) async {
+    try{
     return firestore
         .collection("Conversations")
         .doc(conversationId)
         .collection(opCollection)
+        .orderBy("timestamp", descending: true)
         .snapshots()
         .map((snapshot) {
           final results = <Map<String, dynamic>>[];
@@ -984,6 +987,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         })
         .where((ops) => ops.isNotEmpty)
         .expand((ops) => ops);
+    }catch(e){
+      print(e);
+      return Stream.empty();
+    }
   }
 
   @override

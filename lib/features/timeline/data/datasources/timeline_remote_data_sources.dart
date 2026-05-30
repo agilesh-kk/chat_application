@@ -127,7 +127,8 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
     await operationRef.set({
       "type" : "timeline",
       "messageId" : message.id,
-      "addedToTimeline" : true
+      "addedToTimeline" : true,
+      "timestamp": FieldValue.serverTimestamp(),
     });
   }
 
@@ -187,7 +188,8 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
         await operationRef.set({
           "type" : "timeline",
           "messageId" : messageId,
-          "addedToTimeline" : false
+          "addedToTimeline" : false,
+          "timestamp": FieldValue.serverTimestamp(),
         });
         }
       });
