@@ -200,7 +200,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         final data = doc.data()!;
         final reactions = Map<String, dynamic>.from(data['reactions'] as Map? ?? {});
         final currentReaction = reactions[userId];
-        final isNewReaction = currentReaction != emoji;
+        final isAddOrChange = currentReaction != emoji;
 
         if (currentReaction == emoji) {
           reactions.remove(userId);
@@ -209,17 +209,28 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }
         tx.update(msgRef, {'reactions': reactions});
 
-        if (isNewReaction) {
-          final messageSenderId = data['senderId'] as String?;
-          if (messageSenderId != null) {
-            tx.update(convoRef, {
-              "$messageSenderId.lastMessage": "Reacted $emoji to a message",
-              "$messageSenderId.lastSender": userId,
-              "$userId.lastMessage": "Reacted $emoji to a message",
-              "$userId.lastSender": userId,
-              "$receiverId.lastMessage": "Reacted $emoji to a message",
-              "$receiverId.lastSender": userId,
-            });
+        // Only update receiver's conversation preview
+        // and only if the reacted message is their current lastMessageId
+        final convoDoc = await tx.get(convoRef);
+        if (convoDoc.exists) {
+          final convoData = convoDoc.data()!;
+          if (convoData[receiverId]?["lastMessageId"] == messageId) {
+            if (isAddOrChange) {
+              tx.update(convoRef, {
+                "$receiverId.lastMessage": "Reacted $emoji to a message",
+                "$receiverId.lastSender": userId,
+              });
+            } else {
+              // Removal: restore receiver's fields from reactor's (userId) fields
+              final lastMessage = convoData[userId]?["lastMessage"] ?? "";
+              final lastMessageId = convoData[userId]?["lastMessageId"] ?? "";
+              final lastSender = convoData[userId]?["lastSender"] ?? "";
+              tx.update(convoRef, {
+                "$receiverId.lastMessage": lastMessage,
+                "$receiverId.lastMessageId": lastMessageId,
+                "$receiverId.lastSender": lastSender,
+              });
+            }
           }
         }
 
