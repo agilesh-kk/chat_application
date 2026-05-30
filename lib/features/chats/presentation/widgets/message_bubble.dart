@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
+import 'package:emoji_regex/emoji_regex.dart';
 
 class MessageBubble extends StatefulWidget {
   final Message message;
@@ -200,21 +201,27 @@ class _MessageBubbleState extends State<MessageBubble>
   }
 
   Widget _buildMessageContainer(String time, bool normal) {
+    final isEmojiOnly = _emojiFontSize(widget.message.content) > 15 && !widget.message.deletedForEveryone;
+    final hasReactions = widget.message.reactions.isNotEmpty && !widget.message.deletedForEveryone;
 return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         margin: widget.isMe
-            ? const EdgeInsets.only(left: 64, right: 8, top: 4, bottom: 4)
-            : const EdgeInsets.only(left: 8, right: 64, top: 4, bottom: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ? EdgeInsets.only(left: 64, right: 8, top: 4, bottom: hasReactions ? isEmojiOnly ? 15 : 8 : 4)
+            : EdgeInsets.only(left: 8, right: 64, top: 4, bottom: hasReactions ? isEmojiOnly ? 15 : 8 : 4),
+        padding: isEmojiOnly
+            ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         constraints: const BoxConstraints(maxWidth: 500),
         decoration: BoxDecoration(
-          color: widget.highlight
-            ? Colors.amberAccent.withValues(alpha: 0.25)
-            : (widget.isMe ? const Color(0xFFB84A1A) : AppPallete.cardBg),
+          color: isEmojiOnly
+            ? Colors.transparent
+            : (widget.highlight
+              ? Colors.amberAccent.withValues(alpha: 0.25)
+              : (widget.isMe ? const Color(0xFFB84A1A) : AppPallete.cardBg)),
           borderRadius: BorderRadius.circular(16),
-          border: widget.isMe ? null : Border.all(color: AppPallete.divider),
+          border: isEmojiOnly ? null : (widget.isMe ? null : Border.all(color: AppPallete.divider)),
         ),
         child: widget.message.replyToId != null && !widget.message.deletedForEveryone
           ? Column(
@@ -226,15 +233,27 @@ return Align(
                 Align(alignment: Alignment.centerRight, child: _buildTimeRow(time)),
               ],
             )
-          : Wrap(
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.end,
-              spacing: 6,
-              children: [
-                _buildContentRow(),
-                _buildTimeRow(time),
-              ],
-            ),
+          : isEmojiOnly
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _buildContentRow(),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: _buildTimeRow(time),
+                  ),
+                ],
+              )
+            : Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 6,
+                children: [
+                  _buildContentRow(),
+                  _buildTimeRow(time),
+                ],
+              ),
       ),
     );
   }
@@ -266,13 +285,12 @@ return Align(
   }
 
   double _emojiFontSize(String text) {
-    final emojiRegex = RegExp(r'(\p{Emoji})', unicode: true);
-    final matches = emojiRegex.allMatches(text);
-    final emojiCount = matches.length;
-    final onlyEmojis = text.trim().replaceAll(emojiRegex, '').trim().isEmpty;
+    final regex = emojiRegex();
+    final emojiCount = regex.allMatches(text).length;
+    final onlyEmojis = text.replaceAll(regex, '').trim().isEmpty;
     if (!onlyEmojis || emojiCount == 0) return 15;
-    if (emojiCount == 1) return 48;
-    if (emojiCount == 2) return 36;
+    if (emojiCount == 1) return 60;
+    if (emojiCount == 2) return 44;
     return 15;
   }
 

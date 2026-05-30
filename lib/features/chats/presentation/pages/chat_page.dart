@@ -1,5 +1,6 @@
 ﻿// ignore_for_file: must_be_immutable
 import 'dart:async';
+import 'dart:io';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
@@ -18,7 +19,9 @@ import 'package:chat_application/features/friends/presentation/friends_cubit.dar
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:chat_application/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:intl/intl.dart';
 
@@ -232,6 +235,43 @@ class _ChatPageState extends State<ChatPage> {
           replyToType: _replyToMessage?.type,
         ));
     controller.clear();
+    _clearReply();
+  }
+
+  static const _contentChannel = MethodChannel('com.axisstudio.memento/content_reader');
+
+  Future<void> _sendGifFromKeyboard(KeyboardInsertedContent inserted) async {
+    Uint8List bytes;
+    if (inserted.hasData) {
+      bytes = inserted.data!;
+    } else {
+      try {
+        final result = await _contentChannel.invokeMethod('readContentUri', {'uri': inserted.uri});
+        bytes = Uint8List.fromList(List<int>.from(result as List));
+      } catch (e) {
+        return;
+      }
+    }
+
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/gif_${DateTime.now().millisecondsSinceEpoch}.gif');
+    await file.writeAsBytes(bytes);
+
+    if (!mounted) return;
+    final user = context.read<AppUserCubit>().state;
+    if (user is AppUserIsSignedin) {
+      cb.add(SendImageEvent(
+        userName: user.user.name,
+        userProfile: user.user.profilePic,
+        userId: user.user.id,
+        image: XFile(file.path),
+        receiverId: widget.receiverId,
+        replyToId: _replyToMessage?.id,
+        replyToContent: _replyToMessage?.content,
+        replyToSenderId: _replyToMessage?.senderId,
+        replyToType: _replyToMessage?.type,
+      ));
+    }
     _clearReply();
   }
 
@@ -743,7 +783,10 @@ class _ChatPageState extends State<ChatPage> {
               child: TextField(
                 controller: controller,
                 focusNode: _messageFocusNode,
-                //contentInsertionConfiguration: ,
+                contentInsertionConfiguration: ContentInsertionConfiguration(
+                  allowedMimeTypes: const ['image/gif', 'image/*'],
+                  onContentInserted: (inserted) => _sendGifFromKeyboard(inserted),
+                ),
                 minLines: 1,
                 maxLines: 5,
                 style: const TextStyle(color: AppPallete.whiteColor),

@@ -36,6 +36,7 @@ dependencies:
   sqflite: ^2.4.2
   sqflite_common_ffi: ^2.3.5
   path: ^1.9.1
+  emoji_regex: ^0.0.5
 
 dev_dependencies:
   flutter_test:
