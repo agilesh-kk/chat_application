@@ -10,6 +10,7 @@ class ConvoTile extends StatelessWidget {
   final int unread;
   final String lastSender;
   final bool isOnline;
+  final bool isTyping;
   final GestureTapCallback onTap;
 
   const ConvoTile({
@@ -21,6 +22,7 @@ class ConvoTile extends StatelessWidget {
     required this.lastUpdateTime,
     required this.lastSender,
     required this.isOnline,
+    this.isTyping = false,
     required this.onTap,
   });
 
@@ -151,22 +153,33 @@ class ConvoTile extends StatelessWidget {
                             const SizedBox(width: 6),
                           ],
                           Expanded(
-                            child: Text(
-                              lastSender.isEmpty
-                                  ? lastMessage
-                                  : "you: $lastMessage",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: unread > 0
-                                    ? AppPallete.whiteColor
-                                    : AppPallete.greyText,
-                                fontSize: 14,
-                                fontWeight: unread > 0
-                                    ? FontWeight.w500
-                                    : FontWeight.normal,
-                              ),
-                            ),
+                            child: isTyping
+                                ? Text(
+                                    "typing...",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppPallete.primaryOrange,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  )
+                                : Text(
+                                    lastSender.isEmpty
+                                        ? lastMessage
+                                        : "you: $lastMessage",
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: unread > 0
+                                          ? AppPallete.whiteColor
+                                          : AppPallete.greyText,
+                                      fontSize: 14,
+                                      fontWeight: unread > 0
+                                          ? FontWeight.w500
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
                           ),
                           if (unread > 0) ...[
                             const SizedBox(width: 8),
