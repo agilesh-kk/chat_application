@@ -432,7 +432,9 @@ class _ChatPageState extends State<ChatPage> {
                           child: friend.profilePic.isNotEmpty
                               ? CircleAvatar(
                                   radius: 18,
-                                  backgroundImage: AssetImage(friend.profilePic),
+                                  backgroundImage: friend.profilePic.startsWith('assets/')
+                                      ? AssetImage(friend.profilePic) as ImageProvider
+                                      : NetworkImage(friend.profilePic),
                                   backgroundColor: AppPallete.cardBg,
                                 )
                               : const Icon(Icons.person, color: AppPallete.greyText, size: 20),

@@ -287,7 +287,9 @@ return Scaffold(
                           child: friend.profilePic.isNotEmpty
                               ? CircleAvatar(
                                   radius: 24,
-                                  backgroundImage: AssetImage(friend.profilePic),
+                                  backgroundImage: friend.profilePic.startsWith('assets/')
+                                      ? AssetImage(friend.profilePic) as ImageProvider
+                                      : NetworkImage(friend.profilePic),
                                   backgroundColor: AppPallete.cardBg,
                                 )
                               : Icon(

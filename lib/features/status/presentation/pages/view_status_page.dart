@@ -284,10 +284,12 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                   child: Row(
                                     children: [
                                       CircleAvatar(
-                                        radius: 20,
-                                        backgroundImage: hasProfilePic
-                                            ? AssetImage(profilePic)
-                                            : null,
+                                          radius: 20,
+                                          backgroundImage: hasProfilePic
+                                              ? (profilePic.startsWith('assets/')
+                                                  ? AssetImage(profilePic) as ImageProvider
+                                                  : NetworkImage(profilePic))
+                                              : null,
                                         backgroundColor: AppPallete.darkSecondary,
                                         child: !hasProfilePic
                                             ? const Icon(
@@ -671,7 +673,9 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
           ),
           child: CircleAvatar(
             radius: 18,
-            backgroundImage: AssetImage(widget.userProfilePic),
+            backgroundImage: widget.userProfilePic.startsWith('assets/')
+                ? AssetImage(widget.userProfilePic) as ImageProvider
+                : NetworkImage(widget.userProfilePic),
             backgroundColor: AppPallete.darkSecondary,
           ),
         ),

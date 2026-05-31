@@ -97,7 +97,7 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
       radius: 26,
       backgroundImage: displayImage(widget.status),
       backgroundColor: AppPallete.cardBg,
-      child: widget.status.profilepic == null
+      child: widget.status.profilepic.isEmpty
           ? const Icon(Icons.person, color: AppPallete.greyText, size: 22)
           : null,
     );

@@ -339,7 +339,9 @@ class _SearchPageState extends State<SearchPage> {
                       child: user.profilePic != null && user.profilePic!.isNotEmpty
                           ? CircleAvatar(
                               radius: 24,
-                              backgroundImage: AssetImage(user.profilePic!),
+                              backgroundImage: user.profilePic!.startsWith('assets/')
+                                  ? AssetImage(user.profilePic!) as ImageProvider
+                                  : NetworkImage(user.profilePic!),
                               backgroundColor: AppPallete.cardBg,
                             )
                           : Icon(

@@ -42,6 +42,7 @@ import 'package:chat_application/features/profile/data/datasources/profile_remot
 import 'package:chat_application/features/profile/data/repository/profile_repository_impl.dart';
 import 'package:chat_application/features/profile/domain/repository/profile_repository.dart';
 import 'package:chat_application/features/profile/domain/usecase/update_bio.dart';
+import 'package:chat_application/features/profile/domain/usecase/update_custom_pfp.dart';
 import 'package:chat_application/features/profile/domain/usecase/update_profile.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
@@ -366,7 +367,8 @@ void _initProfile() async{
   //data source
   ..registerFactory<ProfileRemoteDataSource>(
     () =>ProfileRemoteDataSourceImpl(
-      firebaseFirestore: serviceLocator<FirebaseFirestore>()
+      firebaseFirestore: serviceLocator<FirebaseFirestore>(),
+      supabaseClient: serviceLocator<SupabaseClient>()
     )
   )
 
@@ -388,11 +390,17 @@ void _initProfile() async{
       profileRepository: serviceLocator<ProfileRepository>()
     )
   )
+  ..registerFactory(
+    () => UpdateCustomPfp(
+      profileRepository: serviceLocator<ProfileRepository>()
+    )
+  )
 
   //bloc for profile pic
   ..registerLazySingleton(
     () => ProfilePicBloc(
-      updateProfile: serviceLocator<UpdateProfile>()
+      updateProfile: serviceLocator<UpdateProfile>(),
+      updateCustomPfp: serviceLocator<UpdateCustomPfp>()
     )
   )
 

@@ -1,10 +1,13 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/app_images.dart';
+import 'package:chat_application/core/utils/image_picker_service.dart';
+import 'package:chat_application/core/utils/modal_bottom_sheet.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EditAvatar extends StatefulWidget {
   final String userId;
@@ -63,7 +66,7 @@ class _EditAvatarState extends State<EditAvatar> {
 
                       return GridView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: AppImages.profileImages.length,
+                        itemCount: AppImages.profileImages.length + 1,
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
@@ -71,9 +74,14 @@ class _EditAvatarState extends State<EditAvatar> {
                           mainAxisSpacing: 12,
                         ),
                         itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return _AddCustomAvatarTile(
+                              onTap: () => _onAddCustomTap(context),
+                            );
+                          }
                           return _AvatarCircle(
-                            imagePath: AppImages.profileImages[index],
-                            onTap: () => _onAvatarTap(context, index),
+                            imagePath: AppImages.profileImages[index - 1],
+                            onTap: () => _onAvatarTap(context, index - 1),
                           );
                         },
                       );
@@ -192,6 +200,129 @@ class _EditAvatarState extends State<EditAvatar> {
             ),
           );
     }
+  }
+
+  Future<void> _onAddCustomTap(BuildContext context) async {
+    final result = await ModalBottomSheet.show<String>(
+      context,
+      title: "Select Image Source",
+      options: [
+        BottomSheetOption(
+          value: 'camera',
+          label: 'Camera',
+          icon: Icons.camera_alt,
+        ),
+        BottomSheetOption(
+          value: 'gallery',
+          label: 'Gallery',
+          icon: Icons.photo_library,
+        ),
+      ],
+    );
+
+    if (result == null || !context.mounted) return;
+
+    final imagePickerService = ImagePickerService();
+    XFile? image;
+    if (result == 'camera') {
+      image = await imagePickerService.pickFromCamera();
+    } else if (result == 'gallery') {
+      image = await imagePickerService.pickFromGallery();
+    }
+
+    if (image != null && context.mounted) {
+      context.read<ProfilePicBloc>().add(
+            ProfilePicCustomUpload(
+              userId: widget.userId,
+              image: image,
+            ),
+          );
+    }
+  }
+}
+
+class _AddCustomAvatarTile extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _AddCustomAvatarTile({
+    required this.onTap,
+  });
+
+  @override
+  State<_AddCustomAvatarTile> createState() => _AddCustomAvatarTileState();
+}
+
+class _AddCustomAvatarTileState extends State<_AddCustomAvatarTile>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
+    );
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Opacity(
+            opacity: _opacityAnimation.value,
+            child: child,
+          ),
+        );
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                AppPallete.primaryOrange,
+                AppPallete.lightOrange,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppPallete.primaryOrange.withValues(alpha: 0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(
+              Icons.add,
+              size: 48,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

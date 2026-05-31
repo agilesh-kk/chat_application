@@ -103,7 +103,9 @@ class _UserStatusColumnState extends State<UserStatusColumn>
                     CircleAvatar(
                       radius: 28,
                       backgroundImage: widget.image != null
-                          ? AssetImage(widget.image!)
+                          ? (widget.image!.startsWith('assets/')
+                              ? AssetImage(widget.image!) as ImageProvider
+                              : NetworkImage(widget.image!))
                           : null,
                       backgroundColor: AppPallete.cardBg,
                       child: widget.image == null

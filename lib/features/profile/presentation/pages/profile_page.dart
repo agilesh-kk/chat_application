@@ -279,7 +279,9 @@ class ProfilePage extends StatelessWidget {
               CircleAvatar(
                 radius: 68,
                 backgroundImage: profileUser.profilePic != null
-                    ? AssetImage(profileUser.profilePic!)
+                    ? (profileUser.profilePic!.startsWith('assets/')
+                        ? AssetImage(profileUser.profilePic!) as ImageProvider
+                        : NetworkImage(profileUser.profilePic!))
                     : null,
                 backgroundColor: AppPallete.cardBg,
                 child: profileUser.profilePic == null

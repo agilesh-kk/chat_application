@@ -68,7 +68,9 @@ class ConvoTile extends StatelessWidget {
                       child: CircleAvatar(
                         radius: 24,
                         backgroundImage: (profilePic.toLowerCase() != "not found")
-                            ? AssetImage(profilePic)
+                            ? (profilePic.startsWith('assets/')
+                                ? AssetImage(profilePic) as ImageProvider
+                                : NetworkImage(profilePic))
                             : null,
                         backgroundColor: AppPallete.darkTertiary,
                         child: (profilePic.toLowerCase() == "not found")
