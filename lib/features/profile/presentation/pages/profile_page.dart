@@ -302,7 +302,7 @@ class ProfilePage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) =>
-                              EditAvatar(userId: profileUser.id),
+                              EditAvatar(userId: profileUser.id,pfpUrl: profileUser.profilePic,),
                         ),
                       );
                     },

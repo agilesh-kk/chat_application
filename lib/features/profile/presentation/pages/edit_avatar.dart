@@ -11,10 +11,12 @@ import 'package:image_picker/image_picker.dart';
 
 class EditAvatar extends StatefulWidget {
   final String userId;
+  final String pfpUrl;
 
   const EditAvatar({
     super.key,
     required this.userId,
+    required this.pfpUrl,
   });
 
   @override
@@ -235,6 +237,7 @@ class _EditAvatarState extends State<EditAvatar> {
             ProfilePicCustomUpload(
               userId: widget.userId,
               image: image,
+              oldPfpImage: widget.pfpUrl,
             ),
           );
     }

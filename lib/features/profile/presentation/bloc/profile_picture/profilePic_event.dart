@@ -16,9 +16,11 @@ final class ProfilePicUpdate extends ProfilePicEvent{
 final class ProfilePicCustomUpload extends ProfilePicEvent{
   final String userId;
   final XFile image;
+  final String oldPfpImage;
 
   ProfilePicCustomUpload({
     required this.userId, 
-    required this.image
+    required this.image,
+    required this.oldPfpImage,
   });
 }
