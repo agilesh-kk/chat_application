@@ -34,6 +34,8 @@ import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:chat_application/features/chats/presentation/cubit/sticky_header_cubit.dart';
 import 'package:chat_application/notification_storage.dart';
+import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
+import 'package:chat_application/features/chats/presentation/widgets/typing_indicator.dart';
 
 class ChatPage extends StatefulWidget {
   static String? activeConvoId;
@@ -70,6 +72,13 @@ class _ChatPageState extends State<ChatPage> {
   Message? _replyToMessage;
   String? _editingMessageId;
   String? lastMessageId;
+  late final typingCubit;
+
+  String get _conversationId {
+    if (widget.convoId != null) return widget.convoId!;
+    final sorted = [widget.currentUserId, widget.receiverId]..sort();
+    return "${sorted[0]}_${sorted[1]}";
+  }
 
   bool get _isEditing => _editingMessageId != null;
 
@@ -90,12 +99,15 @@ class _ChatPageState extends State<ChatPage> {
     widget.cacheService = CacheService();
     cb = context.read<ChatBloc>()
       ..add(LoadMessagesEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
+    typingCubit = context.read<ConvoTypingCubit>();
+    typingCubit.subscribeToTyping(_conversationId, widget.receiverId);
   }
 
   @override
   void dispose() {
     ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
+    typingCubit.stopTyping(_conversationId, widget.currentUserId);
     cb.add(Closechat());
     super.dispose();
   }
@@ -218,6 +230,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _send() {
+    context.read<ConvoTypingCubit>().stopTyping(_conversationId, widget.currentUserId);
     final text = controller.text.trim();
     if (text.isEmpty) return;
 
@@ -470,14 +483,22 @@ class _ChatPageState extends State<ChatPage> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (friend != null)
-                          Text(
-                            friend.isEffectivelyOnline
-                                ? "Online"
-                                : friend.lastSeen != null
-                                    ? "Last seen ${MomentsAgo.calculateMomentsAgo(friend.lastSeen!.toIso8601String())}"
-                                    : "",
-                            style: const TextStyle(color: AppPallete.greyText, fontSize: 12),
-                            overflow: TextOverflow.ellipsis,
+                          BlocBuilder<ConvoTypingCubit, Map<String, bool>>(
+                            builder: (context, typingMap) {
+                              final f = friend!;
+                              if (typingMap[_conversationId] == true) {
+                                return const TypingIndicator();
+                              }
+                              return Text(
+                                f.isEffectivelyOnline
+                                    ? "Online"
+                                    : f.lastSeen != null
+                                        ? "Last seen ${MomentsAgo.calculateMomentsAgo(f.lastSeen!.toIso8601String())}"
+                                        : "",
+                                style: const TextStyle(color: AppPallete.greyText, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
                           ),
                       ],
                     ),
@@ -566,12 +587,14 @@ class _ChatPageState extends State<ChatPage> {
           if (state is ChatLoaded) {
             final messages = state.messages;
 
+            if(messages.isNotEmpty){
             if(lastMessageId==null){
               lastMessageId = messages[0].id;
             }
             else if(lastMessageId != messages[0].id && _scrollController.isAttached){
               _scrollController.scrollTo(index: 0, duration: Duration(milliseconds: 350),curve: Curves.easeIn);
               lastMessageId = messages[0].id;
+            }
             }
 
             if (widget.scrolltoIndex != null) {
@@ -860,6 +883,7 @@ class _ChatPageState extends State<ChatPage> {
               child: TextField(
                 controller: controller,
                 focusNode: _messageFocusNode,
+                onChanged: (text) => context.read<ConvoTypingCubit>().onTextChanged(_conversationId, widget.currentUserId, text),
                 contentInsertionConfiguration: ContentInsertionConfiguration(
                   allowedMimeTypes: const ['image/gif', 'image/*'],
                   onContentInserted: (inserted) => _sendGifFromKeyboard(inserted),

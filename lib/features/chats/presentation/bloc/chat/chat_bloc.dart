@@ -63,6 +63,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<Closechat>((event, emit) async {
       await _messageSub?.cancel();
       await _chatRepository.stopOperationListener();
+      print("cancelled");
       emit(ChatClosed());
     });
 
@@ -285,9 +286,9 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   
 
   @override
-  Future<void> close() {
-    _messageSub?.cancel();
-    _chatRepository.stopOperationListener();
+  Future<void> close() async{
+    await _messageSub?.cancel();
+    await _chatRepository.stopOperationListener();
     return super.close();
   }
 

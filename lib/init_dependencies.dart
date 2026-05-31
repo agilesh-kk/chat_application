@@ -19,6 +19,7 @@ import 'package:chat_application/features/auth/domain/usecase/user_sign_up.dart'
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources.dart';
+import 'package:chat_application/features/chats/data/datasources/typing_remote_data_source.dart';
 import 'package:chat_application/features/chats/data/repository/chat_repository_impl.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/chats/domain/usecase/delete_message.dart';
@@ -35,6 +36,7 @@ import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc
 import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/friends/data/friends_remote_data_sources.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
@@ -74,6 +76,7 @@ import 'package:chat_application/features/timeline/presentation/bloc/time_line/t
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
@@ -91,6 +94,9 @@ Future<void> initDependencies() async {
   )
   ..registerLazySingleton(
     () => FirebaseFirestore.instance,
+  )
+  ..registerLazySingleton(
+    () => FirebaseDatabase.instance,
   );
 
   FirebaseFirestore.instance.settings = const Settings(
@@ -124,6 +130,14 @@ Future<void> initDependencies() async {
   serviceLocator.registerFactory<FriendsRemoteDataSource>(()=>FriendsRemoteDataSourceImpl(serviceLocator<FirebaseFirestore>()));
 
   serviceLocator.registerLazySingleton(() => FriendsCubit(serviceLocator<FriendsRemoteDataSource>()));
+
+  serviceLocator.registerFactory<TypingRemoteDataSource>(
+    () => TypingRemoteDataSource(serviceLocator<FirebaseDatabase>()),
+  );
+
+  serviceLocator.registerLazySingleton<ConvoTypingCubit>(
+    () => ConvoTypingCubit(dataSource: serviceLocator<TypingRemoteDataSource>()),
+  );
 
 }
 
@@ -270,7 +284,7 @@ void _initChat()async {
     () => ChatRemoteDataSourcesImpl(firestore: serviceLocator<FirebaseFirestore>(),supabase: serviceLocator<SupabaseClient>()),
   )
 
-  ..registerFactory<ChatRepository>(
+  ..registerLazySingleton<ChatRepository>(
     () => ChatRepositoryImpl(
       chatRemoteDataSources:  serviceLocator<ChatRemoteDataSources>(),
       chatLocalDataSource: serviceLocator<ChatLocalDataSource>()

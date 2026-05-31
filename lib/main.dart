@@ -11,6 +11,7 @@ import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
+import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
@@ -541,6 +542,10 @@ void main() async {
 
         BlocProvider(
           create: (context) => serviceLocator<NotificationDetailsCubit>(),
+        ),
+
+        BlocProvider(
+          create: (_) => serviceLocator<ConvoTypingCubit>(),
         ),
 
         //authentication bloc

@@ -80,8 +80,12 @@ class ChatRepositoryImpl implements ChatRepository {
       opCollection: opCollection,
     );
 
+    print("start listenerrrrrrrrrrrrrrr");
+
     _opSub = stream.listen(
       (opData) async {
+        print(_opSub==null);
+        print("called");
         await _processOperation(opData, convoId, opCollection);
       },
       onError: (error) {
@@ -94,6 +98,7 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<void> stopOperationListener() async {
     await _opSub?.cancel();
     _opSub = null;
+    print(_opSub == null);
   }
 
   Future<void> _processOperation(
@@ -106,6 +111,7 @@ class ChatRepositoryImpl implements ChatRepository {
 
     if (type == null || docId == null) return;
 
+    print("listeningggggggggggggggggggg");
 
     try {
       switch (type) {
