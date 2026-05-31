@@ -38,6 +38,7 @@ dependencies:
   sqflite_common_ffi: ^2.3.5
   path: ^1.9.1
   emoji_regex: ^0.0.5
+  lottie: ^3.3.1
 
 dev_dependencies:
   flutter_test:
@@ -50,6 +51,7 @@ flutter:
 
   assets:
     - assets/profile_images/
+    - assets/animations/
 
 flutter_icons:
   android: true

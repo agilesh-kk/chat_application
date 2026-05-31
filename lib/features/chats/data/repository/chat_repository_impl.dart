@@ -112,6 +112,7 @@ class ChatRepositoryImpl implements ChatRepository {
     if (type == null || docId == null) return;
 
     print("listeningggggggggggggggggggg");
+    print(type);
 
     try {
       switch (type) {

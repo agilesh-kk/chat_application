@@ -194,7 +194,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       final msgRef = convoRef.collection("messages").doc(messageId);
 
       await firestore.runTransaction((tx) async {
+        try{
         final doc = await tx.get(msgRef);
+        final convoDoc = await tx.get(convoRef);
         if (!doc.exists) return;
 
         final data = doc.data()!;
@@ -211,7 +213,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
         // Only update receiver's conversation preview
         // and only if the reacted message is their current lastMessageId
-        final convoDoc = await tx.get(convoRef);
+        
         if (convoDoc.exists) {
           final convoData = convoDoc.data()!;
           if (convoData[receiverId]?["lastMessageId"] == messageId) {
@@ -234,6 +236,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           }
         }
 
+        
+
+
         // Write operation doc in same transaction with full reactions map
         if (opCollection != null) {
           final opRef = convoRef.collection(opCollection).doc(messageId);
@@ -246,6 +251,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             "timestamp": FieldValue.serverTimestamp(),
           });
         }
+        }catch(e){print(e);}
       });
     } catch (e) {
       //print("Toggle reaction error: $e");

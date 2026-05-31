@@ -663,7 +663,7 @@ class _ChatPageState extends State<ChatPage> {
                                 clipBehavior: Clip.none,
                                 alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                                 children: [
-                                  buildBubble(message, isMe, isAnimate, highlightedIndex == index),
+                                  buildBubble(message, isMe, isAnimate, highlightedIndex == index,lastMessageId == message.id),
                                   if (!message.deletedForEveryone && message.reactions.isNotEmpty)
                                     Positioned(
                                       left: isMe ? null : -2,
@@ -924,7 +924,7 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget buildBubble(Message msg, bool isMe, bool isAnimate, bool flash) {
+  Widget buildBubble(Message msg, bool isMe, bool isAnimate, bool flash, bool newOne) {
     switch (msg.type) {
       case "text":
         return MessageBubble(
@@ -936,6 +936,7 @@ class _ChatPageState extends State<ChatPage> {
           isMe: isMe,
           animate: isAnimate,
           highlight: flash,
+          newOne: newOne,
           onDelete: () {
             DeleteMessageConfirmationDialog.show(
               context,

@@ -10,12 +10,15 @@ import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'dart:convert';
 
 import 'package:emoji_regex/emoji_regex.dart';
+import 'package:lottie/lottie.dart';
+import 'package:chat_application/features/chats/presentation/helper/emoji_lottie_map.dart';
 
 class MessageBubble extends StatefulWidget {
   final Message message;
   final bool isMe;
   final bool animate;
   final bool highlight;
+  final bool newOne;
   final VoidCallback? onDelete;
   final VoidCallback? onReply;
   final VoidCallback? onReplyTap;
@@ -35,6 +38,7 @@ class MessageBubble extends StatefulWidget {
     this.onReply,
     this.onReplyTap,
     this.onEdit,
+    this.newOne = false,
 
     required this.currentUserId,
     required this.receiverId,
@@ -48,6 +52,7 @@ class MessageBubble extends StatefulWidget {
 class _MessageBubbleState extends State<MessageBubble>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  int _playCount = 0;
 
   late final Animation<double> fade;
   late final Animation<Offset> slide;
@@ -214,7 +219,7 @@ class _MessageBubbleState extends State<MessageBubble>
   }
 
   Widget _buildMessageContainer(String time, bool normal) {
-    final isEmojiOnly = _emojiFontSize(widget.message.content) > 15 && !widget.message.deletedForEveryone;
+    final isEmojiOnly = _isEmojiOnly;
     final hasReactions = widget.message.reactions.isNotEmpty && !widget.message.deletedForEveryone;
 return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -271,7 +276,39 @@ return Align(
     );
   }
 
+  bool get _isEmojiOnly {
+    if (widget.message.deletedForEveryone) return false;
+    final regex = emojiRegex();
+    final emojiCount = regex.allMatches(widget.message.content).length;
+    final onlyEmojis = widget.message.content.replaceAll(regex, '').trim().isEmpty;
+    return onlyEmojis && emojiCount > 0;
+  }
+
+  Widget? _buildLottieAnim() {
+    final config = getLottieForEmoji(widget.message.content);
+    if(widget.newOne){
+      _playCount++; 
+    }
+    if (config == null) return null;
+    return GestureDetector(
+      onTap: () => setState(() => _playCount++),
+      child: Lottie.asset(
+        config.bundledAsset,
+        key: ValueKey(_playCount),
+        width: 120,
+        height: 120,
+        fit: BoxFit.contain,
+        repeat: false,
+        animate: _playCount > 0,
+      ),
+    );
+  }
+
   Widget _buildContentRow() {
+    if (!widget.message.deletedForEveryone && _isEmojiOnly) {
+      final lottie = _buildLottieAnim();
+      if (lottie != null) return lottie;
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -285,7 +322,7 @@ return Align(
                 ? "This message was deleted "
                 : widget.message.content,
             style: TextStyle(
-              fontSize: _emojiFontSize(widget.message.content),
+              fontSize: widget.message.deletedForEveryone ? 15 : _emojiFontSize(widget.message.content),
               fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
               color: widget.message.deletedForEveryone
                   ? AppPallete.greyText
