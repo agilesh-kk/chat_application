@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:http/http.dart' as http;
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/keys/app_keys.dart';
@@ -34,6 +38,7 @@ import 'package:fpdart/fpdart.dart' as fp;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:uuid/uuid.dart';
+import 'package:image/image.dart' as img;
 
 import 'notification_storage.dart';
 
@@ -42,6 +47,76 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterL
 const int _groupSummaryId = 2001;
 final Map<String, Person> _personCache = {};
 
+Uint8List createCircularIcon(Uint8List bytes) {
+  final src = img.decodeImage(bytes)!;
+
+  const canvasSize = 512;
+
+  final canvas = img.Image(
+    width: canvasSize,
+    height: canvasSize,
+    numChannels: 4,
+  );
+
+  img.fill(
+    canvas,
+    color: img.ColorRgba8(0, 0, 0, 0),
+  );
+
+  final resized = img.copyResize(
+    src,
+    width: src.width > src.height ? canvasSize : null,
+    height: src.height >= src.width ? canvasSize : null,
+    maintainAspect: true,
+  );
+
+  final x = (canvasSize - resized.width) ~/ 2;
+  final y = (canvasSize - resized.height) ~/ 2;
+
+  img.compositeImage(
+    canvas,
+    resized,
+    dstX: x,
+    dstY: y,
+  );
+
+  final result = img.Image(
+    width: canvasSize,
+    height: canvasSize,
+    numChannels: 4,
+  );
+
+  final radius = canvasSize / 2;
+  final center = radius;
+
+  for (int y = 0; y < canvasSize; y++) {
+    for (int x = 0; x < canvasSize; x++) {
+      final dx = x - center;
+      final dy = y - center;
+
+      if (dx * dx + dy * dy <= radius * radius) {
+        result.setPixel(x, y, canvas.getPixel(x, y));
+      }
+    }
+  }
+
+  return Uint8List.fromList(img.encodePng(result));
+}
+
+Future<String?> _downloadProfileToLocal(String url) async {
+  try {
+    final dir = Directory.systemTemp;
+    final file = File('${dir.path}${Platform.pathSeparator}shortcut_${url.hashCode}.png');
+    if (await file.exists()) return file.path;
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      await file.writeAsBytes(createCircularIcon(response.bodyBytes));
+      return file.path;
+    }
+  } catch (_) {}
+  return null;
+}
+
 Future<void> createOrUpdateShortcutIfNeeded(
   String senderId,
   String senderName,
@@ -49,24 +124,40 @@ Future<void> createOrUpdateShortcutIfNeeded(
 ) async {
   final prefs = await SharedPreferences.getInstance();
 
+  String? iconPath;
+  ShortcutIconAsset iconType;
+
+  if (profile.startsWith('http')) {
+    iconPath = await _downloadProfileToLocal(profile);
+    iconType = ShortcutIconAsset.fileAsset;
+  } else {
+    iconPath = profile;
+    iconType = ShortcutIconAsset.flutterAsset;
+  }
+
+  if (iconPath == null || iconPath.isEmpty) {
+    iconPath = 'assets/profile_images/pfp1.png';
+    iconType = ShortcutIconAsset.flutterAsset;
+  }
+
   final oldName = prefs.getString('${senderId}_name');
   final oldProfile = prefs.getString('${senderId}_profile');
 
-  if (oldName == senderName && oldProfile == profile) {
-    return; // no update needed
+  if (oldName == senderName && oldProfile == iconPath) {
+    return;
   }
 
   await prefs.setString('${senderId}_name', senderName);
-  await prefs.setString('${senderId}_profile', profile);
+  await prefs.setString('${senderId}_profile', iconPath);
 
   await FlutterShortcut.pushShortcutItem(
     shortcut: ShortcutItem(
       conversationShortcut: true,
       id: senderId,
       shortLabel: senderName,
-      icon: profile,
+      icon: iconPath,
+      shortcutIconAsset: iconType,
       action: "shortcut.messages",
-      shortcutIconAsset: ShortcutIconAsset.flutterAsset,
     ),
   );
 }
@@ -505,6 +596,9 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(
     firebaseMessagingBackgroundHandler
   );
+
+  final token = await FirebaseMessaging.instance.getToken();
+  print("FCM TOKEN: $token");
 
   await _initNotification();
 

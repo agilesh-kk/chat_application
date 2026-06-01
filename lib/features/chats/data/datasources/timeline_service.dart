@@ -169,11 +169,13 @@ class TimelineService {
 
       serviceLocator<ChatLocalDataSource>().updateMessageTimeline(messageId, true);
 
-      convoRef.collection(opCollection).doc()
+      final opDoc = convoRef.collection(opCollection).doc();
+      await opDoc
       .set({
         "type" : "timeline",
         "messageId" : messageId,
-        "addedToTimeline" : true
+        "addedToTimeline" : true,
+        "timestamp" : FieldValue.serverTimestamp()
       });
 
     }

@@ -32,7 +32,8 @@ dependencies:
   firebase_messaging: ^16.2.0
   firebase_database: ^12.3.0
   flutter_local_notifications: ^18.0.1
-  flutter_shortcut_plus: ^1.0.1
+  flutter_shortcut_plus:
+    path: ./packages/flutter_shortcut_plus
   shared_preferences: ^2.5.3
   sqflite: ^2.4.2
   sqflite_common_ffi: ^2.3.5
