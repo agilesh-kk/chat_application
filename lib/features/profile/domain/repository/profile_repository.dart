@@ -19,5 +19,6 @@ abstract interface class ProfileRepository {
   Future<Either<Failure, String>> updateCustompfp({
     required String userId,
     required XFile image,
+    required String oldPfpImage,
   });
 }

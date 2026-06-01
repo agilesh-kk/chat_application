@@ -214,6 +214,7 @@ class _ChatPageState extends State<ChatPage> {
             hasInternet: true,
             userProfilePic: status.profilepic,
             userName: status.userName,
+            fromChat: true,
           ),
         ));
       }

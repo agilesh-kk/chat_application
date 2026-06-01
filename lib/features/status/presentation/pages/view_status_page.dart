@@ -18,6 +18,7 @@ class ViewStatusPage extends StatefulWidget {
   final bool isUserStatus;
   final bool hasInternet;
   final String userName;
+  final bool fromChat;
 
   const ViewStatusPage({
     super.key,
@@ -26,6 +27,7 @@ class ViewStatusPage extends StatefulWidget {
     required this.hasInternet,
     required this.userProfilePic,
     required this.userName,
+    this.fromChat = false,
   });
 
   @override
@@ -812,48 +814,51 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   }
 
   Widget _buildReplyInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppPallete.cardBg.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppPallete.divider),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _replyController,
-              focusNode: _replyFocusNode,
-              style: const TextStyle(color: AppPallete.whiteColor, fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: "Reply to status...",
-                hintStyle: TextStyle(color: AppPallete.greyText),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              maxLines: 2,
-              minLines: 1,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendReply(),
-            ),
-          ),
-          GestureDetector(
-            onTap: _sendReply,
-            child: Container(
-              margin: const EdgeInsets.all(4),
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+    if(!widget.fromChat){
+      return Container(
+        decoration: BoxDecoration(
+          color: AppPallete.cardBg.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppPallete.divider),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _replyController,
+                focusNode: _replyFocusNode,
+                style: const TextStyle(color: AppPallete.whiteColor, fontSize: 14),
+                decoration: const InputDecoration(
+                  hintText: "Reply to status...",
+                  hintStyle: TextStyle(color: AppPallete.greyText),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                shape: BoxShape.circle,
+                maxLines: 2,
+                minLines: 1,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _sendReply(),
               ),
-              child: const Icon(Icons.send, size: 16, color: AppPallete.whiteColor),
             ),
-          ),
-        ],
-      ),
-    );
+            GestureDetector(
+              onTap: _sendReply,
+              child: Container(
+                margin: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.send, size: 16, color: AppPallete.whiteColor),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox();
   }
 
   Widget _buildDialogButton({
