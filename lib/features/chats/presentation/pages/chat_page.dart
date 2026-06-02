@@ -8,6 +8,7 @@ import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
+import 'package:chat_application/features/status/presentation/models/user_status_batch.dart';
 import 'package:chat_application/features/status/presentation/pages/view_status_page.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
 import 'package:chat_application/features/chats/presentation/widgets/message_bubble.dart';
@@ -209,11 +210,15 @@ class _ChatPageState extends State<ChatPage> {
       if (mounted) {
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => ViewStatusPage(
-            statuses: [status],
-            isUserStatus: false,
+            userStatusBatches: [
+              UserStatusBatch(
+                userId: status.userId,
+                userName: status.userName,
+                profilePic: status.profilepic,
+                statuses: [status],
+              ),
+            ],
             hasInternet: true,
-            userProfilePic: status.profilepic,
-            userName: status.userName,
             fromChat: true,
           ),
         ));

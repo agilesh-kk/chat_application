@@ -7,6 +7,7 @@ import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/functions/helper_functions.dart';
 import 'package:chat_application/features/status/presentation/pages/add_status_page.dart';
+import 'package:chat_application/features/status/presentation/models/user_status_batch.dart';
 import 'package:chat_application/features/status/presentation/pages/view_status_page.dart';
 import 'package:chat_application/features/status/presentation/widgets/friends_status_card.dart';
 import 'package:chat_application/features/status/presentation/widgets/user_status_column.dart';
@@ -135,11 +136,15 @@ class _StatusPageState extends State<StatusPage>
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => ViewStatusPage(
-                                        statuses: myStatuses,
-                                        isUserStatus: true,
+                                        userStatusBatches: [
+                                          UserStatusBatch(
+                                            userId: currentUserId,
+                                            userName: currentUserName,
+                                            profilePic: pfp ?? '',
+                                            statuses: myStatuses,
+                                          ),
+                                        ],
                                         hasInternet: true,
-                                        userProfilePic: pfp!,
-                                        userName: currentUserName,
                                       ),
                                     ),
                                   );
@@ -193,28 +198,36 @@ class _StatusPageState extends State<StatusPage>
                                 child: FriendsStatusCard(
                                   status: firstStatus,
                                   onstatusTap: () {
-                                    userStatuses.sort(
-                                      (a, b) =>
-                                          a.createdAt.compareTo(b.createdAt),
-                                    );
-                                    for (final status in userStatuses) {
-                                      context.read<StatusBloc>().add(
-                                            UpdateViewEvent(
-                                              statusId: status.id,
-                                              viewerId: currentUserId,
-                                              viewerName: currentUserName,
-                                            ),
-                                          );
+                                    final batches = users.map((uid) {
+                                      final sts = groupedStatuses[uid]!;
+                                      sts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+                                      return UserStatusBatch(
+                                        userId: uid,
+                                        userName: sts.first.userName,
+                                        profilePic: sts.first.profilepic,
+                                        statuses: sts,
+                                      );
+                                    }).toList();
+
+                                    for (final batch in batches) {
+                                      for (final status in batch.statuses) {
+                                        context.read<StatusBloc>().add(
+                                          UpdateViewEvent(
+                                            statusId: status.id,
+                                            viewerId: currentUserId,
+                                            viewerName: currentUserName,
+                                          ),
+                                        );
+                                      }
                                     }
+
+                                    final startBatchIndex = users.indexOf(userId);
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => ViewStatusPage(
-                                          statuses: userStatuses,
-                                          isUserStatus: false,
-                                          hasInternet: false,
-                                          userProfilePic: firstStatus.profilepic,
-                                          userName: firstStatus.userName,
+                                          userStatusBatches: batches,
+                                          startBatchIndex: startBatchIndex,
                                         ),
                                       ),
                                     );
