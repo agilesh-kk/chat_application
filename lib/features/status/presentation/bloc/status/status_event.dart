@@ -19,7 +19,10 @@ final class UploadStatusEvent extends StatusEvent {
   });
 }
 
-final class GetAllStatusEvent extends StatusEvent {}
+final class GetAllStatusEvent extends StatusEvent {
+  final String currentUserId;
+  GetAllStatusEvent({required this.currentUserId});
+}
 
 final class UpdateViewEvent extends StatusEvent {
   final String statusId;

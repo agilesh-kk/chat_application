@@ -34,6 +34,9 @@ class StatusHiveModel{
   @HiveField(9)
   final List<String> likedBy;
 
+  @HiveField(10)
+  final bool isViewed;
+
   StatusHiveModel({
     required this.id,
     required this.userId,
@@ -45,6 +48,7 @@ class StatusHiveModel{
     required this.localPath,
     required this.profilepic,
     required this.likedBy,
+    required this.isViewed,
   });
 
   factory StatusHiveModel.fromJson(Map<String, dynamic> map) {
@@ -59,6 +63,7 @@ class StatusHiveModel{
       localPath: map['localpath'] ?? "",
       profilepic: map['profilepic'] ?? "",
       likedBy: List<String>.from(map['liked_by'] ?? []),
+      isViewed: map['is_viewed'] as bool? ?? false,
     );
   }
 
@@ -74,6 +79,7 @@ class StatusHiveModel{
       localPath: localPath,
       profilepic: profilepic,
       likedBy: likedBy,
+      isViewed: isViewed,
     );
   }
 
@@ -89,6 +95,7 @@ class StatusHiveModel{
       localPath: status.localPath ?? "Not Loaded",
       profilepic: status.profilepic,
       likedBy: status.likedBy,
+      isViewed: status.isViewed,
     );
   }
 
@@ -103,6 +110,7 @@ class StatusHiveModel{
     String? localPath,
     String? profilepic,
     List<String>? likedBy,
+    bool? isViewed,
   }) {
     return StatusHiveModel(
       id: id ?? this.id,
@@ -115,6 +123,7 @@ class StatusHiveModel{
       localPath: localPath ?? this.localPath,
       profilepic: profilepic ?? this.profilepic,
       likedBy: likedBy ?? this.likedBy,
+      isViewed: isViewed ?? this.isViewed,
     );
   }
 

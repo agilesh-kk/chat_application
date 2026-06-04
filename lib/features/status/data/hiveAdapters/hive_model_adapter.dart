@@ -24,13 +24,14 @@ class StatusHiveModelAdapter extends TypeAdapter<StatusHiveModel> {
       localPath: fields[7] as String,
       profilepic: fields[8] as String,
       likedBy: (fields[9] as List?)?.cast<String>() ?? [],
+      isViewed: (fields[10] as bool?) ?? false,
     );
   }
 
   @override
   void write(BinaryWriter writer, StatusHiveModel obj) {
     writer
-      ..writeByte(10) // number of fields
+      ..writeByte(11) // number of fields
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,6 +51,8 @@ class StatusHiveModelAdapter extends TypeAdapter<StatusHiveModel> {
       ..writeByte(8)
       ..write(obj.profilepic)
       ..writeByte(9)
-      ..write(obj.likedBy);
+      ..write(obj.likedBy)
+      ..writeByte(10)
+      ..write(obj.isViewed);
   }
 }

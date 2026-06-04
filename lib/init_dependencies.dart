@@ -106,7 +106,7 @@ Future<void> initDependencies() async {
 
   _initAuth();
   _initChat();
-  _initStatus();
+  await _initStatus();
   _initProfile();
   _initTimeline();
   _initAchievement();
@@ -142,13 +142,19 @@ Future<void> initDependencies() async {
 
 }
 
-void _initStatus() async{
+Future<void> _initStatus() async{
   Box<StatusHiveModel>? statusBox;
 
   if (!kIsWeb) {
     await Hive.initFlutter();
     Hive.registerAdapter(StatusHiveModelAdapter());
-    final box = await Hive.openBox<StatusHiveModel>("status");
+    late Box<StatusHiveModel> box;
+    try {
+      box = await Hive.openBox<StatusHiveModel>("status");
+    } catch (e) {
+      await Hive.deleteBoxFromDisk("status");
+      box = await Hive.openBox<StatusHiveModel>("status");
+    }
     serviceLocator.registerLazySingleton<Box<StatusHiveModel>>(() => box);
     statusBox = box;
   }

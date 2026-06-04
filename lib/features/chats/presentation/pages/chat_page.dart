@@ -205,6 +205,7 @@ class _ChatPageState extends State<ChatPage> {
         userName: data['userName'] as String? ?? widget.receiverName,
         profilepic: data['profilepic'] as String? ?? '',
         likedBy: const [],
+        isViewed: false,
       );
 
       if (mounted) {

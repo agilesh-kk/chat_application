@@ -16,6 +16,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class ViewStatusPage extends StatefulWidget {
   final List<UserStatusBatch> userStatusBatches;
   final int startBatchIndex;
+  final int startStatusIndex;
   final bool hasInternet;
   final bool fromChat;
 
@@ -23,6 +24,7 @@ class ViewStatusPage extends StatefulWidget {
     super.key,
     required this.userStatusBatches,
     this.startBatchIndex = 0,
+    this.startStatusIndex = 0,
     this.hasInternet = true,
     this.fromChat = false,
   });
@@ -83,12 +85,37 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   void initState() {
     super.initState();
     _buildFlatStatuses();
-    _currentFlatIndex = _batchStartIndices.isNotEmpty
-        ? _batchStartIndices[widget.startBatchIndex.clamp(0, _batchStartIndices.length - 1)]
-        : 0;
+    if (_batchStartIndices.isNotEmpty) {
+      final batchStart = _batchStartIndices[widget.startBatchIndex.clamp(0, _batchStartIndices.length - 1)];
+      final batch = widget.userStatusBatches[widget.startBatchIndex.clamp(0, widget.userStatusBatches.length - 1)];
+      final clampedStatusIndex = widget.startStatusIndex.clamp(0, batch.statuses.length - 1);
+      _currentFlatIndex = batchStart + clampedStatusIndex;
+    } else {
+      _currentFlatIndex = 0;
+    }
     pageController = PageController(initialPage: _currentFlatIndex);
     startStoryTimer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _markCurrentStatusAsViewed();
+    });
     _replyFocusNode.addListener(_onReplyFocusChange);
+  }
+
+  void _markCurrentStatusAsViewed() {
+    final appUserState = context.read<AppUserCubit>().state;
+    if (appUserState is! AppUserIsSignedin) return;
+    final currentUserId = appUserState.user.id;
+    final currentUserName = appUserState.user.name;
+    if (_isCurrentUserBatch) return;
+    final status = _flatStatuses[_currentFlatIndex];
+    if (status.isViewed) return;
+    context.read<StatusBloc>().add(
+      UpdateViewEvent(
+        statusId: status.id,
+        viewerId: currentUserId,
+        viewerName: currentUserName,
+      ),
+    );
   }
 
   void startStoryTimer() {
@@ -116,6 +143,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
       progress = 0;
       _isCaptionExpanded = false;
       startStoryTimer();
+      _markCurrentStatusAsViewed();
     } else {
       timer?.cancel();
       Navigator.pop(context);
@@ -132,6 +160,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
       );
       progress = 0;
       startStoryTimer();
+      _markCurrentStatusAsViewed();
     }
   }
 
@@ -145,6 +174,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
       });
       pageController.jumpToPage(_currentFlatIndex);
       startStoryTimer();
+      _markCurrentStatusAsViewed();
     }
   }
 
@@ -157,6 +187,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
       });
       pageController.jumpToPage(_currentFlatIndex);
       startStoryTimer();
+      _markCurrentStatusAsViewed();
     }
   }
 

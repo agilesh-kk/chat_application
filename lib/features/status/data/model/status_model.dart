@@ -1,6 +1,8 @@
 import 'package:chat_application/features/status/domain/entities/status.dart';
 
 class StatusModel extends Status {
+  List<String> viewedBy;
+
   StatusModel({
     required super.id,
     required super.userId,
@@ -11,7 +13,8 @@ class StatusModel extends Status {
     required super.userName, 
     required super.profilepic,
     required super.likedBy,
-  });
+    required this.viewedBy,
+  }) : super(isViewed: false);
 
   Map<String, dynamic> toJson() {
     return {
@@ -24,6 +27,7 @@ class StatusModel extends Status {
       'name' : userName,
       'profilepic' : profilepic,
       'liked_by' : likedBy,
+      'viewed_by' : viewedBy,
     };
   }
 
@@ -40,6 +44,9 @@ class StatusModel extends Status {
       likedBy: map['liked_by'] == null
         ? []
         : List<String>.from(map['liked_by']),
+      viewedBy: map['viewed_by'] == null
+        ? []
+        : List<String>.from(map['viewed_by']),
     );
   }
 
@@ -53,6 +60,7 @@ class StatusModel extends Status {
     String? userName,
     String? profilepic,
     List<String>? likedBy,
+    List<String>? viewedBy,
   }) {
     return StatusModel(
       id: id ?? this.id,
@@ -64,6 +72,7 @@ class StatusModel extends Status {
       userName: userName ?? this.userName,
       profilepic: profilepic ?? this.profilepic,
       likedBy: likedBy ?? this.likedBy,
+      viewedBy: viewedBy ?? this.viewedBy,
     );
   }
 }

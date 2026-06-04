@@ -38,6 +38,7 @@ class StatusRepositoryImpl implements StatusRepository {
         userName: userName,
         profilepic: profilepic,
         likedBy: [],
+        viewedBy: [],
       );
 
       //Upload Image
@@ -64,13 +65,26 @@ class StatusRepositoryImpl implements StatusRepository {
 
   //fetches all status from the db.
   @override
-  Future<Either<Failure, List<Status>>> getAllStatus() async {
+  Future<Either<Failure, List<Status>>> getAllStatus({required String currentUserId}) async {
     try {
 
-      final status = await statusRemoteDataSource.getAllStatus();
-      statusLocalDataSource.updateStatuses(status.map((e)=>StatusHiveModel.fromEntity(e)).toList());
+      final models = await statusRemoteDataSource.getAllStatus();
+      final statuses = models.map((m) => Status(
+        id: m.id,
+        userId: m.userId,
+        imageUrl: m.imageUrl,
+        caption: m.caption,
+        createdAt: m.createdAt,
+        expiresAt: m.expiresAt,
+        userName: m.userName,
+        profilepic: m.profilepic,
+        likedBy: m.likedBy,
+        isViewed: m.viewedBy.contains(currentUserId),
+      )).toList();
 
-      return right(status);
+      statusLocalDataSource.updateStatuses(models.map((e)=>StatusHiveModel.fromEntity(e)).toList());
+
+      return right(statuses);
 
     } on ServerExceptions catch (_) {
       try{
