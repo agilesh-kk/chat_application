@@ -38,6 +38,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   late List<Status> _flatStatuses;
   late List<int> _batchStartIndices;
   int _currentFlatIndex = 0;
+  double? _dragStartX;
   Timer? timer;
   double progress = 0;
   bool _isCaptionExpanded = false;
@@ -485,9 +486,15 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                 nextStory();
               }
             },
+            onHorizontalDragStart: (details) {
+              _dragStartX = details.globalPosition.dx;
+            },
             onHorizontalDragEnd: (details) {
               final velocity = details.primaryVelocity;
               if (velocity == null) return;
+              final width = MediaQuery.of(context).size.width;
+              final startX = _dragStartX ?? width / 2;
+              if (startX < 30 || startX > width - 30) return;
               if (velocity < -200) {
                 _goToNextUser();
               } else if (velocity > 200) {
