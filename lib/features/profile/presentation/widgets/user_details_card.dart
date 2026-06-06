@@ -132,6 +132,7 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
                 TextField(
                   controller: _controller,
                   maxLines: null,
+                  maxLength: 50,
                   autofocus: true,
                   style: TextStyle(color: AppPallete.whiteColor),
                   decoration: InputDecoration(

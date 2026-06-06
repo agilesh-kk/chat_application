@@ -1,8 +1,10 @@
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/personal_time_line/personal_timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/add_event_dialog.dart';
+import 'package:chat_application/features/timeline/presentation/widgets/event_detail_dialog.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_bubble.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_options_tray.dart';
 
@@ -26,7 +28,6 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
   void initState() {
     super.initState();
 
-    // ✅ Correct place to trigger bloc event
     Future.microtask(() {
       context.read<PersonalTimelineBloc>().add(
         FetchPersonalTimeLine(userId: widget.userId),
@@ -34,26 +35,29 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
     });
   }
 
+  Future<void> _onFabPressed() async {
+    final result = await AddEventDialog.show(context);
+
+    if (result != null && context.mounted) {
+      context.read<PersonalTimelineBloc>().add(
+            AddPersonalTimeLineEvent(
+              userId: widget.userId,
+              title: result.title,
+              content: result.content,
+              time: DateTime.now(),
+              type: "text",
+              image: result.image,
+            ),
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppPallete.primaryOrange,
-        onPressed: () async{
-          final result = await AddEventDialog.show(context);
-
-          if (result != null) {
-            context.read<PersonalTimelineBloc>().add(
-                  AddPersonalTimeLineEvent(
-                    userId: widget.userId,
-                    title: result["title"]!,
-                    content: result["content"]!,
-                    time: DateTime.now(),
-                    type: "text",
-                  ),
-                );
-          }
-        },
+        onPressed: _onFabPressed,
         child: const Icon(Icons.add),
       ),
       backgroundColor: AppPallete.darkBg,
@@ -80,29 +84,30 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
                     if (state is TimelineLoading) {
                       return const Loader();
                     }
-                              
+
                     if (state is PersonalTimelineLoaded) {
                       if (state.events.isEmpty) {
                         return _buildEmptyState();
                       }
-                      
+
                       return ListView.builder(
                         cacheExtent: 100,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         itemCount: state.events.length,
                         itemBuilder: (context, index) {
                           final event = state.events[index];
-                          final isMe = index%2 == 0;
-                                
+                          final isMe = index % 2 == 0;
+
                           return _timelineItem(
-                            event, 
-                            isMe, 
+                            event,
+                            isMe,
                             index == state.events.length - 1,
-                            context);
+                            context,
+                          );
                         },
                       );
                     }
-                              
+
                     if (state is PersonalTimelineError) {
                       return Center(
                         child: Text(
@@ -111,7 +116,7 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
                         ),
                       );
                     }
-                              
+
                     return const SizedBox();
                   },
                 ),
@@ -219,21 +224,13 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
                 fontSize: 20,
               ),
             ),
-            const SizedBox(height: 8),
-            // Text(
-            //   "Add new events to your TimeLine!",
-            //   style: TextStyle(
-            //     color: AppPallete.greyText,
-            //     fontSize: 14,
-            //   ),
-            // ),
           ],
         ),
       ),
     );
   }
 
-  Widget _timelineItem(dynamic event, bool isMe, bool last, BuildContext c) {
+  Widget _timelineItem(Event event, bool isMe, bool last, BuildContext c) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -246,7 +243,6 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
                     child: _bubble(event, false, c),
                   ),
           ),
-
           Column(
             children: [
               Expanded(
@@ -264,14 +260,16 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
                   color: AppPallete.whiteColor,
                 ),
               ),
-              !last ? Expanded(
-                child: Container(width: 2, color: AppPallete.divider),
-              ) : Expanded(
-                child: Container(width: 2, color: Colors.transparent),
-              ),
+              !last
+                  ? Expanded(
+                      child: Container(width: 2, color: AppPallete.divider),
+                    )
+                  : Expanded(
+                      child:
+                          Container(width: 2, color: Colors.transparent),
+                    ),
             ],
           ),
-
           Expanded(
             child: isMe
                 ? Align(
@@ -285,27 +283,28 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
     );
   }
 
-  Widget _bubble(dynamic event, bool isMe, BuildContext context) {
+  Widget _bubble(Event event, bool isMe, BuildContext context) {
     return GestureDetector(
-      onLongPressStart: (details){
+      onLongPressStart: (details) {
         TimelineOptionsTray.show(
           context: context,
           position: details.globalPosition,
-          onDelete: (){
+          onDelete: () {
             context.read<PersonalTimelineBloc>().add(
-              RemovePersonalTimelineEvent(
-                userId: widget.userId, 
-                eventId: event.id,
-              )
-            );
-          }
+                  RemovePersonalTimelineEvent(
+                    userId: widget.userId,
+                    eventId: event.id,
+                  ),
+                );
+          },
         );
       },
       child: TimelineBubble(
-        event: event, 
+        event: event,
         isMe: isMe,
         userId: widget.userId,
-      )
+        onTap: () => EventDetailDialog.show(context, event),
+      ),
     );
   }
 

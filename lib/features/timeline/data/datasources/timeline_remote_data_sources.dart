@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
@@ -5,6 +7,9 @@ import 'package:chat_application/features/timeline/data/models/event_model.dart'
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/init_dependencies.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract interface class TimelineRemoteDataSources {
   Future<List<Event>> getEvents({
@@ -38,18 +43,28 @@ abstract interface class TimelineRemoteDataSources {
     required String content,
     required String type,
     required DateTime time,
+    String imageUrl,
   });
 
   Future<void> removePersonalEvent({
     required String userId,
     required String eventId,
   });
+
+  Future<String> uploadImage({
+    required XFile image,
+    required String eventId,
+  });
 }
 
 class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
   final FirebaseFirestore firebaseFirestore;
+  final SupabaseClient supabaseClient;
 
-  TimelineRemoteDataSourcesImpl({required this.firebaseFirestore});
+  TimelineRemoteDataSourcesImpl({
+    required this.firebaseFirestore,
+    required this.supabaseClient,
+  });
 
   @override
   Future<List<Event>> getEvents({
@@ -226,6 +241,7 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
     required String content,
     required String type,
     required DateTime time,
+    String imageUrl="",
   }) async{
     try {
       final timelineRef = firebaseFirestore
@@ -239,6 +255,8 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
         "content": content,
         "type": type,
         "time": time,
+        "imageUrl" : imageUrl,
+        "hasImage" : imageUrl.isNotEmpty,
       });
     } catch (e) {
       throw ServerExceptions(e.toString());
@@ -254,6 +272,27 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
         .collection("timeline")
         .doc(eventId)
         .delete();
+    }
+    catch(e){
+      throw ServerExceptions(e.toString());
+    }
+  }
+  
+  @override
+  Future<String> uploadImage({required XFile image, required String eventId}) async{
+    try{
+      if (kIsWeb) {
+        final bytes = await image.readAsBytes();
+        await supabaseClient.storage.from('personal_timeline_images').uploadBinary(eventId, bytes);
+      } else {
+        final File file = File(image.path);
+        await supabaseClient.storage.from('personal_timeline_images').upload(eventId, file);
+      }
+      
+      return supabaseClient.storage.from('personal_timeline_images').getPublicUrl(eventId);
+    }
+    on PostgrestException catch(e){
+      throw ServerExceptions(e.message);
     }
     catch(e){
       throw ServerExceptions(e.toString());

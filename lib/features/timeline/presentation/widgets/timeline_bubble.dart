@@ -10,6 +10,7 @@ class TimelineBubble extends StatefulWidget {
 
   final String userId;
   final String? receiverId;
+  final VoidCallback? onTap;
 
   const TimelineBubble({
     super.key,
@@ -18,6 +19,7 @@ class TimelineBubble extends StatefulWidget {
     
     required this.userId,
     this.receiverId,
+    this.onTap,
   });
 
   @override
@@ -66,7 +68,9 @@ class _TimelineBubbleState extends State<TimelineBubble>
       opacity: _fadeAnimation,
       child: ScaleTransition(
         scale: _scaleAnimation,
-child: Container(
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           padding: const EdgeInsets.all(12),
           constraints: const BoxConstraints(
@@ -109,6 +113,8 @@ child: Container(
                   Flexible(
                     child: Text(
                       widget.event.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppPallete.whiteColor,
@@ -129,7 +135,18 @@ child: Container(
                 ),
               ),
               const SizedBox(height: 8),
-              if (widget.event.type == "image")
+              if (widget.event.hasImage)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    widget.event.imageUrl,
+                    height: 120,
+                    width: 180,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(),
+                  ),
+                ),
+              if (widget.event.type == "image" && !widget.event.hasImage)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
@@ -137,9 +154,10 @@ child: Container(
                     height: 120,
                     width: 180,
                     fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(),
                   ),
-                )
-              else
+                ),
+              if (widget.event.type != "image" || widget.event.hasImage)
                 Text(
                   widget.event.content,
                   softWrap: true,
@@ -165,6 +183,7 @@ child: Container(
             ],
           ),
         ),
+      ),
       ),
     );
   }
