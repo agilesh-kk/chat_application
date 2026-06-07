@@ -120,7 +120,7 @@ class _StatusPageState extends State<StatusPage>
                   opacity: _fadeAnimation,
                   child: RefreshIndicator(
                     onRefresh: () async {
-                      context.read<StatusBloc>().add(GetAllStatusEvent(currentUserId: currentUserId));
+                      context.read<StatusBloc>().add(GetAllStatusEvent(currentUserId: currentUserId, forceRefresh: true));
                       context.read<AuthBloc>().add(AuthCheckRequested());
                     },
                     color: AppPallete.primaryOrange,
@@ -183,7 +183,7 @@ class _StatusPageState extends State<StatusPage>
 
                                 context
                                     .read<StatusBloc>()
-                                    .add(GetAllStatusEvent(currentUserId: currentUserId));
+                                    .add(GetAllStatusEvent(currentUserId: currentUserId, forceRefresh: true));
                               },
                             ),
                           ),

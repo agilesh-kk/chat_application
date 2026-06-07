@@ -10,11 +10,12 @@ class GetAllStatus implements UseCase<List<Status>, GetAllStatusParams>{
 
   @override
   Future<Either<Failure, List<Status>>> call(GetAllStatusParams params) async{
-    return await statusRepository.getAllStatus(currentUserId: params.currentUserId);
+    return await statusRepository.getAllStatus(currentUserId: params.currentUserId, forceRefresh: params.forceRefresh);
   }
 }
 
 class GetAllStatusParams {
   final String currentUserId;
-  GetAllStatusParams({required this.currentUserId});
+  final bool forceRefresh;
+  GetAllStatusParams({required this.currentUserId, this.forceRefresh = false});
 }

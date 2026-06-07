@@ -2,6 +2,7 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/data/presence_remote_data_source.dart';
 import 'package:chat_application/core/data/user_device_data_source.dart';
 import 'package:chat_application/core/keys/app_keys.dart';
+import 'package:chat_application/core/network/connection_checker.dart';
 import 'package:chat_application/features/achievement/data/datasources/achievement_remote_datasource.dart';
 import 'package:chat_application/features/achievement/data/repository/achievement_repository_impl.dart';
 import 'package:chat_application/features/achievement/domain/repository/achievement_repository.dart';
@@ -138,6 +139,9 @@ Future<void> initDependencies() async {
     () => ConvoTypingCubit(dataSource: serviceLocator<TypingRemoteDataSource>()),
   );
 
+  serviceLocator.registerLazySingleton<ConnectionChecker>(
+    () => ConnectionCheckerImpl(),
+  );
 }
 
 Future<void> _initStatus() async{
@@ -170,7 +174,8 @@ Future<void> _initStatus() async{
     ..registerFactory<StatusRepository>(
       () => StatusRepositoryImpl(
         statusRemoteDataSource: serviceLocator<StatusRemoteDataSource>(),
-        statusLocalDataSource: serviceLocator<StatusLocalDataSource>()
+        statusLocalDataSource: serviceLocator<StatusLocalDataSource>(),
+        connectionChecker: serviceLocator<ConnectionChecker>()
       )
     )
 

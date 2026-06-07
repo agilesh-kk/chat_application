@@ -1,5 +1,6 @@
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
+import 'package:chat_application/core/network/connection_checker.dart';
 import 'package:chat_application/features/status/data/datasources/status_local_data_source.dart';
 import 'package:chat_application/features/status/data/datasources/status_remote_data_source.dart';
 import 'package:chat_application/features/status/data/model/status_hive_model.dart';
@@ -16,8 +17,9 @@ import 'package:uuid/uuid.dart';
 class StatusRepositoryImpl implements StatusRepository {
   final StatusRemoteDataSource statusRemoteDataSource;
   final StatusLocalDataSource statusLocalDataSource;
+  final ConnectionChecker connectionChecker;
 
-  StatusRepositoryImpl({required this.statusRemoteDataSource, required this.statusLocalDataSource});
+  StatusRepositoryImpl({required this.statusRemoteDataSource, required this.statusLocalDataSource, required this.connectionChecker});
   @override
   Future<Either<Failure, Status>> uploadStatus({
     required XFile image,
@@ -65,9 +67,26 @@ class StatusRepositoryImpl implements StatusRepository {
 
   //fetches all status from the db.
   @override
-  Future<Either<Failure, List<Status>>> getAllStatus({required String currentUserId}) async {
+  Future<Either<Failure, List<Status>>> getAllStatus({required String currentUserId, bool forceRefresh = false}) async {
     try {
+      // 1. Always read from Hive first
+      final cachedStatuses = await statusLocalDataSource.getAllStatuses();
 
+      // 2. If cache has data and not forcing refresh, return immediately
+      if (cachedStatuses.isNotEmpty && !forceRefresh) {
+        return right(cachedStatuses);
+      }
+
+      // 3. Cache empty or force refresh — check connectivity before fetching remote
+      final isConnected = await connectionChecker.isConnected;
+      if (!isConnected) {
+        if (cachedStatuses.isNotEmpty) {
+          return right(cachedStatuses);
+        }
+        return right([]);
+      }
+
+      // 4. Fetch from remote
       final models = await statusRemoteDataSource.getAllStatus();
       final statuses = models.map((m) => Status(
         id: m.id,
@@ -82,7 +101,9 @@ class StatusRepositoryImpl implements StatusRepository {
         isViewed: m.viewedBy.contains(currentUserId),
       )).toList();
 
+      // 5. Update local cache (fire-and-forget to not block response)
       statusLocalDataSource.updateStatuses(models.map((e)=>StatusHiveModel.fromEntity(e)).toList());
+      statusLocalDataSource.setLastFetchTime(DateTime.now());
 
       return right(statuses);
 
@@ -104,24 +125,31 @@ class StatusRepositoryImpl implements StatusRepository {
     //required DateTime viewedAt,
   }) async{
     try{
-      StatusViewModel statusViewModel = StatusViewModel(
-        id: const Uuid().v1(), 
-        statusId: statusId, 
-        viewerId: viewerId, 
-        viewerName: viewerName, 
-        viewedAt: DateTime.now().toUtc(),
-      );
+      await statusLocalDataSource.markAsViewed(statusId);
 
-      await statusRemoteDataSource.updateView(statusViewModel);
+      final isConnected = await connectionChecker.isConnected;
+      if (isConnected) {
+        StatusViewModel statusViewModel = StatusViewModel(
+          id: const Uuid().v1(), 
+          statusId: statusId, 
+          viewerId: viewerId, 
+          viewerName: viewerName, 
+          viewedAt: DateTime.now().toUtc(),
+        );
+
+        try {
+          await statusRemoteDataSource.updateView(statusViewModel);
+        } on StatusNotFoundException {
+          await statusLocalDataSource.deleteById(statusId);
+        }
+      }
 
       return right(null);
-    }on ServerExceptions catch (e) {
-      return left(Failure(e.message));
     } catch (e) {
       return left(Failure(e.toString()));
     }
   }
-  
+
   @override
   Future<Either<Failure, List<StatusView>>> getViews({required String statusId}) async{
     try {
@@ -136,6 +164,7 @@ class StatusRepositoryImpl implements StatusRepository {
   Future<Either<Failure, void>> deleteStatus({required String statusId}) async {
     try{
       await statusRemoteDataSource.deleteStatus(statusId);
+      await statusLocalDataSource.deleteById(statusId);
       return right(null);
     }
     on ServerExceptions catch(e){
@@ -157,6 +186,9 @@ class StatusRepositoryImpl implements StatusRepository {
         userId: userId,
       );
 
+      return right(null);
+    } on StatusNotFoundException {
+      await statusLocalDataSource.deleteById(statusId);
       return right(null);
     } on ServerExceptions catch (e) {
       return left(Failure(e.message));

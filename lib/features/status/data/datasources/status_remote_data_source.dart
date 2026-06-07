@@ -101,7 +101,13 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
           .select()
           .single();
       } on PostgrestException catch (e) {
-        if (e.code != '23505') rethrow;
+        if (e.code == '23505') {
+          // Duplicate view — already viewed, ignore
+        } else if (e.code == '23503') {
+          throw StatusNotFoundException();
+        } else {
+          rethrow;
+        }
       }
 
       final response = await supabaseClient
@@ -120,8 +126,12 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
       }
     }
     on PostgrestException catch (e) {
+      if (e.code == 'PGRST116') {
+        throw StatusNotFoundException();
+      }
       throw ServerExceptions(e.message);
     } catch (e) {
+      if (e is StatusNotFoundException) rethrow;
       throw ServerExceptions(e.toString());
     }
   }
@@ -216,8 +226,12 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
           .eq('viewer_id', userId);
 
     } on PostgrestException catch (e) {
+      if (e.code == 'PGRST116') {
+        throw StatusNotFoundException();
+      }
       throw ServerExceptions(e.message);
     } catch (e) {
+      if (e is StatusNotFoundException) rethrow;
       throw ServerExceptions(e.toString());
     }
   }

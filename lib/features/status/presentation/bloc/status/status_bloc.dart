@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:chat_application/core/usecase/usecase.dart';
+import 'package:flutter/foundation.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
@@ -10,9 +10,7 @@ import 'package:chat_application/features/status/domain/usecase/delete_status.da
 import 'package:chat_application/features/status/domain/usecase/get_all_status.dart';
 import 'package:chat_application/features/status/domain/usecase/update_view.dart';
 import 'package:chat_application/features/status/domain/usecase/upload_status.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
@@ -83,7 +81,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
       emit(StatusLoading());
     }
 
-    final res = (await _getAllStatus(GetAllStatusParams(currentUserId: event.currentUserId)));
+    final res = (await _getAllStatus(GetAllStatusParams(currentUserId: event.currentUserId, forceRefresh: event.forceRefresh)));
 
     res.fold(
       (l) => emit(StatusFailure(l.message)),

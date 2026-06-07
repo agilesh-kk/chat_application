@@ -14,7 +14,7 @@ abstract interface class StatusRepository {
     required String profilepic
   });
 
-  Future<Either<Failure, List<Status>>> getAllStatus({required String currentUserId});
+  Future<Either<Failure, List<Status>>> getAllStatus({required String currentUserId, bool forceRefresh = false});
 
   Future<Either<Failure, void>> updateView({
     required String statusId,
