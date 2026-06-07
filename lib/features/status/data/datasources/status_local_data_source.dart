@@ -25,6 +25,8 @@ abstract interface class StatusLocalDataSource {
   Future<void> markAsViewed(String statusId);
 
   Future<void> deleteById(String statusId);
+
+  Future<Map<String, String>> getLocalPaths();
 }
 
 class StatusLocalDataSourceImpl implements StatusLocalDataSource {
@@ -52,6 +54,7 @@ class StatusLocalDataSourceImpl implements StatusLocalDataSource {
 
     for (final key in toDelete) {
       await box!.delete(key);
+      await _deleteImageFile(key);
     }
 
     return box!.values.map((e) => e.toEntity()).toList()
@@ -131,18 +134,32 @@ class StatusLocalDataSourceImpl implements StatusLocalDataSource {
   Future<void> deleteById(String statusId) async {
     if (kIsWeb || box == null) return;
     await box!.delete(statusId);
+    await _deleteImageFile(statusId);
+  }
+
+  @override
+  Future<Map<String, String>> getLocalPaths() async {
+    if (kIsWeb || box == null) return {};
+    final map = <String, String>{};
+    for (final entry in box!.toMap().entries) {
+      if (entry.value.localPath.isNotEmpty) {
+        map[entry.key] = entry.value.localPath;
+      }
+    }
+    return map;
   }
 
   Future<String?> downloadAndSaveImage(String url, String id) async {
     if (kIsWeb) return null;
     final dir = await getApplicationDocumentsDirectory();
     final folder = Directory('${dir.path}/status_img');
+    final file = File('${folder.path}/status_$id.jpg');
+
+    if (await file.exists()) return file.path;
 
     if(!await folder.exists()){
       folder.create(recursive: true);
     }
-
-    final file = File('${folder.path}/status_$id.jpg');
 
     try {
       await Dio().download(url, file.path);
@@ -151,5 +168,13 @@ class StatusLocalDataSourceImpl implements StatusLocalDataSource {
     }
 
     return file.path;
+  }
+
+  Future<void> _deleteImageFile(String statusId) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/status_img/status_$statusId.jpg');
+    if (await file.exists()) {
+      await file.delete();
+    }
   }
 }

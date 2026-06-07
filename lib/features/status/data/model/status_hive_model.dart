@@ -92,7 +92,7 @@ class StatusHiveModel{
       createdAt: status.createdAt,
       expiresAt: status.expiresAt,
       userName: status.userName,
-      localPath: status.localPath ?? "Not Loaded",
+      localPath: status.localPath ?? "",
       profilepic: status.profilepic,
       likedBy: status.likedBy,
       isViewed: status.isViewed,

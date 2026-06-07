@@ -243,8 +243,11 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
       }
       return NetworkImage(s.profilepic);
     }
-    if (s.localPath != null) {
-      return FileImage(File(s.localPath!));
+    if (s.localPath != null && s.localPath!.isNotEmpty) {
+      final file = File(s.localPath!);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
     }
     return NetworkImage(s.imageUrl);
   }

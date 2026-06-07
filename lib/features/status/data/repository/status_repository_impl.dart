@@ -88,6 +88,10 @@ class StatusRepositoryImpl implements StatusRepository {
 
       // 4. Fetch from remote
       final models = await statusRemoteDataSource.getAllStatus();
+
+      // Preserve local paths from cache so UI can use cached images immediately
+      final existingLocalPaths = await statusLocalDataSource.getLocalPaths();
+
       final statuses = models.map((m) => Status(
         id: m.id,
         userId: m.userId,
@@ -99,6 +103,7 @@ class StatusRepositoryImpl implements StatusRepository {
         profilepic: m.profilepic,
         likedBy: m.likedBy,
         isViewed: m.viewedBy.contains(currentUserId),
+        localPath: existingLocalPaths[m.id],
       )).toList();
 
       // 5. Update local cache (fire-and-forget to not block response)
@@ -110,7 +115,7 @@ class StatusRepositoryImpl implements StatusRepository {
         createdAt: e.createdAt,
         expiresAt: e.expiresAt,
         userName: e.userName,
-        localPath: "Not Loaded",
+        localPath: "",
         profilepic: e.profilepic,
         likedBy: e.likedBy,
         isViewed: e.viewedBy.contains(currentUserId),

@@ -516,10 +516,15 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _flatStatuses.length,
                   itemBuilder: (context, index) {
-                    if (_flatStatuses[index].localPath != null) {
+                    final localPath = _flatStatuses[index].localPath;
+                    if (localPath != null && localPath.isNotEmpty) {
                       return Image.file(
-                        File(_flatStatuses[index].localPath!),
+                        File(localPath),
                         fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Image.network(
+                          _flatStatuses[index].imageUrl,
+                          fit: BoxFit.contain,
+                        ),
                       );
                     }
                     return Image.network(
