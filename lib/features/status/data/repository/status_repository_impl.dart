@@ -102,7 +102,19 @@ class StatusRepositoryImpl implements StatusRepository {
       )).toList();
 
       // 5. Update local cache (fire-and-forget to not block response)
-      statusLocalDataSource.updateStatuses(models.map((e)=>StatusHiveModel.fromEntity(e)).toList());
+      statusLocalDataSource.updateStatuses(models.map((e) => StatusHiveModel(
+        id: e.id,
+        userId: e.userId,
+        imageUrl: e.imageUrl,
+        caption: e.caption,
+        createdAt: e.createdAt,
+        expiresAt: e.expiresAt,
+        userName: e.userName,
+        localPath: "Not Loaded",
+        profilepic: e.profilepic,
+        likedBy: e.likedBy,
+        isViewed: e.viewedBy.contains(currentUserId),
+      )).toList());
       statusLocalDataSource.setLastFetchTime(DateTime.now());
 
       return right(statuses);

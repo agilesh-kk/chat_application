@@ -159,7 +159,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
     );
 
     res.fold(
-      (l) => emit(StatusFailure(l.message)),
+      (_) {},
       (_) {
         if (state is StatusDisplaySuccess) {
           final current = (state as StatusDisplaySuccess).status;

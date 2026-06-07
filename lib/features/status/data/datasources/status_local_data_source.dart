@@ -68,11 +68,17 @@ class StatusLocalDataSourceImpl implements StatusLocalDataSource {
       return;
     }
 
+    final existingIsViewed = <String, bool>{};
+    for (final entry in box!.toMap().entries) {
+      existingIsViewed[entry.key] = entry.value.isViewed;
+    }
+
     await box!.clear();
 
     for (final status in statuses) {
+      final mergedIsViewed = existingIsViewed[status.id] == true || status.isViewed;
       final localPath = await downloadAndSaveImage(status.imageUrl, status.id);
-      await box!.put(status.id, status.copyWith(localPath: localPath));
+      await box!.put(status.id, status.copyWith(localPath: localPath, isViewed: mergedIsViewed));
     }
   }
 
