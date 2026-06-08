@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
+import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
@@ -372,9 +373,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                       CircleAvatar(
                                           radius: 20,
                                           backgroundImage: hasProfilePic
-                                              ? (profilePic.startsWith('assets/')
-                                                  ? AssetImage(profilePic) as ImageProvider
-                                                  : NetworkImage(profilePic))
+                                              ? ProfilePicProvider.resolve(profilePic, userId: viewer.viewerId)
                                               : null,
                                         backgroundColor: AppPallete.darkSecondary,
                                         child: !hasProfilePic
@@ -783,9 +782,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
           ),
           child: CircleAvatar(
             radius: 18,
-            backgroundImage: batch.profilePic.startsWith('assets/')
-                ? AssetImage(batch.profilePic) as ImageProvider
-                : NetworkImage(batch.profilePic),
+            backgroundImage: ProfilePicProvider.resolve(batch.profilePic, userId: batch.userId),
             backgroundColor: AppPallete.darkSecondary,
           ),
         ),

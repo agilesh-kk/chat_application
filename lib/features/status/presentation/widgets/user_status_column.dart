@@ -1,8 +1,10 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:flutter/material.dart';
 
 class UserStatusColumn extends StatefulWidget {
   final String name;
+  final String? userId;
   final VoidCallback onAddStatus;
   final VoidCallback? onViewStatus;
   final bool hasStatus;
@@ -11,6 +13,7 @@ class UserStatusColumn extends StatefulWidget {
   const UserStatusColumn({
     super.key,
     required this.name,
+    this.userId,
     required this.onAddStatus,
     required this.onViewStatus,
     required this.image,
@@ -103,9 +106,7 @@ class _UserStatusColumnState extends State<UserStatusColumn>
                     CircleAvatar(
                       radius: 28,
                       backgroundImage: widget.image != null
-                          ? (widget.image!.startsWith('assets/')
-                              ? AssetImage(widget.image!) as ImageProvider
-                              : NetworkImage(widget.image!))
+                          ? ProfilePicProvider.resolve(widget.image, userId: widget.userId)
                           : null,
                       backgroundColor: AppPallete.cardBg,
                       child: widget.image == null

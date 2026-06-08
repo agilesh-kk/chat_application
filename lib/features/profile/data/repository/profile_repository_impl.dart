@@ -1,5 +1,6 @@
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/core/errors/exceptions.dart';
+import 'package:chat_application/features/profile/data/datasources/profile_pic_local_data_source.dart';
 import 'package:chat_application/features/profile/data/datasources/profile_remote_data_source.dart';
 import 'package:chat_application/features/profile/domain/repository/profile_repository.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,8 +8,12 @@ import 'package:fpdart/fpdart.dart';
 
 class ProfileRepositoryImpl implements ProfileRepository{
   final ProfileRemoteDataSource profileRemoteDataSource;
+  final ProfilePicLocalDataSource profilePicLocalDataSource;
 
-  ProfileRepositoryImpl({required this.profileRemoteDataSource});
+  ProfileRepositoryImpl({
+    required this.profileRemoteDataSource,
+    required this.profilePicLocalDataSource,
+  });
 
   @override
   Future<Either<Failure, void>> updateProfilePic({
@@ -16,7 +21,10 @@ class ProfileRepositoryImpl implements ProfileRepository{
     required String imageUrl
   }) async{
     try{
-      profileRemoteDataSource.updateProfilePic(userId, imageUrl);
+      await profileRemoteDataSource.updateProfilePic(userId, imageUrl);
+      if (!imageUrl.startsWith('assets/')) {
+        await profilePicLocalDataSource.updateProfilePic(userId, imageUrl);
+      }
       return right(null);
     }
     on ServerExceptions catch(e){
@@ -49,6 +57,7 @@ class ProfileRepositoryImpl implements ProfileRepository{
       );
 
       await profileRemoteDataSource.updateProfilePic(userId, imageUrl);
+      await profilePicLocalDataSource.updateProfilePic(userId, imageUrl);
       return right(imageUrl);
     }
     on ServerExceptions catch(e){
@@ -57,5 +66,9 @@ class ProfileRepositoryImpl implements ProfileRepository{
     catch(e){
       return left(Failure(e.toString()));
     }
+  }
+
+  Future<String?> getLocalProfilePic(String userId) async {
+    return profilePicLocalDataSource.getLocalPath(userId);
   }
 }

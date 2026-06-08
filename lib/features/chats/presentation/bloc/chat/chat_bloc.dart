@@ -63,7 +63,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<Closechat>((event, emit) async {
       await _messageSub?.cancel();
       await _chatRepository.stopOperationListener();
-      print("cancelled");
+      //print("cancelled");
       emit(ChatClosed());
     });
 

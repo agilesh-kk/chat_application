@@ -1,5 +1,6 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/achievement/presentation/pages/achievement_page.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
@@ -280,14 +281,11 @@ class ProfilePage extends StatelessWidget {
               GestureDetector(
                 onTap: () {
                   if (profileUser.profilePic != null) {
-                    final provider = profileUser.profilePic!.startsWith('assets/')
-                        ? AssetImage(profileUser.profilePic!) as ImageProvider
-                        : NetworkImage(profileUser.profilePic!);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => ProfileImageViewer(
-                          imageProvider: provider,
+                          imageProvider: ProfilePicProvider.resolve(profileUser.profilePic, userId: profileUser.id),
                           heroTag: 'profile_${profileUser.id}',
                         ),
                       ),
@@ -297,9 +295,7 @@ class ProfilePage extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 68,
                   backgroundImage: profileUser.profilePic != null
-                      ? (profileUser.profilePic!.startsWith('assets/')
-                          ? AssetImage(profileUser.profilePic!) as ImageProvider
-                          : NetworkImage(profileUser.profilePic!))
+                      ? ProfilePicProvider.resolve(profileUser.profilePic, userId: profileUser.id)
                       : null,
                   backgroundColor: AppPallete.cardBg,
                   child: profileUser.profilePic == null

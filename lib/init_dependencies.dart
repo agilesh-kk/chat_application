@@ -41,7 +41,10 @@ import 'package:chat_application/features/chats/presentation/cubit/convo_typing_
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/friends/data/friends_remote_data_sources.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/profile/data/datasources/profile_pic_local_data_source.dart';
 import 'package:chat_application/features/profile/data/datasources/profile_remote_data_source.dart';
+import 'package:chat_application/features/profile/data/hiveAdapters/profile_pic_hive_model_adapter.dart';
+import 'package:chat_application/features/profile/data/model/profile_pic_hive_model.dart';
 import 'package:chat_application/features/profile/data/repository/profile_repository_impl.dart';
 import 'package:chat_application/features/profile/domain/repository/profile_repository.dart';
 import 'package:chat_application/features/profile/domain/usecase/update_bio.dart';
@@ -106,7 +109,7 @@ Future<void> initDependencies() async {
   _initAuth();
   _initChat();
   await _initStatus();
-  _initProfile();
+  await _initProfile();
   _initTimeline();
   _initAchievement();
 
@@ -129,7 +132,10 @@ Future<void> initDependencies() async {
 
   serviceLocator.registerFactory<FriendsRemoteDataSource>(()=>FriendsRemoteDataSourceImpl(serviceLocator<FirebaseFirestore>()));
 
-  serviceLocator.registerLazySingleton(() => FriendsCubit(serviceLocator<FriendsRemoteDataSource>()));
+  serviceLocator.registerLazySingleton(() => FriendsCubit(
+    serviceLocator<FriendsRemoteDataSource>(),
+    serviceLocator<ProfilePicLocalDataSource>(),
+  ));
 
   serviceLocator.registerFactory<TypingRemoteDataSource>(
     () => TypingRemoteDataSource(serviceLocator<FirebaseDatabase>()),
@@ -385,7 +391,22 @@ void _initChat()async {
 }
 
 //for profile feature
-void _initProfile() async{
+Future<void> _initProfile() async{
+  Box<ProfilePicHiveModel>? profilePicBox;
+
+  if (!kIsWeb) {
+    Hive.registerAdapter(ProfilePicHiveModelAdapter());
+    late Box<ProfilePicHiveModel> box;
+    try {
+      box = await Hive.openBox<ProfilePicHiveModel>("profile_pics");
+    } catch (e) {
+      await Hive.deleteBoxFromDisk("profile_pics");
+      box = await Hive.openBox<ProfilePicHiveModel>("profile_pics");
+    }
+    serviceLocator.registerLazySingleton<Box<ProfilePicHiveModel>>(() => box);
+    profilePicBox = box;
+  }
+
   serviceLocator
   //data source
   ..registerFactory<ProfileRemoteDataSource>(
@@ -395,10 +416,15 @@ void _initProfile() async{
     )
   )
 
+  ..registerFactory<ProfilePicLocalDataSource>(
+    () => ProfilePicLocalDataSourceImpl(profilePicBox ?? serviceLocator<Box<ProfilePicHiveModel>>()),
+  )
+
   //repository
   ..registerFactory<ProfileRepository>(
     () => ProfileRepositoryImpl(
-      profileRemoteDataSource: serviceLocator<ProfileRemoteDataSource>()
+      profileRemoteDataSource: serviceLocator<ProfileRemoteDataSource>(),
+      profilePicLocalDataSource: serviceLocator<ProfilePicLocalDataSource>(),
     )
   )
 

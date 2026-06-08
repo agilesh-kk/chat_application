@@ -1,5 +1,6 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_image_viewer.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
@@ -288,14 +289,11 @@ return Scaffold(
                           child: GestureDetector(
                             onTap: () {
                               if (friend.profilePic.isNotEmpty) {
-                                final provider = friend.profilePic.startsWith('assets/')
-                                    ? AssetImage(friend.profilePic) as ImageProvider
-                                    : NetworkImage(friend.profilePic);
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => ProfileImageViewer(
-                                      imageProvider: provider,
+                                      imageProvider: ProfilePicProvider.resolve(friend.profilePic, userId: friend.id),
                                       heroTag: 'profile_${friend.id}',
                                     ),
                                   ),
@@ -305,9 +303,7 @@ return Scaffold(
                             child: friend.profilePic.isNotEmpty
                                 ? CircleAvatar(
                                     radius: 24,
-                                    backgroundImage: friend.profilePic.startsWith('assets/')
-                                        ? AssetImage(friend.profilePic) as ImageProvider
-                                        : NetworkImage(friend.profilePic),
+                                    backgroundImage: ProfilePicProvider.resolve(friend.profilePic, userId: friend.id),
                                     backgroundColor: AppPallete.cardBg,
                                   )
                                 : Icon(

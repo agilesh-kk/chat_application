@@ -2,16 +2,18 @@ import 'dart:async';
 
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/data/friends_remote_data_sources.dart';
+import 'package:chat_application/features/profile/data/datasources/profile_pic_local_data_source.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'friends_state.dart';
 
 class FriendsCubit extends Cubit<FriendsState> {
   final FriendsRemoteDataSource repository;
+  final ProfilePicLocalDataSource _profilePicLocalDataSource;
   StreamSubscription<Map<String,FriendModel>>? _friendsub;
   Timer? _onlineTimer;
 
-  FriendsCubit(this.repository) : super(FriendsInitial());
+  FriendsCubit(this.repository, this._profilePicLocalDataSource) : super(FriendsInitial());
 
   /// 🔹 Fetch friends using IDs from user doc
   Future<void> loadFriends({
@@ -28,12 +30,18 @@ class FriendsCubit extends Cubit<FriendsState> {
       _friendsub = friendSub.listen(
         (event) {
           emit(FriendsLoaded(event));
+          _cacheFriendProfilePics(event);
           _startOnlineTimer();
       },);
 
     } catch (e) {
       emit(FriendsError(e.toString()));
     }
+  }
+
+  Future<void> _cacheFriendProfilePics(Map<String, FriendModel> friends) async {
+    await _profilePicLocalDataSource.cacheFriendsProfilePics(friends);
+    await _profilePicLocalDataSource.clearCacheForRemovedFriends(friends.keys.toSet());
   }
 
   void _startOnlineTimer() {

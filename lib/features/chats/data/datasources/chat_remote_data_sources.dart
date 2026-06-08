@@ -251,7 +251,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             "timestamp": FieldValue.serverTimestamp(),
           });
         }
-        }catch(e){print(e);}
+        }catch(e){
+          //print(e);
+        }
       });
     } catch (e) {
       //print("Toggle reaction error: $e");
@@ -1005,7 +1007,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .where((ops) => ops.isNotEmpty)
         .expand((ops) => ops);
     }catch(e){
-      print(e);
+      //print(e);
       return Stream.empty();
     }
   }

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
+import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
@@ -452,9 +453,7 @@ class _ChatPageState extends State<ChatPage> {
                           child: friend.profilePic.isNotEmpty
                               ? CircleAvatar(
                                   radius: 18,
-                                  backgroundImage: friend.profilePic.startsWith('assets/')
-                                      ? AssetImage(friend.profilePic) as ImageProvider
-                                      : NetworkImage(friend.profilePic),
+                                  backgroundImage: ProfilePicProvider.resolve(friend.profilePic, userId: friend.id),
                                   backgroundColor: AppPallete.cardBg,
                                 )
                               : const Icon(Icons.person, color: AppPallete.greyText, size: 20),

@@ -1,10 +1,12 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
+import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:flutter/material.dart';
 
 class ConvoTile extends StatelessWidget {
   final String name;
   final String profilePic;
+  final String? receiverId;
   final String lastUpdateTime;
   final String lastMessage;
   final int unread;
@@ -19,6 +21,7 @@ class ConvoTile extends StatelessWidget {
     required this.name,
     required this.lastMessage,
     required this.profilePic,
+    this.receiverId,
     required this.lastUpdateTime,
     required this.lastSender,
     required this.isOnline,
@@ -70,9 +73,7 @@ class ConvoTile extends StatelessWidget {
                       child: CircleAvatar(
                         radius: 24,
                         backgroundImage: (profilePic.toLowerCase() != "not found")
-                            ? (profilePic.startsWith('assets/')
-                                ? AssetImage(profilePic) as ImageProvider
-                                : NetworkImage(profilePic))
+                            ? ProfilePicProvider.resolve(profilePic, userId: receiverId)
                             : null,
                         backgroundColor: AppPallete.darkTertiary,
                         child: (profilePic.toLowerCase() == "not found")

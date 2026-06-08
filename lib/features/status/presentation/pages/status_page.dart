@@ -134,6 +134,7 @@ class _StatusPageState extends State<StatusPage>
                             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                             child: UserStatusColumn(
                               name: currentUserName,
+                              userId: currentUserId,
                               image: pfp,
                               hasStatus: hasStatus,
                               onViewStatus: () async {

@@ -159,6 +159,7 @@ class _ConversationPageState extends State<ConversationPage> {
               name: convo.receiverName, 
               lastMessage: convo.lastMessage, 
               profilePic: convo.profilepicLink, 
+              receiverId: convo.receiverId,
               lastUpdateTime: convo.lastupdateTime,
               lastSender: convo.lastSender == widget.userId ? "you" : "",
               isOnline: convo.receiverIsOnline,
