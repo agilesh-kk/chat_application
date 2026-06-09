@@ -1,4 +1,5 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:flutter/material.dart';
 
 class TimeCapsulePicker {
@@ -50,18 +51,6 @@ class TimeCapsulePicker {
   }
 
   static void _showError(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          msg,
-          style: TextStyle(color: AppPallete.whiteColor),
-        ),
-        backgroundColor: AppPallete.errorColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
+    showSnackbar(context, msg);
   }
 }

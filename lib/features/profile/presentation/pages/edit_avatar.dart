@@ -4,6 +4,7 @@ import 'package:chat_application/core/utils/app_images.dart';
 import 'package:chat_application/core/utils/image_picker_service.dart';
 import 'package:chat_application/core/utils/modal_bottom_sheet.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
+import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -30,16 +31,12 @@ class _EditAvatarState extends State<EditAvatar> {
       listener: (context, state) {
         if (state is ProfilePicUpdateScuccess) {
           context.read<AppUserCubit>().updateUserProfilePic(state.imageUrl);
+          showSnackbar(context, "Profile picture updated successfully");
           Navigator.pop(context);
         }
 
         if (state is ProfilePicUpdateFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppPallete.errorColor,
-            ),
-          );
+          showSnackbar(context, state.message);
         }
       },
       child: Scaffold(

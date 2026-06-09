@@ -72,6 +72,7 @@ class _AddStatusPageState extends State<AddStatusPage> {
                 showSnackbar(context, state.error);
               } else if (state is StatusUploadSuccess) {
                 _captionController.clear();
+                showSnackbar(context, "Status uploaded successfully",);
                 Navigator.pop(context);
               }
             },
