@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import 'package:chat_application/features/chats/data/repository/chat_repository_impl.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
+import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
+import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,13 +15,17 @@ part 'conversation_states.dart';
 class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   final GetConversations getConversations;
   final FriendsCubit friendsCubit;
+  final Set<String> friends = {};
+  final ChatRepository chatRepositoryImpl;
+  String? userId;
 
   StreamSubscription<List<Conversation>>? _convoSub;
   StreamSubscription? _friendsub;
 
   ConversationBloc({
     required this.getConversations,
-    required this.friendsCubit
+    required this.friendsCubit,
+    required this.chatRepositoryImpl
   }) : super(ConversationInitial()) {
 
     // =========================================================
@@ -34,6 +41,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
 
       try {
         final result = await getConversations(event.userId);
+        userId = event.userId;
 
         result.fold(
           (failure) {
@@ -42,13 +50,16 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
           (convoStream) {
             _convoSub = convoStream
             //timeout to check if no convo arrives
-            .timeout(Duration(seconds: 5),onTimeout: (sink) {
-              sink.add([]);
-            },)
+            //removed due to local db
+            // .timeout(Duration(seconds: 1),onTimeout: (sink) {
+            //   sink.add([]);
+            // },)
             .listen(
               (convos) {
+                print("changedddddddddddddddddddddddddddddddddddddddd");
                 //checks for empty convo list
                 if(convos.isEmpty){
+                  print("yessssssssssssssssssssssssssssssssssssssssssss");
                   add(_ConversationUpdated([]));
                 }
                 //print("📦 BLOC RECEIVED: ${convos.length}");
@@ -87,6 +98,10 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
             _friendsub = (friendsCubit).stream.listen(
                   (d) {
                   if(d is FriendsLoaded){
+
+                  manageListeners(d.friends.values.toList());
+                  print((state as ConversationLoaded).conversations.length);
+
                   final List<Conversation> updated = <Conversation>[];
                   for(final c in (state as ConversationLoaded).conversations){
                     updated.add(
@@ -121,6 +136,9 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     // =========================================================
     on<_ConversationUpdated>((event, emit) {
       //print("🚀 EMITTING STATE");
+      print(event.convos.length);
+      
+
       emit(ConversationLoaded(
         
         conversations: List.from(event.convos), // 🔥 IMPORTANT
@@ -148,6 +166,15 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
       }
     });
   }
+
+  void manageListeners(List<FriendModel> f){
+      for(final i in f){
+        if(!friends.contains(i.id)){
+          chatRepositoryImpl.startOperationListener(userId: userId!, receiverId: i.id);
+          friends.add(i.id);
+        }
+      }
+    }
 
   // =========================================================
   // 🔥 CLEANUP

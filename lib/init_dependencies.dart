@@ -366,6 +366,7 @@ void _initChat()async {
 
   ..registerLazySingleton(
     ()=> ConversationBloc(
+      chatRepositoryImpl: serviceLocator<ChatRepository>(),
       friendsCubit: serviceLocator<FriendsCubit>(),
       getConversations: serviceLocator()
     )
