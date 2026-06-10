@@ -1,119 +1,17 @@
-import 'dart:io';
-
 import 'package:chat_application/core/common/entities/user.dart';
-import 'package:chat_application/features/achievement/services/achievement_details_mapper.dart';
 import 'package:chat_application/features/chats/data/datasources/timeline_service.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
-// Re-export for backward compatibility
-typedef LevelInfoMapper = AchievementDetailsMapper;
 
-abstract interface class ChatRemoteDataSources {
-  Future<Stream<List<ConversationModel>>> getConversations({
-    required String userId,
-  });
+import 'chat_remote_data_sources.dart';
 
-  Future<void> sendMessage({
-    required String receiverId,
-    required String userId,
-    required String content,
-    required String msgId,
-    String type = "text",
-    String? userName,
-    String? userProfile,
-
-    //time capsule features
-    DateTime? sendAt, 
-
-    //for reply
-    String? replyToId,
-    String? replyToContent,
-    String? replyToSenderId,
-    String? replyToType,
-
-    //operation sync
-    String? opCollection,
-  });
-
-  Future<String> uploadImage({required XFile image, required String msgId});
-
-  Future<List<Map<String, dynamic>>> fetchAllMessages({
-    required String conversationId,
-  });
-
-  Future<Stream<List<MessageModel>>> getMessages({
-    required String receiverId,
-    required String userId,
-    int? limit,
-  });
-
-  Future<List<MessageModel>> getOlderMessages({
-    required String receiverId,
-    required String userId,
-    required DateTime oldestTimestamp,
-    int limit = 50,
-  });
-
-  Future<Stream<List<MessageModel>>> getScheduledMessages({
-    required String receiverId,
-    required String userId,
-  });
-
-  Future<List<User>> searchUser({
-    required String receiverName,
-    required String currentUserId,
-  });
-
-  Future<void> deleteMessage({
-    required String msgId,
-    required String userId,
-    required String receiverId,
-    bool deleteForEveryone = false,
-    String? opCollection,
-  });
-
-  Future markMessagesDelivered({
-    required String userId, 
-    required String receiverId
-  });
-
-  Future<void> toggleReaction({
-    required String userId,
-    required String receiverId,
-    required String messageId,
-    required String emoji,
-    String? opCollection,
-  });
-
-  // Operation sync methods
-  Future<Stream<Map<String, dynamic>>> listenToOperations({
-    required String conversationId,
-    required String opCollection,
-  });
-
-  Future<void> deleteOperation({
-    required String conversationId,
-    required String opCollection,
-    required String opId,
-  });
-
-  Future<void> editMessage({
-    required String userId,
-    required String receiverId,
-    required String msgId,
-    required String newContent,
-    String? opCollection,
-  });
-}
-
-class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
+class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
   final FirebaseFirestore firestore;
   final SupabaseClient supabase;
-  ChatRemoteDataSourcesImpl({required this.firestore, required this.supabase});
+  ChatRemoteDataSourcesWebImpl({required this.firestore, required this.supabase});
 
   @override
   Future<Stream<List<ConversationModel>>> getConversations({
@@ -126,7 +24,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
-            //print("🔥 SNAPSHOT TRIGGERED: ${snapshot.docs.length}");
             return ConversationModel.fromJson(doc.data(), doc.id, userId);
           }).toList();
         });
@@ -224,7 +121,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       seenMsgIds.add(doc.id);
     }
 
-    // Write seen operation
     final opCollection = _getMyOpCollection(userId, receiverId);
     final opRef = convoRef.collection(opCollection).doc();
     batch.set(opRef, {
@@ -268,9 +164,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }
         tx.update(msgRef, {'reactions': reactions});
 
-        // Only update receiver's conversation preview
-        // and only if the reacted message is their current lastMessageId
-        
         if (convoDoc.exists) {
           final convoData = convoDoc.data()!;
           if (convoData[receiverId]?["lastMessageId"] == messageId) {
@@ -280,7 +173,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
                 "$receiverId.lastSender": userId,
               });
             } else {
-              // Removal: restore receiver's fields from reactor's (userId) fields
               final lastMessage = convoData[userId]?["lastMessage"] ?? "";
               final lastMessageId = convoData[userId]?["lastMessageId"] ?? "";
               final lastSender = convoData[userId]?["lastSender"] ?? "";
@@ -293,10 +185,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           }
         }
 
-        
-
-
-        // Write operation doc in same transaction with full reactions map
         if (opCollection != null) {
           final opRef = convoRef.collection(opCollection).doc(messageId);
           tx.set(opRef, {
@@ -393,7 +281,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .orderBy("createdAt", descending: true)
         .snapshots()
         .map((snapshot) {
-          //shows only the messages scheduled by the user.
           return snapshot.docs
             .map((doc) => MessageModel.fromJson(doc.data(), doc.id))
             .where((msg) => msg.senderId == userId && (!msg.deletedfor.contains(userId) && !msg.deletedForEveryone))
@@ -407,13 +294,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     required String msgId,
   }) async {
     final path = "$msgId.jpg";
-    if (kIsWeb) {
-        final bytes = await image.readAsBytes();
-        await supabase.storage.from('images').uploadBinary(path, bytes);
-    }else{
-        final file = File(image.path);
-        await supabase.storage.from("images").upload(path, file);
-    }
+    final bytes = await image.readAsBytes();
+    await supabase.storage.from('images').uploadBinary(path, bytes);
     return supabase.storage.from("images").getPublicUrl(path);
   }
 
@@ -431,8 +313,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     String? replyToContent,
     String? replyToSenderId,
     String? replyToType,
-
-    //operation sync
     String? opCollection,
   }) async {
     try {
@@ -441,16 +321,13 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           .collection("Conversations")
           .doc(convoId);
 
-      //time capsule refactorings
       final collectionName = sendAt != null ? "scheduled_messages" : "messages";
-
-      final messageRef = convoRef.collection(collectionName).doc(msgId);      
-      
-      //this can't be null
+      final messageRef = convoRef.collection(collectionName).doc(msgId);
       final isScheduled = sendAt != null;
 
-      //skip operation for scheduled messages and when opCollection is not provided
-      final shouldWriteOp = opCollection != null && !isScheduled;
+      // Web always writes operation doc for non-scheduled messages (generate internally)
+      final opColToUse = opCollection ?? _getMyOpCollection(userId, receiverId);
+      final shouldWriteOp = !isScheduled;
 
       final message = MessageModel(
         id: msgId,
@@ -470,7 +347,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       WriteBatch batch = firestore.batch();
 
-      //saving message, refactored for time capsule
       batch.set(messageRef, {
         ...message.toMap(),
         "name": userName ?? "Unknown",
@@ -479,13 +355,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         "profile": userProfile ?? "assets/profile_images/pfp1.png",
         "createdAt": isScheduled
           ? Timestamp.fromDate(sendAt)
-          : FieldValue.serverTimestamp(), // server sync later
+          : FieldValue.serverTimestamp(),
         "index": null,
       });
 
-      // Write operation doc in same batch (only for non-scheduled messages)
       if (shouldWriteOp) {
-        final opRef = convoRef.collection(opCollection).doc(msgId);
+        final opRef = convoRef.collection(opColToUse).doc(msgId);
         batch.set(opRef, {
           "type": "new_message",
           "messageId": msgId,
@@ -511,22 +386,14 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         });
       }
 
-      // Updating conversation only if not scheduled
       if (!isScheduled) {
         batch.set(convoRef, {
           "participantsId": [userId, receiverId],
-
-          // 🔥 ROOT (for sorting)
           "lastupdateTime": FieldValue.serverTimestamp(),
 
-          //per-user conversation model
           userId: {
             "receiverId": receiverId,
-            //"receiverName": receiverData["name"],
-            //"receiverProfile": receiverData["profilePic"],
             "unread": 0,
-
-            // ✅ per-user last message
             "lastMessage": type == "text" ? content : "📷 Image",
             "lastMessageId": msgId,
             "lastSender": userId,
@@ -535,10 +402,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
           receiverId: {
             "receiverId": userId,
-            //"receiverName": userName,
-            //"receiverProfile": userProfile,
             "unread": FieldValue.increment(1),
-
             "lastMessage": type == "text" ? content : "📷 Image",
             "lastMessageId": msgId,
             "lastSender": userId,
@@ -575,15 +439,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       }
 
       if (!isScheduled) {
-        // await processTimelineEvent(
-        //   messageId: msgId,
-        //   senderId: userId,
-        //   receiverId: receiverId,
-        //   type: type,
-        //   content: content,
-        //   createdAt: Timestamp.now(),
-        // );
-
         final timelineService = TimelineService(firestore);
 
         await timelineService.handleMessage(
@@ -595,186 +450,11 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           createdAt: Timestamp.now(),
         );
       }
-
-      // if (!isScheduled) {
-      //   await _updateAchievementStats(
-      //     userId: userId,
-      //     receiverId: receiverId,
-      //   );
-      // }
     } catch (e) {
-      //print("Send message error: $e");
+      //print("Web send message error: $e");
     }
   }
 
-  // Future<void> _updateAchievementStats({
-  //   required String userId,
-  //   required String receiverId,
-  // }) async {
-  //   final firestore = FirebaseFirestore.instance;
-
-  //   final userRef = firestore
-  //       .collection("users")
-  //       .doc(userId)
-  //       .collection("achievement")
-  //       .doc("stats");
-
-  //   final friendRef = firestore
-  //       .collection("user_stats")
-  //       .doc(userId)
-  //       .collection("friends")
-  //       .doc(receiverId);
-
-  //   // =========================
-  //   // 🔥 STEP 1: LIGHTWEIGHT INCREMENTS (NO READS)
-  //   // =========================
-
-  //   await Future.wait([
-  //     userRef.set({
-  //       "totalMessages": FieldValue.increment(1),
-  //     }, SetOptions(merge: true)),
-
-  //     friendRef.set({
-  //       "messageCount": FieldValue.increment(1),
-  //     }, SetOptions(merge: true)),
-  //   ]);
-
-  //   // =========================
-  //   // 🔥 STEP 2: READ UPDATED VALUES (MINIMAL READ)
-  //   // =========================
-
-  //   final userSnap = await userRef.get();
-  //   final friendSnap = await friendRef.get();
-
-  //   final userData = userSnap.data() ?? {};
-  //   final friendData = friendSnap.data() ?? {};
-
-  //   final totalMessages = userData['totalMessages'] ?? 0;
-  //   final messageCount = friendData['messageCount'] ?? 0;
-  //   final wasQualified = friendData['isQualified'] ?? false;
-
-  //   final isNowQualified = messageCount >= 5;
-  //   final justQualified = !wasQualified && isNowQualified;
-
-  //   // =========================
-  //   // 🚫 LIMITER (VERY IMPORTANT)
-  //   // =========================
-
-  //   if (totalMessages % 5 != 0 && !justQualified) {
-  //     // only update qualification flag if needed
-  //     if (justQualified) {
-  //       await friendRef.set({
-  //         "isQualified": true,
-  //       }, SetOptions(merge: true));
-  //     }
-  //     return;
-  //   }
-
-  //   // =========================
-  //   // 🔥 STEP 3: HEAVY LOGIC (TRANSACTION)
-  //   // =========================
-
-  //   await firestore.runTransaction((tx) async {
-  //     final userSnapTx = await tx.get(userRef);
-  //     final friendSnapTx = await tx.get(friendRef);
-
-  //     final userDataTx = userSnapTx.data() ?? {};
-  //     final friendDataTx = friendSnapTx.data() ?? {};
-
-  //     int totalMessages = userDataTx['totalMessages'] ?? 0;
-  //     int qualifiedFriends = userDataTx['qualifiedFriends'] ?? 0;
-
-  //     int messageCount = friendDataTx['messageCount'] ?? 0;
-  //     bool wasQualified = friendDataTx['isQualified'] ?? false;
-
-  //     bool isNowQualified = messageCount >= 5;
-
-  //     // =========================
-  //     // 📊 UPDATE FRIEND QUALIFICATION
-  //     // =========================
-  //     tx.set(friendRef, {
-  //       "isQualified": isNowQualified,
-  //     }, SetOptions(merge: true));
-
-  //     if (!wasQualified && isNowQualified) {
-  //       qualifiedFriends += 1;
-  //     }
-
-  //     // =========================
-  //     // ⚙️ SCORE CALCULATION
-  //     // =========================
-  //     const mMax = 10000;
-  //     const fMax = 100;
-
-  //     final mNorm = log(1 + totalMessages) / log(1 + mMax);
-  //     final fNorm = log(1 + qualifiedFriends) / log(1 + fMax);
-
-  //     const wM = 0.75;
-  //     const wF = 0.25;
-
-  //     const targetPerFriend = 20;
-
-  //     double engagement = 1.0;
-  //     if (qualifiedFriends > 0) {
-  //       engagement = totalMessages / (qualifiedFriends * targetPerFriend);
-  //       if (engagement > 1) engagement = 1;
-  //     }
-
-  //     double score = (wM * mNorm) + (wF * fNorm * engagement);
-  //     score = pow(score, 1.2).toDouble();
-
-  //     final percentage = score * 100;
-
-  //     // =========================
-  //     // 🏆 LEVEL SYSTEM
-  //     // =========================
-  //     final levelInfo = LevelInfoMapper.getByPercentage(percentage);
-  //     final level = levelInfo.name;
-
-  //     // =========================
-  //     // 🎯 UNLOCK SYSTEM
-  //     // =========================
-  //     final thresholds = {
-  //       "ach_1": 0,
-  //       "ach_2": 10,
-  //       "ach_3": 25,
-  //       "ach_4": 40,
-  //       "ach_5": 60,
-  //       "ach_6": 75,
-  //       "ach_7": 90,
-  //     };
-
-  //     final unlocked = thresholds.entries
-  //         .where((e) => percentage >= e.value)
-  //         .map((e) => e.key)
-  //         .toList();
-
-  //     // =========================
-  //     // 📝 FINAL UPDATE
-  //     // =========================
-  //     tx.set(userRef, {
-  //       "qualifiedFriends": qualifiedFriends,
-  //       "score": score,
-  //       "percentage": percentage,
-  //       "level": level,
-  //       "unlocked": unlocked,
-  //       "collected": userDataTx["collected"] ?? [],
-  //       "seen": userDataTx["seen"] ?? [],
-  //     }, SetOptions(merge: true));
-  //   });
-  // }
-
-  String generateConversationId(String user1, String user2) {
-    final sorted = [user1, user2]..sort();
-    return "${sorted[0]}_${sorted[1]}";
-  }
-
-  String _getMyOpCollection(String userId, String receiverId) {
-    final sorted = [userId, receiverId]..sort();
-    return sorted[0] == userId ? "operation_1" : "operation_2";
-  }
-
-  //refactored search user
   @override
   Future<List<User>> searchUser({
     required String receiverName,
@@ -785,7 +465,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       .where("name", isGreaterThanOrEqualTo: receiverName)
       .where("name", isLessThanOrEqualTo: '$receiverName\uf8ff')
       .limit(10)
-      //.where("id", isNotEqualTo: currentUserId)
       .get();
 
     return result.docs.map((doc) {
@@ -848,7 +527,18 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           "deletedfor": FieldValue.arrayUnion([userId]),
         });
 
-        // Only normal messages affect conversation UI
+        // Write op doc for delete-for-me
+        final opCol = opCollection ?? _getMyOpCollection(userId, receiverId);
+        final opRef = convoRef.collection(opCol).doc(msgId);
+        batch.set(opRef, {
+          "type": "delete_message",
+          "messageId": msgId,
+          "timestamp": FieldValue.serverTimestamp(),
+          "deletedfor": [userId],
+          "deletedForEveryone": false,
+          "performedBy": userId,
+        });
+
         if (isMessage) {
           final convoSnap = await convoRef.get();
           if (!convoSnap.exists) {
@@ -917,17 +607,16 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       });
 
       // Write operation doc
-      if (opCollection != null) {
-        final opRef = convoRef.collection(opCollection).doc(msgId);
-        batch.set(opRef, {
-          "type": "delete_message",
-          "messageId": msgId,
-          "timestamp": FieldValue.serverTimestamp(),
-          "deletedfor": [],
-          "deletedForEveryone": true,
-          "performedBy": userId,
-        });
-      }
+      final opCol = opCollection ?? _getMyOpCollection(userId, receiverId);
+      final opRef = convoRef.collection(opCol).doc(msgId);
+      batch.set(opRef, {
+        "type": "delete_message",
+        "messageId": msgId,
+        "timestamp": FieldValue.serverTimestamp(),
+        "deletedfor": [],
+        "deletedForEveryone": true,
+        "performedBy": userId,
+      });
 
       if (isMessage) {
         final convoSnap = await convoRef.get();
@@ -943,7 +632,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             convoData[userId]?["lastMessageId"] == msgId ||
             convoData[receiverId]?["lastMessageId"] == msgId;
 
-        // ✅ Update last message for BOTH users
         if (isLastMessage) {
           final messages = await convoRef
               .collection("messages")
@@ -956,14 +644,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           for (final doc in messages.docs) {
             final msg = MessageModel.fromJson(doc.data(), doc.id);
 
-            // 🔵 For current user
             if (lastForUser == null &&
                 !msg.deletedfor.contains(userId) &&
                 msg.id != msgId) {
               lastForUser = msg;
             }
 
-            // 🔴 For receiver
             if (lastForReceiver == null &&
                 !msg.deletedfor.contains(receiverId) &&
                 msg.id != msgId) {
@@ -973,40 +659,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             if (lastForUser != null && lastForReceiver != null) break;
           }
 
-          // 🔥 Update conversation correctly
           batch.update(convoRef, {
             "lastupdateTime": FieldValue.serverTimestamp(),
 
-            //these codes are before adding deletedForEveryone field
-            // // 🔵 USER VIEW
-            // "$userId.lastMessage":
-            //     lastForUser != null
-            //         ? (lastForUser.type == "text"
-            //             ? lastForUser.content
-            //             : "📷Image")
-            //         : "",
-            // "$userId.lastMessageId": lastForUser?.id ?? "",
-            // "$userId.lastSender": lastForUser?.senderId ?? "",
-            // "$userId.lastupdateTime":
-            //     lastForUser != null
-            //         ? Timestamp.fromDate(lastForUser.createdAt)
-            //         : FieldValue.serverTimestamp(),
-
-            // // 🔴 RECEIVER VIEW
-            // "$receiverId.lastMessage":
-            //     lastForReceiver != null
-            //         ? (lastForReceiver.type == "text"
-            //             ? lastForReceiver.content
-            //             : "📷Image")
-            //         : "",
-            // "$receiverId.lastMessageId": lastForReceiver?.id ?? "",
-            // "$receiverId.lastSender": lastForReceiver?.senderId ?? "",
-            // "$receiverId.lastupdateTime":
-            //     lastForReceiver != null
-            //         ? Timestamp.fromDate(lastForReceiver.createdAt)
-            //         : FieldValue.serverTimestamp(),
-
-            //after adding deletedForEveryone field
             "$userId.lastMessage": "This message was deleted",
             "$userId.lastSender": messageData["senderId"],
 
@@ -1015,12 +670,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           });
         }
 
-        // 🔥 ADD THIS BLOCK HERE
         batch.update(convoRef, {
           "lastupdateTime": FieldValue.serverTimestamp(),
         });
 
-        // ✅ Fix unread count safely
         final isSender = messageData["senderId"] == userId;
         final receiverUnread =
             (convoData[receiverId]?["unread"] ?? 0);
@@ -1035,7 +688,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       await batch.commit();
     } catch (e) {
-      //print("Delete message error: $e");
+      //print("Web delete message error: $e");
     }
   }
 
@@ -1084,7 +737,17 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           .doc(opId)
           .delete();
     } catch (e) {
-      //print("Delete operation error: $e");
+      //print("Web delete operation error: $e");
     }
+  }
+
+  String generateConversationId(String user1, String user2) {
+    final sorted = [user1, user2]..sort();
+    return "${sorted[0]}_${sorted[1]}";
+  }
+
+  String _getMyOpCollection(String userId, String receiverId) {
+    final sorted = [userId, receiverId]..sort();
+    return sorted[0] == userId ? "operation_1" : "operation_2";
   }
 }

@@ -3,6 +3,7 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -287,7 +288,7 @@ return Scaffold(
                           child: friend.profilePic.isNotEmpty
                               ? CircleAvatar(
                                   radius: 24,
-                                  backgroundImage: AssetImage(friend.profilePic),
+                                  backgroundImage: profileImageProvider(friend.profilePic),
                                   backgroundColor: AppPallete.cardBg,
                                 )
                               : Icon(

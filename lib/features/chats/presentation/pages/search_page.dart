@@ -2,6 +2,7 @@ import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
+import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -339,7 +340,7 @@ class _SearchPageState extends State<SearchPage> {
                       child: user.profilePic != null && user.profilePic!.isNotEmpty
                           ? CircleAvatar(
                               radius: 24,
-                              backgroundImage: AssetImage(user.profilePic!),
+                              backgroundImage: profileImageProvider(user.profilePic),
                               backgroundColor: AppPallete.cardBg,
                             )
                           : Icon(

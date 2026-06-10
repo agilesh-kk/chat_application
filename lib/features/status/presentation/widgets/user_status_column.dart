@@ -1,4 +1,5 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 
 class UserStatusColumn extends StatefulWidget {
@@ -102,9 +103,7 @@ class _UserStatusColumnState extends State<UserStatusColumn>
                   children: [
                     CircleAvatar(
                       radius: 28,
-                      backgroundImage: widget.image != null
-                          ? AssetImage(widget.image!)
-                          : null,
+                      backgroundImage: profileImageProvider(widget.image),
                       backgroundColor: AppPallete.cardBg,
                       child: widget.image == null
                           ? const Icon(Icons.person, color: AppPallete.greyText)

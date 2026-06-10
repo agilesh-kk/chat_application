@@ -26,10 +26,12 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   final MarkMessagesDelivered _markMessagesDelivered;
   final ToggleReaction _toggleReaction;
   final EditMessage _editMessage;
+  final GetOlderMessages _getOlderMessages;
 
   String? _currentUserId;
   String? _currentReceiverId;
   bool _alreadyMarkedRecently = false;
+  bool _hasMore = true;
   StreamSubscription<List<Message>>? _messageSub;
 
   ChatBloc({
@@ -40,6 +42,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     required MarkMessagesDelivered markMessagesDelivered,
     required ToggleReaction toggleReaction,
     required EditMessage editMessage,
+    required GetOlderMessages getOlderMessages,
   })
    :
    _getMessages = getMessages,
@@ -49,6 +52,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
    _markMessagesDelivered = markMessagesDelivered,
    _toggleReaction = toggleReaction,
    _editMessage = editMessage,
+   _getOlderMessages = getOlderMessages,
    super(ChatInitial()) {
 
     on<Closechat>((event, emit)async {
@@ -103,6 +107,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<LoadMessagesEvent>((event, emit) async {
       _currentUserId = event.userId;
       _currentReceiverId = event.receiverId;
+      _hasMore = true;
 
       emit(ChatLoading());
 
@@ -110,11 +115,12 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         await _messageSub?.cancel();
       }
       
-      //getting messages
+      //getting messages (only 50 newest)
       final stream = await _getMessages(
         GetMessageParams(
           receiverId: event.receiverId,
           userId: event.userId,
+          limit: 50,
         ),
       );
 
@@ -229,8 +235,11 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     });
 
     on<MessagesUpdatedEvent>((event, emit) {
-      emit(ChatLoaded(event.messages));
+      final hasMore = _hasMore && event.messages.length >= 50;
+      emit(ChatLoaded(event.messages, hasMore: hasMore));
     });
+
+    on<LoadOlderMessagesEvent>(_onLoadOlderMessages);
 
     on<DeleteMessageEvent>(_onDeleteMessageEvent);
     on<MarkMessagesDeliveredEvent>(_onMarkMessagesDeleiveredEvent);
@@ -269,21 +278,21 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     }
 
     // =========================
-    // 🔥 STEP 2: YOUR EXISTING LOGIC
+    // 🔥 STEP 2: MERGE STREAM DATA WITH EXISTING MESSAGES
     // =========================
     if (state is ChatLoaded) {
       final currentState = state as ChatLoaded;
 
       final Map<String, Message> messageMap = {};
 
-      for (var msg in received) {
+      // Keep all existing messages (including older paginated ones)
+      for (var msg in currentState.messages) {
         messageMap[msg.id] = msg;
       }
 
-      for (var msg in currentState.messages) {
-        if (msg.isLocal && !messageMap.containsKey(msg.id)) {
-          messageMap[msg.id] = msg;
-        }
+      // Overlay with stream data (50 newest — these are the most up-to-date)
+      for (var msg in received) {
+        messageMap[msg.id] = msg;
       }
 
       List<Message> updated = messageMap.values.toList();
@@ -359,5 +368,47 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       msgId: event.msgId,
       newContent: event.newContent,
     ));
+  }
+
+  FutureOr<void> _onLoadOlderMessages(LoadOlderMessagesEvent event, Emitter<ChatState> emit) async {
+    if (_currentUserId == null || _currentReceiverId == null) return;
+
+    final currentState = state;
+    if (currentState is! ChatLoaded) return;
+    if (currentState.isLoadingMore) return;
+
+    emit(currentState.copyWith(isLoadingMore: true));
+
+    final res = await _getOlderMessages(
+      GetOlderMessageParams(
+        receiverId: _currentReceiverId!,
+        userId: _currentUserId!,
+        oldestTimestamp: event.oldestTimestamp,
+      ),
+    );
+
+    res.fold(
+      (failure) => emit(currentState.copyWith(isLoadingMore: false)),
+      (olderMessages) {
+        _hasMore = olderMessages.length >= 50;
+
+        final Map<String, Message> messageMap = {};
+
+        for (var msg in currentState.messages) {
+          messageMap[msg.id] = msg;
+        }
+
+        for (var msg in olderMessages) {
+          if (!messageMap.containsKey(msg.id)) {
+            messageMap[msg.id] = msg;
+          }
+        }
+
+        List<Message> all = messageMap.values.toList();
+        all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        emit(ChatLoaded(all, hasMore: _hasMore, isLoadingMore: false));
+      },
+    );
   }
 }

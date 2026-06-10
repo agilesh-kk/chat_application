@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
+import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
@@ -68,6 +69,7 @@ class _ChatPageState extends State<ChatPage> {
   final ItemPositionsListener _positionsListener = ItemPositionsListener.create();
   late final StickyHeaderCubit _stickyHeaderCubit;
   bool _showScrollToBottom = false;
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -106,9 +108,9 @@ class _ChatPageState extends State<ChatPage> {
     if (visibleItems.isEmpty) return;
 
     final topIndex = visibleItems.first.index;
-    final state = cb.state;
-    if (state is ChatLoaded && topIndex < state.messages.length) {
-      final message = state.messages[topIndex];
+    final blocState = cb.state;
+    if (blocState is ChatLoaded && topIndex < blocState.messages.length) {
+      final message = blocState.messages[topIndex];
       final newLabel = _getDateLabel(message.createdAt);
       _stickyHeaderCubit.updateDateLabel(newLabel);
     }
@@ -119,6 +121,19 @@ class _ChatPageState extends State<ChatPage> {
     final shouldShow = !isIndexZeroVisible;
     if (shouldShow != _showScrollToBottom) {
       setState(() => _showScrollToBottom = shouldShow);
+    }
+
+    // Load older messages when scrolling near the top (oldest messages)
+    if (blocState is ChatLoaded && blocState.hasMore && !_isLoadingMore) {
+      final maxIndex = blocState.messages.length - 1;
+      final isNearTop = positions.any(
+        (p) => p.index >= maxIndex - 2 && p.itemTrailingEdge >= 0 && p.itemTrailingEdge <= 1.0,
+      );
+      if (isNearTop && blocState.messages.isNotEmpty) {
+        final oldestMsg = blocState.messages.last;
+        _isLoadingMore = true;
+        cb.add(LoadOlderMessagesEvent(oldestTimestamp: oldestMsg.createdAt));
+      }
     }
   }
 
@@ -337,7 +352,7 @@ class _ChatPageState extends State<ChatPage> {
                           child: friend.profilePic.isNotEmpty
                               ? CircleAvatar(
                                   radius: 18,
-                                  backgroundImage: AssetImage(friend.profilePic),
+                                  backgroundImage: profileImageProvider(friend.profilePic),
                                   backgroundColor: AppPallete.cardBg,
                                 )
                               : const Icon(Icons.person, color: AppPallete.greyText, size: 20),
@@ -471,6 +486,10 @@ class _ChatPageState extends State<ChatPage> {
           if (state is ChatLoaded) {
             final messages = state.messages;
 
+            if (mounted && !state.isLoadingMore) {
+              _isLoadingMore = false;
+            }
+
             if (widget.scrolltoIndex != null) {
               _scrollToIndex(widget.scrolltoIndex!);
               widget.scrolltoIndex = null;
@@ -570,6 +589,16 @@ class _ChatPageState extends State<ChatPage> {
                     },
                   ),
                 ),
+                if (state.isLoadingMore)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: LinearProgressIndicator(
+                      backgroundColor: AppPallete.darkTertiary,
+                      color: AppPallete.primaryOrange,
+                    ),
+                  ),
                 BlocBuilder<StickyHeaderCubit, StickyHeaderState>(
                   bloc: _stickyHeaderCubit,
                   builder: (context, state) {

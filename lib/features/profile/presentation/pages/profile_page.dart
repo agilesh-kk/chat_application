@@ -10,6 +10,7 @@ import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc
 import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
 import 'package:chat_application/features/profile/presentation/widgets/user_details_card.dart';
 import 'package:chat_application/features/timeline/presentation/pages/personal_timeline_page.dart';
+import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_shortcut_plus/flutter_shortcut.dart';
@@ -278,9 +279,7 @@ class ProfilePage extends StatelessWidget {
               ),
               CircleAvatar(
                 radius: 68,
-                backgroundImage: profileUser.profilePic != null
-                    ? AssetImage(profileUser.profilePic!)
-                    : null,
+                backgroundImage: profileImageProvider(profileUser.profilePic),
                 backgroundColor: AppPallete.cardBg,
                 child: profileUser.profilePic == null
                     ? Icon(

@@ -19,6 +19,7 @@ import 'package:chat_application/features/auth/domain/usecase/user_sign_up.dart'
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources.dart';
+import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources_web.dart';
 import 'package:chat_application/features/chats/data/repository/chat_repository_impl.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/chats/domain/usecase/delete_message.dart';
@@ -259,7 +260,15 @@ void _initChat()async {
   )
 
   ..registerFactory<ChatRemoteDataSources>(
-    () => ChatRemoteDataSourcesImpl(firestore: serviceLocator<FirebaseFirestore>(),supabase: serviceLocator<SupabaseClient>()),
+    () => kIsWeb
+        ? ChatRemoteDataSourcesWebImpl(
+            firestore: serviceLocator<FirebaseFirestore>(),
+            supabase: serviceLocator<SupabaseClient>(),
+          )
+        : ChatRemoteDataSourcesImpl(
+            firestore: serviceLocator<FirebaseFirestore>(),
+            supabase: serviceLocator<SupabaseClient>(),
+          ),
   )
 
   ..registerFactory<ChatRepository>(
@@ -277,6 +286,11 @@ void _initChat()async {
   )
   ..registerFactory(
     () => GetMessages(
+     chatRepository:  serviceLocator<ChatRepository>(),
+    )
+  )
+  ..registerFactory(
+    () => GetOlderMessages(
      chatRepository:  serviceLocator<ChatRepository>(),
     )
   )
@@ -324,6 +338,7 @@ void _initChat()async {
       markMessagesDelivered: serviceLocator(),
       toggleReaction: serviceLocator(),
       editMessage: serviceLocator(),
+      getOlderMessages: serviceLocator(),
     )
   )
 

@@ -51,6 +51,14 @@ abstract interface class ChatRepository{
   Future<Either<Failure,Stream<List<Message>>>> getMessages({
     required String receiverId,
     required String userId,
+    int? limit,
+  });
+
+  Future<Either<Failure, List<Message>>> getOlderMessages({
+    required String receiverId,
+    required String userId,
+    required DateTime oldestTimestamp,
+    int limit = 50,
   });
 
   //marking the messages has viewed

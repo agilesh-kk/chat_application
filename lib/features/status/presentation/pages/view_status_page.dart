@@ -8,6 +8,7 @@ import 'package:chat_application/features/friends/presentation/friends_cubit.dar
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
+import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -222,7 +223,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                       CircleAvatar(
                                         radius: 20,
                                         backgroundImage: hasProfilePic
-                                            ? AssetImage(profilePic)
+                                            ? profileImageProvider(profilePic)
                                             : null,
                                         backgroundColor: AppPallete.darkSecondary,
                                         child: !hasProfilePic
@@ -516,7 +517,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
           ),
           child: CircleAvatar(
             radius: 18,
-            backgroundImage: AssetImage(widget.userProfilePic),
+            backgroundImage: profileImageProvider(widget.userProfilePic),
             backgroundColor: AppPallete.darkSecondary,
           ),
         ),

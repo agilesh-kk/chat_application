@@ -12,7 +12,8 @@ class GetMessages implements UseCase<Stream<List<Message>>,GetMessageParams>{
   Future<Either<Failure, Stream<List<Message>>>> call(GetMessageParams params)async {
     return await chatRepository.getMessages(
       receiverId: params.receiverId,
-      userId: params.userId
+      userId: params.userId,
+      limit: params.limit,
     );
   }
 }
@@ -20,9 +21,40 @@ class GetMessages implements UseCase<Stream<List<Message>>,GetMessageParams>{
 class GetMessageParams{
   final String receiverId;
   final String userId;
+  final int? limit;
 
   GetMessageParams({
     required this.receiverId,
     required this.userId,
+    this.limit,
+  });
+}
+
+class GetOlderMessages implements UseCase<List<Message>, GetOlderMessageParams> {
+  final ChatRepository chatRepository;
+  GetOlderMessages({required this.chatRepository});
+
+  @override
+  Future<Either<Failure, List<Message>>> call(GetOlderMessageParams params) async {
+    return await chatRepository.getOlderMessages(
+      receiverId: params.receiverId,
+      userId: params.userId,
+      oldestTimestamp: params.oldestTimestamp,
+      limit: params.limit,
+    );
+  }
+}
+
+class GetOlderMessageParams {
+  final String receiverId;
+  final String userId;
+  final DateTime oldestTimestamp;
+  final int limit;
+
+  GetOlderMessageParams({
+    required this.receiverId,
+    required this.userId,
+    required this.oldestTimestamp,
+    this.limit = 50,
   });
 }

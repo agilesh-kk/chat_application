@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
+import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:flutter/material.dart';
 
@@ -211,10 +212,7 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
 
   ImageProvider displayImage(Status s) {
     if (s.profilepic.isNotEmpty) {
-      if (s.profilepic.startsWith('assets/')) {
-        return AssetImage(s.profilepic);
-      }
-      return NetworkImage(s.profilepic);
+      return profileImageProvider(s.profilepic) ?? AssetImage('');
     }
     if (s.localPath != null) {
       return FileImage(File(s.localPath!));

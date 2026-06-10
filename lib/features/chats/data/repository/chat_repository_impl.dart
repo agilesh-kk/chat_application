@@ -35,11 +35,33 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<Either<Failure, Stream<List<Message>>>> getMessages({
     required String receiverId,
     required String userId,
+    int? limit,
   }) async {
     try {
       Stream<List<Message>> res = await chatRemoteDataSources.getMessages(
         receiverId: receiverId,
         userId: userId,
+        limit: limit,
+      );
+      return right(res);
+    } on ServerExceptions catch (e) {
+      return left(Failure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Message>>> getOlderMessages({
+    required String receiverId,
+    required String userId,
+    required DateTime oldestTimestamp,
+    int limit = 50,
+  }) async {
+    try {
+      final res = await chatRemoteDataSources.getOlderMessages(
+        receiverId: receiverId,
+        userId: userId,
+        oldestTimestamp: oldestTimestamp,
+        limit: limit,
       );
       return right(res);
     } on ServerExceptions catch (e) {

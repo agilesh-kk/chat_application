@@ -1,5 +1,6 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
+import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 
 class ConvoTile extends StatelessWidget {
@@ -67,9 +68,7 @@ class ConvoTile extends StatelessWidget {
                       ),
                       child: CircleAvatar(
                         radius: 24,
-                        backgroundImage: (profilePic.toLowerCase() != "not found")
-                            ? AssetImage(profilePic)
-                            : null,
+                        backgroundImage: profileImageProvider(profilePic),
                         backgroundColor: AppPallete.darkTertiary,
                         child: (profilePic.toLowerCase() == "not found")
                             ? Icon(

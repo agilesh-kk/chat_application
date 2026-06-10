@@ -98,6 +98,12 @@ class DeleteMessageEvent extends ChatEvent{
   });
 }
 
+class LoadOlderMessagesEvent extends ChatEvent {
+  final DateTime oldestTimestamp;
+
+  LoadOlderMessagesEvent({required this.oldestTimestamp});
+}
+
 class Closechat extends ChatEvent{}
 
 class ToggleReactionEvent extends ChatEvent {

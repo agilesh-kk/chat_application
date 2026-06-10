@@ -271,12 +271,12 @@ class TimelinePage extends StatelessWidget {
 
   Widget _bubble(dynamic event, bool isMe, BuildContext context) {
     return GestureDetector(
-      onDoubleTap: () async {
-        final fullId = (event as Event).id;
-        final messageId = fullId.split("_")[0];
+      // onDoubleTap: () async {
+      //   final fullId = (event as Event).id;
+      //   final messageId = fullId.split("_")[0];
         
-        Navigator.pop(context, messageId);
-      },
+      //   Navigator.pop(context, messageId);
+      // },
       onLongPressStart: (details){
         TimelineOptionsTray.show(
           context: context,
