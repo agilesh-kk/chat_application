@@ -23,12 +23,16 @@ class _ConversationPageState extends State<ConversationPage> {
   final searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
   bool isSearching = false;
+  late final ConversationBloc convoBloc;
+  late final ConvoTypingCubit typingcubit;
 
   @override
   void initState() {
     super.initState();
     context.read<ConversationBloc>()
         .add(LoadConversationsEvent(widget.userId));
+    convoBloc = context.read<ConversationBloc>();
+    typingcubit = context.read<ConvoTypingCubit>();
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async{
       await checkIfOpenedfromNotification();
     },);
@@ -59,13 +63,13 @@ class _ConversationPageState extends State<ConversationPage> {
   void dispose() {
     searchController.dispose();
     _searchFocusNode.dispose();
-    final state = context.read<ConversationBloc>().state;
-    if (state is ConversationLoaded) {
-      final cubit = context.read<ConvoTypingCubit>();
-      for (final convo in state.conversations) {
+    
+    if (convoBloc.state is ConversationLoaded) {
+      
+      for (final convo in (convoBloc.state as ConversationLoaded).conversations) {
         final sorted = [widget.userId, convo.receiverId]..sort();
         final convoId = convo.convoId ?? "${sorted[0]}_${sorted[1]}";
-        cubit.unsubscribeFromTyping(convoId);
+        typingcubit.unsubscribeFromTyping(convoId);
       }
     }
     super.dispose();

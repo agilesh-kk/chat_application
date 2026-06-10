@@ -865,7 +865,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           "type": "delete_message",
           "messageId": msgId,
           "timestamp": FieldValue.serverTimestamp(),
-          "deletedfor": [userId, receiverId],
+          "deletedfor": [],
           "deletedForEveryone": true,
           "performedBy": userId,
         });
