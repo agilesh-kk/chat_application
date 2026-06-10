@@ -443,173 +443,173 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         );
       }
 
-      if (!isScheduled) {
-        await _updateAchievementStats(
-          userId: userId,
-          receiverId: receiverId,
-        );
-      }
+      // if (!isScheduled) {
+      //   await _updateAchievementStats(
+      //     userId: userId,
+      //     receiverId: receiverId,
+      //   );
+      // }
     } catch (e) {
       //print("Send message error: $e");
     }
   }
 
-  Future<void> _updateAchievementStats({
-    required String userId,
-    required String receiverId,
-  }) async {
-    final firestore = FirebaseFirestore.instance;
+  // Future<void> _updateAchievementStats({
+  //   required String userId,
+  //   required String receiverId,
+  // }) async {
+  //   final firestore = FirebaseFirestore.instance;
 
-    final userRef = firestore
-        .collection("users")
-        .doc(userId)
-        .collection("achievement")
-        .doc("stats");
+  //   final userRef = firestore
+  //       .collection("users")
+  //       .doc(userId)
+  //       .collection("achievement")
+  //       .doc("stats");
 
-    final friendRef = firestore
-        .collection("user_stats")
-        .doc(userId)
-        .collection("friends")
-        .doc(receiverId);
+  //   final friendRef = firestore
+  //       .collection("user_stats")
+  //       .doc(userId)
+  //       .collection("friends")
+  //       .doc(receiverId);
 
-    // =========================
-    // 🔥 STEP 1: LIGHTWEIGHT INCREMENTS (NO READS)
-    // =========================
+  //   // =========================
+  //   // 🔥 STEP 1: LIGHTWEIGHT INCREMENTS (NO READS)
+  //   // =========================
 
-    await Future.wait([
-      userRef.set({
-        "totalMessages": FieldValue.increment(1),
-      }, SetOptions(merge: true)),
+  //   await Future.wait([
+  //     userRef.set({
+  //       "totalMessages": FieldValue.increment(1),
+  //     }, SetOptions(merge: true)),
 
-      friendRef.set({
-        "messageCount": FieldValue.increment(1),
-      }, SetOptions(merge: true)),
-    ]);
+  //     friendRef.set({
+  //       "messageCount": FieldValue.increment(1),
+  //     }, SetOptions(merge: true)),
+  //   ]);
 
-    // =========================
-    // 🔥 STEP 2: READ UPDATED VALUES (MINIMAL READ)
-    // =========================
+  //   // =========================
+  //   // 🔥 STEP 2: READ UPDATED VALUES (MINIMAL READ)
+  //   // =========================
 
-    final userSnap = await userRef.get();
-    final friendSnap = await friendRef.get();
+  //   final userSnap = await userRef.get();
+  //   final friendSnap = await friendRef.get();
 
-    final userData = userSnap.data() ?? {};
-    final friendData = friendSnap.data() ?? {};
+  //   final userData = userSnap.data() ?? {};
+  //   final friendData = friendSnap.data() ?? {};
 
-    final totalMessages = userData['totalMessages'] ?? 0;
-    final messageCount = friendData['messageCount'] ?? 0;
-    final wasQualified = friendData['isQualified'] ?? false;
+  //   final totalMessages = userData['totalMessages'] ?? 0;
+  //   final messageCount = friendData['messageCount'] ?? 0;
+  //   final wasQualified = friendData['isQualified'] ?? false;
 
-    final isNowQualified = messageCount >= 5;
-    final justQualified = !wasQualified && isNowQualified;
+  //   final isNowQualified = messageCount >= 5;
+  //   final justQualified = !wasQualified && isNowQualified;
 
-    // =========================
-    // 🚫 LIMITER (VERY IMPORTANT)
-    // =========================
+  //   // =========================
+  //   // 🚫 LIMITER (VERY IMPORTANT)
+  //   // =========================
 
-    if (totalMessages % 5 != 0 && !justQualified) {
-      // only update qualification flag if needed
-      if (justQualified) {
-        await friendRef.set({
-          "isQualified": true,
-        }, SetOptions(merge: true));
-      }
-      return;
-    }
+  //   if (totalMessages % 5 != 0 && !justQualified) {
+  //     // only update qualification flag if needed
+  //     if (justQualified) {
+  //       await friendRef.set({
+  //         "isQualified": true,
+  //       }, SetOptions(merge: true));
+  //     }
+  //     return;
+  //   }
 
-    // =========================
-    // 🔥 STEP 3: HEAVY LOGIC (TRANSACTION)
-    // =========================
+  //   // =========================
+  //   // 🔥 STEP 3: HEAVY LOGIC (TRANSACTION)
+  //   // =========================
 
-    await firestore.runTransaction((tx) async {
-      final userSnapTx = await tx.get(userRef);
-      final friendSnapTx = await tx.get(friendRef);
+  //   await firestore.runTransaction((tx) async {
+  //     final userSnapTx = await tx.get(userRef);
+  //     final friendSnapTx = await tx.get(friendRef);
 
-      final userDataTx = userSnapTx.data() ?? {};
-      final friendDataTx = friendSnapTx.data() ?? {};
+  //     final userDataTx = userSnapTx.data() ?? {};
+  //     final friendDataTx = friendSnapTx.data() ?? {};
 
-      int totalMessages = userDataTx['totalMessages'] ?? 0;
-      int qualifiedFriends = userDataTx['qualifiedFriends'] ?? 0;
+  //     int totalMessages = userDataTx['totalMessages'] ?? 0;
+  //     int qualifiedFriends = userDataTx['qualifiedFriends'] ?? 0;
 
-      int messageCount = friendDataTx['messageCount'] ?? 0;
-      bool wasQualified = friendDataTx['isQualified'] ?? false;
+  //     int messageCount = friendDataTx['messageCount'] ?? 0;
+  //     bool wasQualified = friendDataTx['isQualified'] ?? false;
 
-      bool isNowQualified = messageCount >= 5;
+  //     bool isNowQualified = messageCount >= 5;
 
-      // =========================
-      // 📊 UPDATE FRIEND QUALIFICATION
-      // =========================
-      tx.set(friendRef, {
-        "isQualified": isNowQualified,
-      }, SetOptions(merge: true));
+  //     // =========================
+  //     // 📊 UPDATE FRIEND QUALIFICATION
+  //     // =========================
+  //     tx.set(friendRef, {
+  //       "isQualified": isNowQualified,
+  //     }, SetOptions(merge: true));
 
-      if (!wasQualified && isNowQualified) {
-        qualifiedFriends += 1;
-      }
+  //     if (!wasQualified && isNowQualified) {
+  //       qualifiedFriends += 1;
+  //     }
 
-      // =========================
-      // ⚙️ SCORE CALCULATION
-      // =========================
-      const mMax = 10000;
-      const fMax = 100;
+  //     // =========================
+  //     // ⚙️ SCORE CALCULATION
+  //     // =========================
+  //     const mMax = 10000;
+  //     const fMax = 100;
 
-      final mNorm = log(1 + totalMessages) / log(1 + mMax);
-      final fNorm = log(1 + qualifiedFriends) / log(1 + fMax);
+  //     final mNorm = log(1 + totalMessages) / log(1 + mMax);
+  //     final fNorm = log(1 + qualifiedFriends) / log(1 + fMax);
 
-      const wM = 0.75;
-      const wF = 0.25;
+  //     const wM = 0.75;
+  //     const wF = 0.25;
 
-      const targetPerFriend = 20;
+  //     const targetPerFriend = 20;
 
-      double engagement = 1.0;
-      if (qualifiedFriends > 0) {
-        engagement = totalMessages / (qualifiedFriends * targetPerFriend);
-        if (engagement > 1) engagement = 1;
-      }
+  //     double engagement = 1.0;
+  //     if (qualifiedFriends > 0) {
+  //       engagement = totalMessages / (qualifiedFriends * targetPerFriend);
+  //       if (engagement > 1) engagement = 1;
+  //     }
 
-      double score = (wM * mNorm) + (wF * fNorm * engagement);
-      score = pow(score, 1.2).toDouble();
+  //     double score = (wM * mNorm) + (wF * fNorm * engagement);
+  //     score = pow(score, 1.2).toDouble();
 
-      final percentage = score * 100;
+  //     final percentage = score * 100;
 
-      // =========================
-      // 🏆 LEVEL SYSTEM
-      // =========================
-      final levelInfo = LevelInfoMapper.getByPercentage(percentage);
-      final level = levelInfo.name;
+  //     // =========================
+  //     // 🏆 LEVEL SYSTEM
+  //     // =========================
+  //     final levelInfo = LevelInfoMapper.getByPercentage(percentage);
+  //     final level = levelInfo.name;
 
-      // =========================
-      // 🎯 UNLOCK SYSTEM
-      // =========================
-      final thresholds = {
-        "ach_1": 0,
-        "ach_2": 10,
-        "ach_3": 25,
-        "ach_4": 40,
-        "ach_5": 60,
-        "ach_6": 75,
-        "ach_7": 90,
-      };
+  //     // =========================
+  //     // 🎯 UNLOCK SYSTEM
+  //     // =========================
+  //     final thresholds = {
+  //       "ach_1": 0,
+  //       "ach_2": 10,
+  //       "ach_3": 25,
+  //       "ach_4": 40,
+  //       "ach_5": 60,
+  //       "ach_6": 75,
+  //       "ach_7": 90,
+  //     };
 
-      final unlocked = thresholds.entries
-          .where((e) => percentage >= e.value)
-          .map((e) => e.key)
-          .toList();
+  //     final unlocked = thresholds.entries
+  //         .where((e) => percentage >= e.value)
+  //         .map((e) => e.key)
+  //         .toList();
 
-      // =========================
-      // 📝 FINAL UPDATE
-      // =========================
-      tx.set(userRef, {
-        "qualifiedFriends": qualifiedFriends,
-        "score": score,
-        "percentage": percentage,
-        "level": level,
-        "unlocked": unlocked,
-        "collected": userDataTx["collected"] ?? [],
-        "seen": userDataTx["seen"] ?? [],
-      }, SetOptions(merge: true));
-    });
-  }
+  //     // =========================
+  //     // 📝 FINAL UPDATE
+  //     // =========================
+  //     tx.set(userRef, {
+  //       "qualifiedFriends": qualifiedFriends,
+  //       "score": score,
+  //       "percentage": percentage,
+  //       "level": level,
+  //       "unlocked": unlocked,
+  //       "collected": userDataTx["collected"] ?? [],
+  //       "seen": userDataTx["seen"] ?? [],
+  //     }, SetOptions(merge: true));
+  //   });
+  // }
 
   String generateConversationId(String user1, String user2) {
     final sorted = [user1, user2]..sort();
