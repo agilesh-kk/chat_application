@@ -45,7 +45,18 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
 
         result.fold(
           (failure) {
-            emit(ConversationError(failure.message));
+            if(failure.message == "user-changed"){
+              _friendsub = (friendsCubit).stream.listen(
+                  (d) {
+                  if(d is FriendsLoaded){
+                    final ids = d.friends.values.map((e)=>e.id).toList();
+                    add(ConversationDownloadEvent(event.userId, ids, (100/ids.length as int)));
+                  }
+                });
+            }else{
+              emit(ConversationError(failure.message));
+            }
+            
           },
           (convoStream) {
             _convoSub = convoStream
@@ -56,10 +67,8 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
             // },)
             .listen(
               (convos) {
-                print("changedddddddddddddddddddddddddddddddddddddddd");
                 //checks for empty convo list
                 if(convos.isEmpty){
-                  print("yessssssssssssssssssssssssssssssssssssssssssss");
                   add(_ConversationUpdated([]));
                 }
                 //print("📦 BLOC RECEIVED: ${convos.length}");
@@ -130,6 +139,23 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         emit(ConversationError(e.toString()));
       }
     });
+
+    on<ConversationDownloadEvent>((event, emit) async{
+      final reId = event.receiverId.removeLast();
+      final res = await chatRepositoryImpl.downloadConversation(userId: event.userId, friendId: reId);
+      res.fold((e)=>emit(ConversationError(e.message)), (r){
+          if(state is ConversationDownloading){
+            emit(ConversationDownloading(event.val));
+          }else{
+            emit(ConversationDownloading((state as ConversationDownloading).loaded + event.val));
+          }
+          if(event.receiverId.isNotEmpty){
+            add(ConversationDownloadEvent(event.userId, event.receiverId, event.val));
+          }else{
+            add(LoadConversationsEvent(event.userId));
+          }
+      });
+    },);
 
     // =========================================================
     // 🔥 HANDLE STREAM DATA

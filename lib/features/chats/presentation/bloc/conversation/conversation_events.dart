@@ -17,6 +17,13 @@ class ConversationCreatedEvent extends ConversationEvent {
   ConversationCreatedEvent(this.userId);
 }
 
+class ConversationDownloadEvent extends ConversationEvent {
+  final String userId;
+  final List<String> receiverId;
+  final int val;
+  ConversationDownloadEvent(this.userId,this.receiverId,this.val);
+}
+
 // 🔥 INTERNAL EVENTS (VERY IMPORTANT)
 class _ConversationUpdated extends ConversationEvent {
   final List<Conversation> convos;

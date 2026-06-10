@@ -18,6 +18,11 @@ class ConversationLoaded extends ConversationState with EquatableMixin {
   List<Object?> get props => [conversations, selectedConvoId];
 }
 
+class ConversationDownloading extends ConversationState{
+  int loaded;
+  ConversationDownloading(this.loaded);
+}
+
 class ConversationError extends ConversationState {
   final String message;
   ConversationError(this.message);

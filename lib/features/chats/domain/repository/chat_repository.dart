@@ -14,6 +14,12 @@ abstract interface class ChatRepository{
     required String userId
   });
 
+  //contract to download Convos
+  Future<Either<Failure,bool>> downloadConversation({
+    required String userId,
+    required String friendId
+  });
+
   //contract to send Message
   Future<Either<Failure,void>> sendMessage({
     required String receiverId,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:flutter/foundation.dart';
@@ -29,9 +30,14 @@ abstract interface class ChatLocalDataSource {
   Future<void> updateConvo(String convoId, String msgId ,String content, dynamic lastMessageTime, String receiverId, String lastSender);
   Future<void> resetUnread(String convoId);
   Future<void> deleteMessageLocally(String msgId);
-  Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds);
+  Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds, String receiverId);
   Stream<List<Message>> getMessagesStream(String conversationId);
   Stream<List<Conversation>> getConversationsStream();
+
+  Future<bool> ischeckUserChanged(String userId);
+  Future<void> updateUser(String userId);
+  Future<void> populateMessages(List<Map<String,dynamic>> messages, String receiverId, String convoId);
+
   void dispose();
 }
 
@@ -74,6 +80,63 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     );
   }
 
+  Future<bool> ischeckUserChanged(String userId)async{
+    if (_db == null || kIsWeb) return false;
+    final row = await _db!.rawQuery("SELECT * FROM user");
+    
+    if(row.isEmpty) {
+      return true;
+    }
+
+    final user = row.first;
+    final prevUserId = user['userId'] as String ;
+
+    if(prevUserId == userId){
+      return false;
+    }
+
+    return true;
+  }
+
+  Future<void> updateUser(String userId)async{
+    if (_db == null || kIsWeb) return;
+    final row = await _db!.rawQuery("SELECT * FROM user");
+    
+    if(row.isEmpty) {
+      await _db!.insert("user", {"userId":userId,"lastfetchTime":_toMillis(DateTime.now())});
+      return;
+    }
+
+    final user = row.first;
+    final prevUserId = user['userId'] as String ;
+
+    if(prevUserId == userId){
+      return;
+    }
+
+    await _db!.update("user", {"userId":userId,"lastfetchTime":_toMillis(DateTime.now())});
+  }
+
+  Future<void> populateMessages(List<Map<String,dynamic>> messages, String receiverId, String convoId)async{
+    if (_db == null || kIsWeb) return;
+
+    final batch = _db!.batch();
+    for (final msg in messages) {
+      batch.insert("messages", _firestoreToDb(msg, msg['id'],convoId));
+    }
+    await batch.commit(noResult: true);
+
+    final rows = await _db!.query('messages', limit: 1, orderBy: "createdAt DESC");
+
+    if(rows.isNotEmpty){
+      final first = rows[0];
+      print(first['content']);
+      updateConvo(convoId, first['id'] as String, first['content'] as String, DateTime.fromMillisecondsSinceEpoch(first['createdAt'] as int), receiverId, first['senderId'] as String);
+    }
+  }
+
+
+
   Future<void> convoUpgrade(Database db)async {
      await db.execute('''
       CREATE TABLE conversations (
@@ -88,6 +151,13 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     ''');
     await db.execute(
         'CREATE INDEX idx_conversation ON conversations(convoId, lastUpdateTime DESC)');
+
+    await db.execute('''
+      CREATE TABLE user (
+        userId TEXT,
+        lastfetchTime Integer
+      )
+    ''');
   }
 
   Future<void> _createTables(Database db, int version) async {
@@ -420,7 +490,6 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       _notifyConvo();
     }else{
       reacts[reacterId] = emoji;
-
         try
         {
           final row = await _db!.query("messages",where: "id = ?",whereArgs: [msgId],limit: 1);
@@ -560,7 +629,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   }
 
   @override
-  Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds) async {
+  Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds, String receiverId) async {
     if (_db == null || kIsWeb || firestoreDocs.isEmpty) return;
     final batch = _db!.batch();
     String? convoId;
@@ -576,6 +645,14 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
     await batch.commit(noResult: true);
     if (convoId != null) _notify(convoId);
+
+    final rows = await _db!.query('messages',where: "conversationId = ?",whereArgs: [convoId], limit: 1, orderBy: "createdAt DESC");
+
+    if(rows.isNotEmpty){
+      final first = rows[0];
+      print(first['content']);
+      updateConvo(convoId!, first['id'] as String, first['content'] as String, DateTime.fromMillisecondsSinceEpoch(first['createdAt'] as int), receiverId, first['senderId'] as String);
+    }
   }
 
   @override

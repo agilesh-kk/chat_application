@@ -8,18 +8,22 @@ import 'package:chat_application/features/chats/data/datasources/chat_remote_dat
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
   final ChatLocalDataSource chatLocalDataSource;
+  final FriendsCubit fb;
+  StreamSubscription? _streamController;
 
   final Map<String,StreamSubscription<Map<String, dynamic>>> _opSub = {};
 
   ChatRepositoryImpl({
     required this.chatRemoteDataSources,
     required this.chatLocalDataSource,
+    required this.fb
   });
 
   @override
@@ -28,12 +32,41 @@ class ChatRepositoryImpl implements ChatRepository {
   }) async {
     try {
       await chatLocalDataSource.initDatabase();
+
+      final userChanged = await chatLocalDataSource.ischeckUserChanged(userId);
+
+      if(userChanged){
+         await chatLocalDataSource.updateUser(userId);
+         return left(Failure('user-changed'));
+      }
+     
+
       Stream<List<Conversation>> res = chatLocalDataSource
           .getConversationsStream();
       return right(res);
     } on ServerExceptions catch (e) {
       return left(Failure(e.message));
     }
+  }
+
+  @override
+  Future<Either<Failure, bool>> downloadConversation({required String userId, required String friendId}) async{
+        try{
+
+              final docs = await chatRemoteDataSources.fetchAllMessages(
+                conversationId: generateConversationId(userId, friendId),
+              );
+              if (docs.isNotEmpty) {
+                final docIds = docs.map((d) => d['_docId'] as String).toList();
+                await chatLocalDataSource.bulkInsertMessages(docs, docIds, friendId);
+              }
+
+            return right(true);
+          }
+
+        catch(e){
+          return left(Failure(e.toString()));
+        }
   }
 
   @override
@@ -47,13 +80,13 @@ class ChatRepositoryImpl implements ChatRepository {
       // Initial load if local DB is empty
       final hasLocal = await chatLocalDataSource.hasMessages(convoId);
       if (!hasLocal) {
-        final docs = await chatRemoteDataSources.fetchAllMessages(
-          conversationId: convoId,
-        );
-        if (docs.isNotEmpty) {
-          final docIds = docs.map((d) => d['_docId'] as String).toList();
-          await chatLocalDataSource.bulkInsertMessages(docs, docIds);
-        }
+        // final docs = await chatRemoteDataSources.fetchAllMessages(
+        //   conversationId: convoId,
+        // );
+        // if (docs.isNotEmpty) {
+        //   final docIds = docs.map((d) => d['_docId'] as String).toList();
+        //   await chatLocalDataSource.bulkInsertMessages(docs, docIds);
+        // }
       }
 
       return right(chatLocalDataSource.getMessagesStream(convoId));
@@ -446,4 +479,6 @@ class ChatRepositoryImpl implements ChatRepository {
     final sorted = [userId, receiverId]..sort();
     return sorted[0] == userId ? "operation_2" : "operation_1";
   }
+  
+  
 }

@@ -302,6 +302,7 @@ void _initChat()async {
 
   ..registerLazySingleton<ChatRepository>(
     () => ChatRepositoryImpl(
+      fb: serviceLocator(),
       chatRemoteDataSources:  serviceLocator<ChatRemoteDataSources>(),
       chatLocalDataSource: serviceLocator<ChatLocalDataSource>()
     ),
