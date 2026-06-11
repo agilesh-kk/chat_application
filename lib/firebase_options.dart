@@ -52,6 +52,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '331917739786',
     projectId: 'chat-application-7e969',
     authDomain: 'chat-application-7e969.firebaseapp.com',
+    databaseURL: 'https://chat-application-7e969-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'chat-application-7e969.firebasestorage.app',
     measurementId: 'G-4JQRFY8KGC',
   );
@@ -61,6 +62,7 @@ class DefaultFirebaseOptions {
     appId: '1:331917739786:android:e537bf69aeaa04e939dcf3',
     messagingSenderId: '331917739786',
     projectId: 'chat-application-7e969',
+    databaseURL: 'https://chat-application-7e969-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'chat-application-7e969.firebasestorage.app',
   );
 
@@ -69,6 +71,7 @@ class DefaultFirebaseOptions {
     appId: '1:331917739786:ios:a8f6085aa46fb1a039dcf3',
     messagingSenderId: '331917739786',
     projectId: 'chat-application-7e969',
+    databaseURL: 'https://chat-application-7e969-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'chat-application-7e969.firebasestorage.app',
     iosBundleId: 'com.example.chatApplication',
   );

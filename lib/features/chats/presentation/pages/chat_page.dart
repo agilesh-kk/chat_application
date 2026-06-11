@@ -27,6 +27,8 @@ import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:chat_application/features/chats/presentation/cubit/sticky_header_cubit.dart';
 import 'package:chat_application/notification_storage.dart';
+import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
+import 'package:chat_application/features/chats/presentation/widgets/typing_indicator.dart';
 
 class ChatPage extends StatefulWidget {
   static String? activeConvoId;
@@ -70,6 +72,13 @@ class _ChatPageState extends State<ChatPage> {
   late final StickyHeaderCubit _stickyHeaderCubit;
   bool _showScrollToBottom = false;
   bool _isLoadingMore = false;
+  late final ConvoTypingCubit typingCubit;
+
+  String get _conversationId {
+    if (widget.convoId != null) return widget.convoId!;
+    final sorted = [widget.currentUserId, widget.receiverId]..sort();
+    return "${sorted[0]}_${sorted[1]}";
+  }
 
   @override
   void initState() {
@@ -85,12 +94,16 @@ class _ChatPageState extends State<ChatPage> {
       ..add(LoadMessagesEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
     context.read<ChatBloc>().add(
         MarkMessagesDeliveredEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
+    typingCubit = context.read<ConvoTypingCubit>();
+    typingCubit.subscribeToTyping(_conversationId, widget.receiverId);
   }
 
   @override
   void dispose() {
     ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
+    typingCubit.stopTyping(_conversationId, widget.currentUserId);
+    typingCubit.unsubscribeFromTyping(_conversationId);
     cb.add(Closechat());
     super.dispose();
   }
@@ -202,6 +215,7 @@ class _ChatPageState extends State<ChatPage> {
           replyToSenderId: _replyToMessage?.senderId,
           replyToType: _replyToMessage?.type,
         ));
+    typingCubit.stopTyping(_conversationId, widget.currentUserId);
     controller.clear();
     _clearReply();
   }
@@ -390,14 +404,22 @@ class _ChatPageState extends State<ChatPage> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (friend != null)
-                          Text(
-                            friend.isEffectivelyOnline
-                                ? "Online"
-                                : friend.lastSeen != null
-                                    ? "Last seen ${MomentsAgo.calculateMomentsAgo(friend.lastSeen!.toIso8601String())}"
-                                    : "",
-                            style: const TextStyle(color: AppPallete.greyText, fontSize: 12),
-                            overflow: TextOverflow.ellipsis,
+                          BlocBuilder<ConvoTypingCubit, Map<String, bool>>(
+                            builder: (context, typingMap) {
+                              final f = friend!;
+                              if (typingMap[_conversationId] == true) {
+                                return const TypingIndicator();
+                              }
+                              return Text(
+                                f.isEffectivelyOnline
+                                    ? "Online"
+                                    : f.lastSeen != null
+                                        ? "Last seen ${MomentsAgo.calculateMomentsAgo(f.lastSeen!.toIso8601String())}"
+                                        : "",
+                                style: const TextStyle(color: AppPallete.greyText, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
                           ),
                       ],
                     ),
@@ -774,6 +796,7 @@ class _ChatPageState extends State<ChatPage> {
               child: TextField(
                 controller: controller,
                 focusNode: _messageFocusNode,
+                onChanged: (text) => typingCubit.onTextChanged(_conversationId, widget.currentUserId, text),
                 minLines: 1,
                 maxLines: 5,
                 style: const TextStyle(color: AppPallete.whiteColor),

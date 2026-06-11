@@ -1,5 +1,6 @@
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
@@ -45,10 +46,24 @@ class _ConversationPageState extends State<ConversationPage> {
     }
   }
 
+  void _subscribeToTyping(List conversations) {
+    final cubit = context.read<ConvoTypingCubit>();
+    for (final convo in conversations) {
+      cubit.subscribeToTyping(convo.convoId, convo.receiverId);
+    }
+  }
+
   @override
   void dispose() {
     searchController.dispose();
     _searchFocusNode.dispose();
+    final state = context.read<ConversationBloc>().state;
+    if (state is ConversationLoaded) {
+      final cubit = context.read<ConvoTypingCubit>();
+      for (final convo in state.conversations) {
+        cubit.unsubscribeFromTyping(convo.convoId);
+      }
+    }
     super.dispose();
   }
 
@@ -81,36 +96,44 @@ class _ConversationPageState extends State<ConversationPage> {
               _buildHeader(context),
               _buildSearchBar(),
               Expanded(
-                child: BlocBuilder<ConversationBloc, ConversationState>(
-                  builder: (context, state) {
-                    if (state is ConversationLoading) {
-                      return const Center(child: Loader());
-                    }
-            
+                child: BlocListener<ConversationBloc, ConversationState>(
+                  listenWhen: (previous, current) => current is ConversationLoaded,
+                  listener: (context, state) {
                     if (state is ConversationLoaded) {
-                      var conversations = state.conversations;
-                      
-                      if (isSearching && searchController.text.isNotEmpty) {
-                        final query = searchController.text.toLowerCase();
-                        conversations = conversations.where((c) => 
-                          c.receiverName.toLowerCase().contains(query) ||
-                          c.lastMessage.toLowerCase().contains(query)
-                        ).toList();
-                      }
-                      
-                      if (conversations.isEmpty) {
-                        return isSearching ? _buildNoResultsState() : _buildEmptyState();
-                      }
-            
-                      return _buildChatList(conversations);
+                      _subscribeToTyping(state.conversations);
                     }
-            
-                    if (state is ConversationError) {
-                      return _buildErrorState(state.message);
-                    }
-            
-                    return const SizedBox();
                   },
+                  child: BlocBuilder<ConversationBloc, ConversationState>(
+                    builder: (context, state) {
+                      if (state is ConversationLoading) {
+                        return const Center(child: Loader());
+                      }
+              
+                      if (state is ConversationLoaded) {
+                        var conversations = state.conversations;
+                        
+                        if (isSearching && searchController.text.isNotEmpty) {
+                          final query = searchController.text.toLowerCase();
+                          conversations = conversations.where((c) => 
+                            c.receiverName.toLowerCase().contains(query) ||
+                            c.lastMessage.toLowerCase().contains(query)
+                          ).toList();
+                        }
+                        
+                        if (conversations.isEmpty) {
+                          return isSearching ? _buildNoResultsState() : _buildEmptyState();
+                        }
+              
+                        return _buildChatList(conversations);
+                      }
+              
+                      if (state is ConversationError) {
+                        return _buildErrorState(state.message);
+                      }
+              
+                      return const SizedBox();
+                    },
+                  ),
                 ),
               ),
               ],
@@ -122,22 +145,27 @@ class _ConversationPageState extends State<ConversationPage> {
   }
 
   Widget _buildChatList(List conversations) {
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 80),
-      itemCount: conversations.length,
-      itemBuilder: (context, index) {
-        final convo = conversations[index];
-        return ConvoTile(
-          unread: convo.unread,
-          name: convo.receiverName, 
-          lastMessage: convo.lastMessage, 
-          profilePic: convo.profilepicLink, 
-          lastUpdateTime: convo.lastupdateTime,
-          lastSender: convo.lastSender == widget.userId ? "you" : "",
-          isOnline: convo.receiverIsOnline,
-          onTap: () {
-            _searchFocusNode.unfocus();
-            Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
+    return BlocBuilder<ConvoTypingCubit, Map<String, bool>>(
+      builder: (context, typingMap) {
+        return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 80),
+          itemCount: conversations.length,
+          itemBuilder: (context, index) {
+            final convo = conversations[index];
+            return ConvoTile(
+              unread: convo.unread,
+              name: convo.receiverName, 
+              lastMessage: convo.lastMessage, 
+              profilePic: convo.profilepicLink, 
+              lastUpdateTime: convo.lastupdateTime,
+              lastSender: convo.lastSender == widget.userId ? "you" : "",
+              isOnline: convo.receiverIsOnline,
+              isTyping: typingMap[convo.convoId] == true,
+              onTap: () {
+                _searchFocusNode.unfocus();
+                Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
+              },
+            );
           },
         );
       },
