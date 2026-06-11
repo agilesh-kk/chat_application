@@ -1,4 +1,4 @@
-﻿// ignore_for_file: must_be_immutable
+// ignore_for_file: must_be_immutable
 import 'dart:async';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
@@ -18,6 +18,7 @@ import 'package:chat_application/features/friends/presentation/friends_cubit.dar
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:chat_application/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:intl/intl.dart';
@@ -68,6 +69,7 @@ class _ChatPageState extends State<ChatPage>
   late Animation<Offset> _inputSlide;
   final TextEditingController controller = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
+  final FocusNode _kbFocusNode = FocusNode();
   late final ChatBloc cb;
   int? highlightedIndex;
   String lastAnimated = "";
@@ -78,7 +80,8 @@ class _ChatPageState extends State<ChatPage>
   bool get _isEditing => _editingMessageId != null;
 
   final ItemScrollController _scrollController = ItemScrollController();
-  final ItemPositionsListener _positionsListener = ItemPositionsListener.create();
+  final ItemPositionsListener _positionsListener =
+      ItemPositionsListener.create();
   late final StickyHeaderCubit _stickyHeaderCubit;
   bool _showScrollToBottom = false;
   bool _isLoadingMore = false;
@@ -96,14 +99,26 @@ class _ChatPageState extends State<ChatPage>
     ChatPage.activeConvoId = widget.convoId;
     if (widget.convoId != null) {
       removeChatMessages(widget.convoId!);
-      flutterLocalNotificationsPlugin.cancel(widget.convoId.hashCode,tag: widget.convoId);
+      flutterLocalNotificationsPlugin.cancel(
+        widget.convoId.hashCode,
+        tag: widget.convoId,
+      );
     }
     _stickyHeaderCubit = StickyHeaderCubit();
     widget.cacheService = CacheService();
-    cb = context.read<ChatBloc>()
-      ..add(LoadMessagesEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
+    cb =
+        context.read<ChatBloc>()..add(
+          LoadMessagesEvent(
+            userId: widget.currentUserId,
+            receiverId: widget.receiverId,
+          ),
+        );
     context.read<ChatBloc>().add(
-        MarkMessagesDeliveredEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
+      MarkMessagesDeliveredEvent(
+        userId: widget.currentUserId,
+        receiverId: widget.receiverId,
+      ),
+    );
     typingCubit = context.read<ConvoTypingCubit>();
     typingCubit.subscribeToTyping(_conversationId, widget.receiverId);
 
@@ -115,23 +130,32 @@ class _ChatPageState extends State<ChatPage>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
     _headerSlide = Tween<Offset>(
-      begin: const Offset(0, -0.3), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+      ),
+    );
     _messagesSlide = Tween<Offset>(
-      begin: const Offset(0.3, 0), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.1, 0.65, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0.3, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.1, 0.65, curve: Curves.easeOutCubic),
+      ),
+    );
     _inputSlide = Tween<Offset>(
-      begin: const Offset(0, 0.3), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+      ),
+    );
     _animationController.forward();
   }
 
@@ -143,6 +167,7 @@ class _ChatPageState extends State<ChatPage>
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     typingCubit.unsubscribeFromTyping(_conversationId);
     cb.add(Closechat());
+    _kbFocusNode.dispose();
     super.dispose();
   }
 
@@ -151,10 +176,15 @@ class _ChatPageState extends State<ChatPage>
     if (positions.isEmpty) return;
 
     // With reverse: true, itemTrailingEdge=top of item (0=bottom, 1=top of viewport)
-    final visibleItems = positions
-        .where((p) => p.itemTrailingEdge >= 0 && p.itemTrailingEdge <= 1.0)
-        .toList()
-      ..sort((a, b) => (a.itemTrailingEdge - 1.0).abs().compareTo((b.itemTrailingEdge - 1.0).abs()));
+    final visibleItems =
+        positions
+            .where((p) => p.itemTrailingEdge >= 0 && p.itemTrailingEdge <= 1.0)
+            .toList()
+          ..sort(
+            (a, b) => (a.itemTrailingEdge - 1.0).abs().compareTo(
+              (b.itemTrailingEdge - 1.0).abs(),
+            ),
+          );
 
     if (visibleItems.isEmpty) return;
 
@@ -167,7 +197,8 @@ class _ChatPageState extends State<ChatPage>
     }
 
     final isIndexZeroVisible = positions.any(
-      (p) => p.index == 0 && p.itemTrailingEdge >= 0 && p.itemTrailingEdge <= 1.0,
+      (p) =>
+          p.index == 0 && p.itemTrailingEdge >= 0 && p.itemTrailingEdge <= 1.0,
     );
     final shouldShow = !isIndexZeroVisible;
     if (shouldShow != _showScrollToBottom) {
@@ -178,7 +209,10 @@ class _ChatPageState extends State<ChatPage>
     if (blocState is ChatLoaded && blocState.hasMore && !_isLoadingMore) {
       final maxIndex = blocState.messages.length - 1;
       final isNearTop = positions.any(
-        (p) => p.index >= maxIndex - 2 && p.itemTrailingEdge >= 0 && p.itemTrailingEdge <= 1.0,
+        (p) =>
+            p.index >= maxIndex - 2 &&
+            p.itemTrailingEdge >= 0 &&
+            p.itemTrailingEdge <= 1.0,
       );
       if (isNearTop && blocState.messages.isNotEmpty) {
         final oldestMsg = blocState.messages.last;
@@ -202,7 +236,10 @@ class _ChatPageState extends State<ChatPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.isAttached) {
         _scrollController.scrollTo(
-            index: index, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+          index: index,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+        );
       }
     });
   }
@@ -230,29 +267,34 @@ class _ChatPageState extends State<ChatPage>
     if (text.isEmpty) return;
 
     if (_isEditing) {
-      context.read<ChatBloc>().add(EditMessageEvent(
-        userId: widget.currentUserId,
-        receiverId: widget.receiverId,
-        msgId: _editingMessageId!,
-        newContent: text,
-      ));
+      context.read<ChatBloc>().add(
+        EditMessageEvent(
+          userId: widget.currentUserId,
+          receiverId: widget.receiverId,
+          msgId: _editingMessageId!,
+          newContent: text,
+        ),
+      );
       controller.clear();
       _clearEdit();
       return;
     }
 
     final user = context.read<AppUserCubit>().state;
-    context.read<ChatBloc>().add(SendMessageEvent(
-          userId: widget.currentUserId,
-          receiverId: widget.receiverId,
-          content: text,
-          userName: (user is AppUserIsSignedin) ? user.user.name : "Unknown",
-          userProfile: (user is AppUserIsSignedin) ? user.user.profilePic : "Unknown",
-          replyToId: _replyToMessage?.id,
-          replyToContent: _replyToMessage?.content,
-          replyToSenderId: _replyToMessage?.senderId,
-          replyToType: _replyToMessage?.type,
-        ));
+    context.read<ChatBloc>().add(
+      SendMessageEvent(
+        userId: widget.currentUserId,
+        receiverId: widget.receiverId,
+        content: text,
+        userName: (user is AppUserIsSignedin) ? user.user.name : "Unknown",
+        userProfile:
+            (user is AppUserIsSignedin) ? user.user.profilePic : "Unknown",
+        replyToId: _replyToMessage?.id,
+        replyToContent: _replyToMessage?.content,
+        replyToSenderId: _replyToMessage?.senderId,
+        replyToType: _replyToMessage?.type,
+      ),
+    );
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     controller.clear();
     _clearReply();
@@ -286,19 +328,22 @@ class _ChatPageState extends State<ChatPage>
     final text = controller.text.trim();
     if (text.isEmpty) return;
     final user = context.read<AppUserCubit>().state;
-    context.read<ChatBloc>().add(SendMessageEvent(
-          userId: widget.currentUserId,
-          receiverId: widget.receiverId,
-          content: text,
-          userName: (user is AppUserIsSignedin) ? user.user.name : "Unknown",
-          userProfile: (user is AppUserIsSignedin) ? user.user.profilePic : "Unknown",
-          sendAt: scheduledTime,
-          isScheduled: true,
-          replyToId: _replyToMessage?.id,
-          replyToContent: _replyToMessage?.content,
-          replyToSenderId: _replyToMessage?.senderId,
-          replyToType: _replyToMessage?.type,
-        ));
+    context.read<ChatBloc>().add(
+      SendMessageEvent(
+        userId: widget.currentUserId,
+        receiverId: widget.receiverId,
+        content: text,
+        userName: (user is AppUserIsSignedin) ? user.user.name : "Unknown",
+        userProfile:
+            (user is AppUserIsSignedin) ? user.user.profilePic : "Unknown",
+        sendAt: scheduledTime,
+        isScheduled: true,
+        replyToId: _replyToMessage?.id,
+        replyToContent: _replyToMessage?.content,
+        replyToSenderId: _replyToMessage?.senderId,
+        replyToType: _replyToMessage?.type,
+      ),
+    );
     controller.clear();
     _clearReply();
   }
@@ -310,17 +355,19 @@ class _ChatPageState extends State<ChatPage>
     if (!mounted) return;
     final user = context.read<AppUserCubit>().state;
     if (user is AppUserIsSignedin) {
-      cb.add(SendImageEvent(
-        userName: user.user.name,
-        userProfile: user.user.profilePic,
-        userId: user.user.id,
-        image: picked,
-        receiverId: widget.receiverId,
-        replyToId: _replyToMessage?.id,
-        replyToContent: _replyToMessage?.content,
-        replyToSenderId: _replyToMessage?.senderId,
-        replyToType: _replyToMessage?.type,
-      ));
+      cb.add(
+        SendImageEvent(
+          userName: user.user.name,
+          userProfile: user.user.profilePic,
+          userId: user.user.id,
+          image: picked,
+          receiverId: widget.receiverId,
+          replyToId: _replyToMessage?.id,
+          replyToContent: _replyToMessage?.content,
+          replyToSenderId: _replyToMessage?.senderId,
+          replyToType: _replyToMessage?.type,
+        ),
+      );
     }
     _clearReply();
   }
@@ -333,37 +380,58 @@ class _ChatPageState extends State<ChatPage>
       },
       child: Scaffold(
         backgroundColor: AppPallete.darkBg,
-        body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppPallete.darkBg, AppPallete.darkSecondary, AppPallete.darkBg],
-            stops: const [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              children: [
-                SlideTransition(
-                  position: _headerSlide,
-                  child: _buildHeader(context),
+        body: KeyboardListener(
+          focusNode: _kbFocusNode,
+          autofocus: true,
+          onKeyEvent: (event) {
+            if (event is KeyDownEvent &&
+                event.logicalKey == LogicalKeyboardKey.escape) {
+              _messageFocusNode.unfocus();
+              if (widget.isEmbedded) {
+                widget.onClose?.call();
+              } else {
+                Navigator.pop(context);
+              }
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppPallete.darkBg,
+                  AppPallete.darkSecondary,
+                  AppPallete.darkBg,
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+            ),
+            child: SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Column(
+                  children: [
+                    SlideTransition(
+                      position: _headerSlide,
+                      child: _buildHeader(context),
+                    ),
+                    _buildMessages(),
+                    if (_isEditing)
+                      _buildEditBar()
+                    else if (_replyToMessage != null)
+                      _buildReplyBar(),
+                    SlideTransition(
+                      position: _inputSlide,
+                      child: _buildInput(),
+                    ),
+                  ],
                 ),
-                _buildMessages(),
-                if (_isEditing) _buildEditBar()
-                else if (_replyToMessage != null) _buildReplyBar(),
-                SlideTransition(
-                  position: _inputSlide,
-                  child: _buildInput(),
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
-      )
     );
   }
 
@@ -394,13 +462,20 @@ class _ChatPageState extends State<ChatPage>
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppPallete.divider),
               ),
-              child: const Icon(Icons.arrow_back, color: AppPallete.whiteColor, size: 20),
+              child: const Icon(
+                Icons.arrow_back,
+                color: AppPallete.whiteColor,
+                size: 20,
+              ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: GestureDetector(
-              onTap: friend != null ? () => _showFriendProfile(context, friend) : null,
+              onTap:
+                  friend != null
+                      ? () => _showFriendProfile(context, friend)
+                      : null,
               child: Row(
                 children: [
                   if (friend != null) ...[
@@ -414,13 +489,20 @@ class _ChatPageState extends State<ChatPage>
                             color: AppPallete.cardBg,
                             border: Border.all(color: AppPallete.primaryOrange),
                           ),
-                          child: friend.profilePic.isNotEmpty
-                              ? CircleAvatar(
-                                  radius: 18,
-                                  backgroundImage: profileImageProvider(friend.profilePic),
-                                  backgroundColor: AppPallete.cardBg,
-                                )
-                              : const Icon(Icons.person, color: AppPallete.greyText, size: 20),
+                          child:
+                              friend.profilePic.isNotEmpty
+                                  ? CircleAvatar(
+                                    radius: 18,
+                                    backgroundImage: profileImageProvider(
+                                      friend.profilePic,
+                                    ),
+                                    backgroundColor: AppPallete.cardBg,
+                                  )
+                                  : const Icon(
+                                    Icons.person,
+                                    color: AppPallete.greyText,
+                                    size: 20,
+                                  ),
                         ),
                         Positioned(
                           right: 0,
@@ -429,9 +511,10 @@ class _ChatPageState extends State<ChatPage>
                             width: 10,
                             height: 10,
                             decoration: BoxDecoration(
-                              color: friend.isEffectivelyOnline
-                                  ? AppPallete.statusGreen
-                                  : AppPallete.greyText,
+                              color:
+                                  friend.isEffectivelyOnline
+                                      ? AppPallete.statusGreen
+                                      : AppPallete.greyText,
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: AppPallete.cardBg,
@@ -451,7 +534,11 @@ class _ChatPageState extends State<ChatPage>
                       children: [
                         Text(
                           widget.receiverName,
-                          style: const TextStyle(color: AppPallete.whiteColor, fontSize: 18, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: AppPallete.whiteColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (friend != null)
@@ -465,9 +552,12 @@ class _ChatPageState extends State<ChatPage>
                                 f.isEffectivelyOnline
                                     ? "Online"
                                     : f.lastSeen != null
-                                        ? "Last seen ${MomentsAgo.calculateMomentsAgo(f.lastSeen!.toIso8601String())}"
-                                        : "",
-                                style: const TextStyle(color: AppPallete.greyText, fontSize: 12),
+                                    ? "Last seen ${MomentsAgo.calculateMomentsAgo(f.lastSeen!.toIso8601String())}"
+                                    : "",
+                                style: const TextStyle(
+                                  color: AppPallete.greyText,
+                                  fontSize: 12,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               );
                             },
@@ -487,16 +577,18 @@ class _ChatPageState extends State<ChatPage>
               String? messageId = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => TimelinePage(
-                    receiverName: widget.receiverName,
-                    userId: widget.currentUserId,
-                    receiverId: widget.receiverId,
-                  ),
+                  builder:
+                      (_) => TimelinePage(
+                        receiverName: widget.receiverName,
+                        userId: widget.currentUserId,
+                        receiverId: widget.receiverId,
+                      ),
                 ),
               );
               if (cb.state is ChatLoaded) {
                 final cl = cb.state as ChatLoaded;
-                if (messageId != null && cl.messages.any((m) => m.id == messageId)) {
+                if (messageId != null &&
+                    cl.messages.any((m) => m.id == messageId)) {
                   setState(() => widget.highlightMessageId = messageId);
                 }
               }
@@ -511,11 +603,12 @@ class _ChatPageState extends State<ChatPage>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => TimeCapsuleMessages(
-                    currentUserId: widget.currentUserId,
-                    receiverId: widget.receiverId,
-                    receiverName: widget.receiverName,
-                  ),
+                  builder:
+                      (_) => TimeCapsuleMessages(
+                        currentUserId: widget.currentUserId,
+                        receiverId: widget.receiverId,
+                        receiverName: widget.receiverName,
+                      ),
                 ),
               );
             },
@@ -525,7 +618,11 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
-  Widget _buildHeaderButton({required IconData icon, required Color color, required VoidCallback onTap}) {
+  Widget _buildHeaderButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -543,7 +640,12 @@ class _ChatPageState extends State<ChatPage>
   void _showFriendProfile(BuildContext context, FriendModel? friend) {
     if (friend == null) return;
     _messageFocusNode.unfocus();
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(isUser: false, user: friend)));
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(isUser: false, user: friend),
+      ),
+    );
   }
 
   Widget _buildMessages() {
@@ -551,185 +653,246 @@ class _ChatPageState extends State<ChatPage>
       child: SlideTransition(
         position: _messagesSlide,
         child: BlocBuilder<ChatBloc, ChatState>(
-        builder: (context, state) {
-          if (state is ChatError) {
-            return Center(child: Text(state.message, style: const TextStyle(color: AppPallete.errorColor)));
-          }
-          if (state is ChatLoading) {
-            return const Center(child: CircularProgressIndicator(color: AppPallete.primaryOrange));
-          }
-          if (state is ChatLoaded) {
-            final messages = state.messages;
-
-            if (mounted && !state.isLoadingMore) {
-              _isLoadingMore = false;
+          builder: (context, state) {
+            if (state is ChatError) {
+              return Center(
+                child: Text(
+                  state.message,
+                  style: const TextStyle(color: AppPallete.errorColor),
+                ),
+              );
             }
-
-            if (widget.scrolltoIndex != null) {
-              _scrollToIndex(widget.scrolltoIndex!);
-              widget.scrolltoIndex = null;
+            if (state is ChatLoading) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: AppPallete.primaryOrange,
+                ),
+              );
             }
+            if (state is ChatLoaded) {
+              final messages = state.messages;
 
-            if (widget.highlightMessageId != null) {
-              final highlightIndex = messages.indexWhere((m) => m.id == widget.highlightMessageId);
-              if (highlightIndex != -1) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToIndex(highlightIndex);
-                  Future.delayed(const Duration(milliseconds: 300), () {
-                    if (mounted) {
-                      setState(() => highlightedIndex = highlightIndex);
-                      Future.delayed(const Duration(milliseconds: 1500), () {
-                        if (mounted) setState(() => highlightedIndex = null);
-                      });
-                    }
-                  });
-                });
-                widget.highlightMessageId = null;
+              if (mounted && !state.isLoadingMore) {
+                _isLoadingMore = false;
               }
-            }
 
-            return Stack(
-              children: [
-                NotificationListener<ScrollNotification>(
-                  onNotification: (notification) {
-                    _onScrollPositionChanged();
-                    return true;
-                  },
-                  child: ScrollablePositionedList.builder(
-                    reverse: true,
-                    itemCount: messages.length,
-                    itemScrollController: _scrollController,
-                    itemPositionsListener: _positionsListener,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      final isMe = message.senderId == widget.currentUserId;
-                      bool isAnimate = false;
-                  
-                      if ((index == messages.length - 1 && message.id != lastAnimated) && !firstTime) {
-                        isAnimate = true;
+              if (widget.scrolltoIndex != null) {
+                _scrollToIndex(widget.scrolltoIndex!);
+                widget.scrolltoIndex = null;
+              }
+
+              if (widget.highlightMessageId != null) {
+                final highlightIndex = messages.indexWhere(
+                  (m) => m.id == widget.highlightMessageId,
+                );
+                if (highlightIndex != -1) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _scrollToIndex(highlightIndex);
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      if (mounted) {
+                        setState(() => highlightedIndex = highlightIndex);
+                        Future.delayed(const Duration(milliseconds: 1500), () {
+                          if (mounted) setState(() => highlightedIndex = null);
+                        });
                       }
-                      if (index == messages.length - 1) lastAnimated = message.id;
-                      firstTime = false;
-                  
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: message.type == "image" ? 8 : (message.inTimeline && index == 0 ? 12 : 0),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                          children: [
-                            if (_shouldShowDateHeader(messages, index))
-                              _buildDateHeader(message.createdAt),
-                            GestureDetector(
-                              onHorizontalDragEnd: (details) {
-                                if (details.primaryVelocity != null && details.primaryVelocity! < -300) {
-                                  setState(() => _replyToMessage = message);
-                                  _messageFocusNode.requestFocus();
-                                }
-                              },
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                                children: [
-                                  buildBubble(message, isMe, isAnimate, highlightedIndex == index),
-                                  if (!message.deletedForEveryone && message.reactions.isNotEmpty)
-                                    Positioned(
-                                      left: isMe ? null : -2,
-                                      right: isMe ? -2 : null,
-                                      bottom: -2,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: AppPallete.cardBg,
-                                          borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(color: AppPallete.divider),
-                                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: message.reactions.values.toSet().map((emoji) => Padding(
-                                            padding: const EdgeInsets.only(right: 1),
-                                            child: Text(emoji, style: const TextStyle(fontSize: 11)),
-                                          )).toList(),
+                    });
+                  });
+                  widget.highlightMessageId = null;
+                }
+              }
+
+              return Stack(
+                children: [
+                  NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      _onScrollPositionChanged();
+                      return true;
+                    },
+                    child: ScrollablePositionedList.builder(
+                      reverse: true,
+                      itemCount: messages.length,
+                      itemScrollController: _scrollController,
+                      itemPositionsListener: _positionsListener,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        final isMe = message.senderId == widget.currentUserId;
+                        bool isAnimate = false;
+
+                        if ((index == messages.length - 1 &&
+                                message.id != lastAnimated) &&
+                            !firstTime) {
+                          isAnimate = true;
+                        }
+                        if (index == messages.length - 1)
+                          lastAnimated = message.id;
+                        firstTime = false;
+
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            bottom:
+                                message.type == "image"
+                                    ? 8
+                                    : (message.inTimeline && index == 0
+                                        ? 12
+                                        : 0),
+                          ),
+                          child: Column(
+                            crossAxisAlignment:
+                                isMe
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
+                            children: [
+                              if (_shouldShowDateHeader(messages, index))
+                                _buildDateHeader(message.createdAt),
+                              GestureDetector(
+                                onHorizontalDragEnd: (details) {
+                                  if (details.primaryVelocity != null &&
+                                      details.primaryVelocity! < -300) {
+                                    setState(() => _replyToMessage = message);
+                                    _messageFocusNode.requestFocus();
+                                  }
+                                },
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  alignment:
+                                      isMe
+                                          ? Alignment.centerRight
+                                          : Alignment.centerLeft,
+                                  children: [
+                                    buildBubble(
+                                      message,
+                                      isMe,
+                                      isAnimate,
+                                      highlightedIndex == index,
+                                    ),
+                                    if (!message.deletedForEveryone &&
+                                        message.reactions.isNotEmpty)
+                                      Positioned(
+                                        left: isMe ? null : -2,
+                                        right: isMe ? -2 : null,
+                                        bottom: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppPallete.cardBg,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: AppPallete.divider,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.3,
+                                                ),
+                                                blurRadius: 4,
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children:
+                                                message.reactions.values
+                                                    .toSet()
+                                                    .map(
+                                                      (emoji) => Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              right: 1,
+                                                            ),
+                                                        child: Text(
+                                                          emoji,
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 11,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    )
+                                                    .toList(),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (state.isLoadingMore)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearProgressIndicator(
+                        backgroundColor: AppPallete.darkTertiary,
+                        color: AppPallete.primaryOrange,
+                      ),
+                    ),
+                  BlocBuilder<StickyHeaderCubit, StickyHeaderState>(
+                    bloc: _stickyHeaderCubit,
+                    builder: (context, state) {
+                      if (state.dateLabel == null) return const SizedBox();
+                      return Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: AnimatedOpacity(
+                          opacity: state.showHeader ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 300),
+                          child: _buildStickyDateHeader(state.dateLabel!),
                         ),
                       );
                     },
                   ),
-                ),
-                if (state.isLoadingMore)
                   Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: LinearProgressIndicator(
-                      backgroundColor: AppPallete.darkTertiary,
-                      color: AppPallete.primaryOrange,
-                    ),
-                  ),
-                BlocBuilder<StickyHeaderCubit, StickyHeaderState>(
-                  bloc: _stickyHeaderCubit,
-                  builder: (context, state) {
-                    if (state.dateLabel == null) return const SizedBox();
-                    return Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: AnimatedOpacity(
-                        opacity: state.showHeader ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: _buildStickyDateHeader(state.dateLabel!),
-                      ),
-                    );
-                  },
-                ),
-                Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: AnimatedOpacity(
-                    opacity: _showScrollToBottom ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: IgnorePointer(
-                      ignoring: !_showScrollToBottom,
-                      child: GestureDetector(
-                        onTap: () => _scrollToIndex(0),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppPallete.cardBg,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppPallete.divider),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.arrow_downward,
-                            color: AppPallete.primaryOrange,
-                            size: 20,
+                    right: 16,
+                    bottom: 16,
+                    child: AnimatedOpacity(
+                      opacity: _showScrollToBottom ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: IgnorePointer(
+                        ignoring: !_showScrollToBottom,
+                        child: GestureDetector(
+                          onTap: () => _scrollToIndex(0),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppPallete.cardBg,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppPallete.divider),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.arrow_downward,
+                              color: AppPallete.primaryOrange,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            );
-          }
-          return const SizedBox();
-        },
-      ),
+                ],
+              );
+            }
+            return const SizedBox();
+          },
+        ),
       ),
     );
   }
@@ -746,7 +909,14 @@ class _ChatPageState extends State<ChatPage>
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppPallete.divider),
           ),
-          child: Text(label, style: const TextStyle(color: AppPallete.greyText, fontSize: 12, fontWeight: FontWeight.w600)),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppPallete.greyText,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );
@@ -754,8 +924,16 @@ class _ChatPageState extends State<ChatPage>
 
   bool _shouldShowDateHeader(List<Message> messages, int index) {
     if (index == messages.length - 1) return true;
-    final currentDate = DateTime(messages[index].createdAt.year, messages[index].createdAt.month, messages[index].createdAt.day);
-    final nextDate = DateTime(messages[index + 1].createdAt.year, messages[index + 1].createdAt.month, messages[index + 1].createdAt.day);
+    final currentDate = DateTime(
+      messages[index].createdAt.year,
+      messages[index].createdAt.month,
+      messages[index].createdAt.day,
+    );
+    final nextDate = DateTime(
+      messages[index + 1].createdAt.year,
+      messages[index + 1].createdAt.month,
+      messages[index + 1].createdAt.day,
+    );
     return currentDate != nextDate;
   }
 
@@ -771,7 +949,14 @@ class _ChatPageState extends State<ChatPage>
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppPallete.divider),
           ),
-          child: Text(label, style: const TextStyle(color: AppPallete.greyText, fontSize: 12, fontWeight: FontWeight.w600)),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppPallete.greyText,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );
@@ -802,7 +987,11 @@ class _ChatPageState extends State<ChatPage>
           ),
           GestureDetector(
             onTap: _clearEdit,
-            child: const Icon(Icons.close, color: AppPallete.greyText, size: 20),
+            child: const Icon(
+              Icons.close,
+              color: AppPallete.greyText,
+              size: 20,
+            ),
           ),
         ],
       ),
@@ -836,7 +1025,11 @@ class _ChatPageState extends State<ChatPage>
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppPallete.divider),
                 ),
-                child: const Icon(Icons.image, color: AppPallete.greyText, size: 22),
+                child: const Icon(
+                  Icons.image,
+                  color: AppPallete.greyText,
+                  size: 22,
+                ),
               ),
             ),
           if (!_isEditing) const SizedBox(width: 12),
@@ -850,7 +1043,12 @@ class _ChatPageState extends State<ChatPage>
               child: TextField(
                 controller: controller,
                 focusNode: _messageFocusNode,
-                onChanged: (text) => typingCubit.onTextChanged(_conversationId, widget.currentUserId, text),
+                onChanged:
+                    (text) => typingCubit.onTextChanged(
+                      _conversationId,
+                      widget.currentUserId,
+                      text,
+                    ),
                 minLines: 1,
                 maxLines: 5,
                 style: const TextStyle(color: AppPallete.whiteColor),
@@ -858,7 +1056,10 @@ class _ChatPageState extends State<ChatPage>
                   hintText: _isEditing ? "Edit message..." : "Type message...",
                   hintStyle: const TextStyle(color: AppPallete.greyText),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
@@ -866,20 +1067,39 @@ class _ChatPageState extends State<ChatPage>
           const SizedBox(width: 12),
           GestureDetector(
             onTap: _send,
-            onLongPress: _isEditing ? null : () {
-              showDialog(
-                context: context,
-                builder: (_) => SendOptionsDialog(onSendNormally: _send, onTimeCapsule: _handleTimeCapsule),
-              );
-            },
+            onLongPress:
+                _isEditing
+                    ? null
+                    : () {
+                      showDialog(
+                        context: context,
+                        builder:
+                            (_) => SendOptionsDialog(
+                              onSendNormally: _send,
+                              onTimeCapsule: _handleTimeCapsule,
+                            ),
+                      );
+                    },
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [AppPallete.primaryOrange, AppPallete.lightOrange]),
+                gradient: const LinearGradient(
+                  colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+                ),
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: AppPallete.primaryOrange.withValues(alpha: 0.3), blurRadius: 10, offset: Offset(0, 4))],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppPallete.primaryOrange.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
-              child: Icon(_isEditing ? Icons.check : Icons.send, color: AppPallete.whiteColor, size: 22),
+              child: Icon(
+                _isEditing ? Icons.check : Icons.send,
+                color: AppPallete.whiteColor,
+                size: 22,
+              ),
             ),
           ),
         ],
@@ -904,12 +1124,26 @@ class _ChatPageState extends State<ChatPage>
               context,
               messageContent: msg.content,
               onDeleteForMe: () {
-                context.read<ChatBloc>().add(DeleteMessageEvent(
-                    msgId: msg.id, userId: widget.currentUserId, type: msg.type, receiverId: widget.receiverId, deleteForEveryone: false));
+                context.read<ChatBloc>().add(
+                  DeleteMessageEvent(
+                    msgId: msg.id,
+                    userId: widget.currentUserId,
+                    type: msg.type,
+                    receiverId: widget.receiverId,
+                    deleteForEveryone: false,
+                  ),
+                );
               },
               onDeleteForEveryone: () {
-                context.read<ChatBloc>().add(DeleteMessageEvent(
-                    msgId: msg.id, userId: widget.currentUserId, type: msg.type, receiverId: widget.receiverId, deleteForEveryone: true));
+                context.read<ChatBloc>().add(
+                  DeleteMessageEvent(
+                    msgId: msg.id,
+                    userId: widget.currentUserId,
+                    type: msg.type,
+                    receiverId: widget.receiverId,
+                    deleteForEveryone: true,
+                  ),
+                );
               },
             );
           },
@@ -935,12 +1169,26 @@ class _ChatPageState extends State<ChatPage>
               context,
               messageContent: "Image",
               onDeleteForMe: () {
-                context.read<ChatBloc>().add(DeleteMessageEvent(
-                    msgId: msg.id, userId: widget.currentUserId, type: msg.type, receiverId: widget.receiverId, deleteForEveryone: false));
+                context.read<ChatBloc>().add(
+                  DeleteMessageEvent(
+                    msgId: msg.id,
+                    userId: widget.currentUserId,
+                    type: msg.type,
+                    receiverId: widget.receiverId,
+                    deleteForEveryone: false,
+                  ),
+                );
               },
               onDeleteForEveryone: () {
-                context.read<ChatBloc>().add(DeleteMessageEvent(
-                    msgId: msg.id, userId: widget.currentUserId, type: msg.type, receiverId: widget.receiverId, deleteForEveryone: true));
+                context.read<ChatBloc>().add(
+                  DeleteMessageEvent(
+                    msgId: msg.id,
+                    userId: widget.currentUserId,
+                    type: msg.type,
+                    receiverId: widget.receiverId,
+                    deleteForEveryone: true,
+                  ),
+                );
               },
             );
           },
