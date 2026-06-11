@@ -79,13 +79,10 @@ class ProfilePage extends StatelessWidget {
                   child: CustomScrollView(
                     slivers: [
                       SliverToBoxAdapter(
-                        child: _buildAppBar(context),
+                        child: _buildAppBar(context, profileUser),
                       ),
                       SliverToBoxAdapter(
-                        child: _buildHeader(context, profileUser),
-                      ),
-                      SliverToBoxAdapter(
-                        child: _buildStatsRow(context, appUserState, profileUser),
+                        child: _buildProfileContent(context, appUserState, profileUser),
                       ),
                       SliverToBoxAdapter(
                         child: _buildMoreActions(context, profileUser, appUserState),
@@ -101,7 +98,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, dynamic profileUser) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
@@ -133,7 +130,7 @@ class ProfilePage extends StatelessWidget {
                   style: TextStyle(
                     color: AppPallete.whiteColor,
                     fontWeight: FontWeight.bold,
-                    fontSize: 32,
+                    fontSize: 28,
                     letterSpacing: -1,
                   ),
                 ),
@@ -223,7 +220,27 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, dynamic profileUser) {
+  Widget _buildProfileContent(BuildContext context, dynamic appUserState, dynamic profileUser) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 3,
+            child: _buildProfileLeft(context, profileUser),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            flex: 4,
+            child: _buildStatsRow(context, appUserState, profileUser),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileLeft(BuildContext context, dynamic profileUser) {
     final friendsState = context.watch<FriendsCubit>().state;
     final bool isOnline;
     if (!isUser && friendsState is FriendsLoaded) {
@@ -232,174 +249,122 @@ class ProfilePage extends StatelessWidget {
       isOnline = true;
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: SweepGradient(
-                    colors: [
-                      AppPallete.primaryOrange.withValues(alpha: 0.8),
-                      AppPallete.lightOrange.withValues(alpha: 0.4),
-                      AppPallete.primaryOrange.withValues(alpha: 0.8),
-                    ],
-                  ),
-                ),
-              ),
-              Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      AppPallete.primaryOrange.withValues(alpha: 0.5),
-                      AppPallete.darkBg.withValues(alpha: 0.8),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: AppPallete.primaryOrange.withValues(alpha: 0.6),
-                    width: 3,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppPallete.primaryOrange.withValues(alpha: 0.3),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                    ),
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: SweepGradient(
+                  colors: [
+                    AppPallete.primaryOrange.withValues(alpha: 0.8),
+                    AppPallete.lightOrange.withValues(alpha: 0.4),
+                    AppPallete.primaryOrange.withValues(alpha: 0.8),
                   ],
                 ),
               ),
-              CircleAvatar(
-                radius: 68,
+            ),
+            Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppPallete.primaryOrange.withValues(alpha: 0.6),
+                  width: 3,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppPallete.primaryOrange.withValues(alpha: 0.3),
+                    blurRadius: 30,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 70,
                 backgroundImage: profileImageProvider(profileUser.profilePic),
                 backgroundColor: AppPallete.cardBg,
                 child: profileUser.profilePic == null
-                    ? Icon(
-                        Icons.person,
-                        size: 50,
-                        color: AppPallete.greyText,
-                      )
+                    ? Icon(Icons.person, size: 60, color: AppPallete.greyText)
                     : null,
               ),
-              if (isUser)
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              EditAvatar(userId: profileUser.id),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppPallete.primaryOrange,
-                            AppPallete.lightOrange,
-                          ],
-                        ),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppPallete.darkBg,
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppPallete.primaryOrange
-                                .withValues(alpha: 0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+            ),
+            if (isUser)
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditAvatar(userId: profileUser.id),
                       ),
-                      child: Icon(
-                        Icons.camera_alt,
-                        size: 18,
-                        color: AppPallete.whiteColor,
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
                       ),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppPallete.darkBg, width: 3),
                     ),
+                    child: Icon(Icons.camera_alt, size: 18, color: AppPallete.whiteColor),
                   ),
                 ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 28),
+        Text(
+          profileUser.name,
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: AppPallete.whiteColor,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppPallete.cardBg.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppPallete.divider.withValues(alpha: 0.5)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: isOnline ? AppPallete.statusGreen : AppPallete.greyText,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(Icons.email_outlined, size: 18, color: AppPallete.greyText),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  profileUser.email,
+                  style: TextStyle(fontSize: 14, color: AppPallete.greyText, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 24),
-          Text(
-            profileUser.name,
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-              color: AppPallete.whiteColor,
-              letterSpacing: -1,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppPallete.cardBg.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: AppPallete.divider.withValues(alpha: 0.5),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: isOnline
-                        ? AppPallete.statusGreen
-                        : AppPallete.greyText,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Icon(
-                  Icons.email_outlined,
-                  size: 18,
-                  color: AppPallete.greyText,
-                ),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    profileUser.email,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppPallete.greyText,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -412,9 +377,9 @@ class ProfilePage extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(0),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -458,9 +423,9 @@ class ProfilePage extends StatelessWidget {
                   ),
                   Container(
                     width: 1,
-                    height: 50,
+                    height: 70,
                     color: AppPallete.divider,
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
                   ),
                 ],
                 _buildStatItem(
@@ -471,9 +436,9 @@ class ProfilePage extends StatelessWidget {
                 ),
                 Container(
                   width: 1,
-                  height: 50,
+                  height: 70,
                   color: AppPallete.divider,
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
                 ),
                 _buildStatItem(
                   icon: profileUser.gender != null && profileUser.gender.toLowerCase() == 'male'
@@ -519,27 +484,27 @@ class ProfilePage extends StatelessWidget {
     final content = Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(icon, color: color, size: 22),
+          child: Icon(icon, color: color, size: 30),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         Text(
           value,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: AppPallete.whiteColor,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 14,
             color: AppPallete.greyText,
           ),
         ),
@@ -600,24 +565,6 @@ class ProfilePage extends StatelessWidget {
           if (isUser)
             Row(
               children: [
-                // Expanded(
-                //   child: _buildFeatureCard(
-                //     icon: Icons.emoji_events,
-                //     title: "Achievements",
-                //     subtitle: "Your badges & rewards",
-                //     gradientColors: [
-                //       AppPallete.storyGradientStart,
-                //       AppPallete.storyGradientEnd,
-                //     ],
-                //     onTap: () {
-                //       Navigator.push(
-                //         context, 
-                //         MaterialPageRoute(builder: (context) => AchievementPage(userId: profileUser.id) )
-                //       );
-                //     },
-                //   ),
-                // ),
-                // const SizedBox(width: 14),
                 Expanded(
                   child: _buildFeatureCard(
                     icon: Icons.favorite,
@@ -751,7 +698,7 @@ class ProfilePage extends StatelessWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.symmetric(vertical: 24),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -774,15 +721,15 @@ class ProfilePage extends StatelessWidget {
             Icon(
               Icons.chat_bubble_outline,
               color: AppPallete.whiteColor,
-              size: 24,
+              size: 28,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Text(
               "Send Message",
               style: TextStyle(
                 color: AppPallete.whiteColor,
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
+                fontSize: 20,
               ),
             ),
           ],

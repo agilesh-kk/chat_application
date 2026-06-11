@@ -90,8 +90,8 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
         }
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: AppPallete.cardBg.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
@@ -153,7 +153,7 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
                     ? "No bio yet" 
                     : widget.bio!,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.w500,
                     color: (widget.bio == null || widget.bio!.isEmpty) 
                         ? AppPallete.greyText 
@@ -161,12 +161,12 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
                   ),
                 ),
 
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
 
               Text(
                 "Bio",
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   color: AppPallete.greyText,
                 ),
               ),
@@ -179,7 +179,7 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
           IconButton(
             icon: Icon(
               isEditing ? Icons.check : Icons.edit,
-              size: 20,
+              size: 24,
               color: AppPallete.primaryOrange,
             ),
             onPressed: isEditing ? _saveBio : _startEditing,

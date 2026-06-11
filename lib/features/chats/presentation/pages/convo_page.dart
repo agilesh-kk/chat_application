@@ -242,7 +242,7 @@ class _ConversationPageState extends State<ConversationPage> {
                 style: TextStyle(
                   color: AppPallete.whiteColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 32,
+                  fontSize: 28,
                   letterSpacing: -1,
                 ),
               ),
