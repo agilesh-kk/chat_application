@@ -30,11 +30,7 @@ class _NavigationPageState extends State<NavigationPage> {
 
   void _switchPage(int index) {
     FocusManager.instance.primaryFocus?.unfocus();
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-    );
+    _pageController.jumpToPage(index);
     _scaffoldKey.currentState?.closeDrawer();
   }
 
@@ -49,10 +45,9 @@ class _NavigationPageState extends State<NavigationPage> {
             padding: const EdgeInsets.only(left: 60),
             child: PageView(
               controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
               onPageChanged: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
+                setState(() => _currentIndex = index);
               },
               children: widget.pages,
             ),

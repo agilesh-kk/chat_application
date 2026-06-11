@@ -59,7 +59,13 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends State<ChatPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _headerSlide;
+  late Animation<Offset> _messagesSlide;
+  late Animation<Offset> _inputSlide;
   final TextEditingController controller = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   late final ChatBloc cb;
@@ -100,10 +106,38 @@ class _ChatPageState extends State<ChatPage> {
         MarkMessagesDeliveredEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
     typingCubit = context.read<ConvoTypingCubit>();
     typingCubit.subscribeToTyping(_conversationId, widget.receiverId);
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.3), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+    ));
+    _messagesSlide = Tween<Offset>(
+      begin: const Offset(0.3, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.1, 0.65, curve: Curves.easeOutCubic),
+    ));
+    _inputSlide = Tween<Offset>(
+      begin: const Offset(0, 0.3), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+    ));
+    _animationController.forward();
   }
 
   @override
   void dispose() {
+    _animationController.dispose();
     ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
@@ -309,14 +343,23 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              _buildMessages(),
-              if (_isEditing) _buildEditBar()
-              else if (_replyToMessage != null) _buildReplyBar(),
-              _buildInput(),
-            ],
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                SlideTransition(
+                  position: _headerSlide,
+                  child: _buildHeader(context),
+                ),
+                _buildMessages(),
+                if (_isEditing) _buildEditBar()
+                else if (_replyToMessage != null) _buildReplyBar(),
+                SlideTransition(
+                  position: _inputSlide,
+                  child: _buildInput(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -505,7 +548,9 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildMessages() {
     return Expanded(
-      child: BlocBuilder<ChatBloc, ChatState>(
+      child: SlideTransition(
+        position: _messagesSlide,
+        child: BlocBuilder<ChatBloc, ChatState>(
         builder: (context, state) {
           if (state is ChatError) {
             return Center(child: Text(state.message, style: const TextStyle(color: AppPallete.errorColor)));
@@ -684,6 +729,7 @@ class _ChatPageState extends State<ChatPage> {
           }
           return const SizedBox();
         },
+      ),
       ),
     );
   }

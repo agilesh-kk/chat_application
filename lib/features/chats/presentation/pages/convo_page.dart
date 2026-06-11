@@ -27,7 +27,13 @@ class ConversationPage extends StatefulWidget {
   State<ConversationPage> createState() => _ConversationPageState();
 }
 
-class _ConversationPageState extends State<ConversationPage> {
+class _ConversationPageState extends State<ConversationPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _headerSlide;
+  late Animation<Offset> _searchSlide;
+  late Animation<Offset> _tilesSlide;
   final searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
   bool isSearching = false;
@@ -40,6 +46,33 @@ class _ConversationPageState extends State<ConversationPage> {
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async{
       await checkIfOpenedfromNotification();
     },);
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.3), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+    ));
+    _searchSlide = Tween<Offset>(
+      begin: const Offset(-0.3, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.1, 0.65, curve: Curves.easeOutCubic),
+    ));
+    _tilesSlide = Tween<Offset>(
+      begin: const Offset(0.3, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+    ));
+    _animationController.forward();
   }
 
   Future<void> checkIfOpenedfromNotification()async{
@@ -63,6 +96,7 @@ class _ConversationPageState extends State<ConversationPage> {
 
   @override
   void dispose() {
+    _animationController.dispose();
     searchController.dispose();
     _searchFocusNode.dispose();
     final state = context.read<ConversationBloc>().state;
@@ -83,7 +117,7 @@ class _ConversationPageState extends State<ConversationPage> {
       },
       child: Scaffold(
         backgroundColor: AppPallete.darkBg,
-        floatingActionButton: _buildFAB(),
+        //floatingActionButton: _buildFAB(),
         body: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -98,13 +132,23 @@ class _ConversationPageState extends State<ConversationPage> {
             ),
           ),
           child: SafeArea(
-            child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              _buildSearchBar(),
-              Expanded(
-                child: BlocListener<ConversationBloc, ConversationState>(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SlideTransition(
+                  position: _headerSlide,
+                  child: _buildHeader(context),
+                ),
+                SlideTransition(
+                  position: _searchSlide,
+                  child: _buildSearchBar(),
+                ),
+                Expanded(
+                  child: SlideTransition(
+                    position: _tilesSlide,
+                    child: BlocListener<ConversationBloc, ConversationState>(
                   listenWhen: (previous, current) => current is ConversationLoaded,
                   listener: (context, state) {
                     if (state is ConversationLoaded) {
@@ -143,11 +187,13 @@ class _ConversationPageState extends State<ConversationPage> {
                     },
                   ),
                 ),
+                ),
               ),
               ],
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -383,44 +429,44 @@ class _ConversationPageState extends State<ConversationPage> {
     );
   }
 
-  Widget _buildFAB() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 90),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppPallete.primaryOrange.withValues(alpha: 0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              _searchFocusNode.unfocus();
-              Navigator.push(context, MaterialPageRoute(builder: (context) => SearchPage(currentUserId: widget.userId,)));
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Icon(
-                Icons.edit,
-                color: AppPallete.whiteColor,
-                size: 24,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _buildFAB() {
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 90),
+  //     child: Container(
+  //       decoration: BoxDecoration(
+  //         gradient: LinearGradient(
+  //           colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+  //         ),
+  //         borderRadius: BorderRadius.circular(16),
+  //         boxShadow: [
+  //           BoxShadow(
+  //             color: AppPallete.primaryOrange.withValues(alpha: 0.4),
+  //             blurRadius: 20,
+  //             offset: const Offset(0, 8),
+  //           ),
+  //         ],
+  //       ),
+  //       child: Material(
+  //         color: Colors.transparent,
+  //         child: InkWell(
+  //           borderRadius: BorderRadius.circular(16),
+  //           onTap: () {
+  //             _searchFocusNode.unfocus();
+  //             Navigator.push(context, MaterialPageRoute(builder: (context) => SearchPage(currentUserId: widget.userId,)));
+  //           },
+  //           child: Padding(
+  //             padding: const EdgeInsets.all(16),
+  //             child: Icon(
+  //               Icons.edit,
+  //               color: AppPallete.whiteColor,
+  //               size: 24,
+  //             ),
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Widget _buildNoResultsState() {
     return Center(

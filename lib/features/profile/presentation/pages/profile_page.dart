@@ -15,17 +15,73 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_shortcut_plus/flutter_shortcut.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   final bool isUser;
   final dynamic user;
   const ProfilePage({super.key, required this.isUser, this.user});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _appBarSlide;
+  late Animation<Offset> _profileLeftSlide;
+  late Animation<Offset> _statsSlide;
+  late Animation<Offset> _exploreSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _appBarSlide = Tween<Offset>(
+      begin: const Offset(-0.3, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+    ));
+    _profileLeftSlide = Tween<Offset>(
+      begin: const Offset(-0.4, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.1, 0.65, curve: Curves.easeOutCubic),
+    ));
+    _statsSlide = Tween<Offset>(
+      begin: const Offset(0.4, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+    ));
+    _exploreSlide = Tween<Offset>(
+      begin: const Offset(0, 0.3), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.3, 0.85, curve: Curves.easeOutCubic),
+    ));
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final appUserState = context.watch<AppUserCubit>().state;
 
     final profileUser =
-        user ?? (appUserState is AppUserIsSignedin ? appUserState.user : null);
+        widget.user ?? (appUserState is AppUserIsSignedin ? appUserState.user : null);
 
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
@@ -43,56 +99,65 @@ class ProfilePage extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          child: profileUser == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.person_off_outlined,
-                        size: 64,
-                        color: AppPallete.greyText,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        "No user found",
-                        style: TextStyle(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: profileUser == null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.person_off_outlined,
+                          size: 64,
                           color: AppPallete.greyText,
-                          fontSize: 18,
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              : BlocListener<BioBloc, BioState>(
-                  listener: (context, state) {
-                    if (state is BioUpdateSuccess) {
-                      final appUserState = context.read<AppUserCubit>().state;
-                      if (appUserState is AppUserIsSignedin) {
-                        final updatedUser = appUserState.user.copyWith(
-                          bio: state.bio,
-                        );
-                        context.read<AppUserCubit>().updateUser(updatedUser);
+                        const SizedBox(height: 16),
+                        Text(
+                          "No user found",
+                          style: TextStyle(
+                            color: AppPallete.greyText,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : BlocListener<BioBloc, BioState>(
+                    listener: (context, state) {
+                      if (state is BioUpdateSuccess) {
+                        final appUserState = context.read<AppUserCubit>().state;
+                        if (appUserState is AppUserIsSignedin) {
+                          final updatedUser = appUserState.user.copyWith(
+                            bio: state.bio,
+                          );
+                          context.read<AppUserCubit>().updateUser(updatedUser);
+                        }
                       }
-                    }
-                  },
-                  child: CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: _buildAppBar(context, profileUser),
-                      ),
-                      SliverToBoxAdapter(
-                        child: _buildProfileContent(context, appUserState, profileUser),
-                      ),
-                      SliverToBoxAdapter(
-                        child: _buildMoreActions(context, profileUser, appUserState),
-                      ),
-                      SliverToBoxAdapter(
-                        child: SizedBox(height: 100),
-                      ),
-                    ],
+                    },
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: SlideTransition(
+                            position: _appBarSlide,
+                            child: _buildAppBar(context, profileUser),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: _buildProfileContent(context, appUserState, profileUser),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SlideTransition(
+                            position: _exploreSlide,
+                            child: _buildMoreActions(context, profileUser, appUserState),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: const SizedBox(height: 100),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+          ),
         ),
       ),
     );
@@ -104,7 +169,7 @@ class ProfilePage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          if (!isUser)
+          if (!widget.isUser)
             GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Container(
@@ -163,7 +228,7 @@ class ProfilePage extends StatelessWidget {
                 ),
               ],
             ),
-          if (isUser)
+          if (widget.isUser)
             _buildActionButton(
               icon: Icons.logout_rounded,
               onTap: () async {
@@ -228,12 +293,18 @@ class ProfilePage extends StatelessWidget {
         children: [
           Expanded(
             flex: 3,
-            child: _buildProfileLeft(context, profileUser),
+            child: SlideTransition(
+              position: _profileLeftSlide,
+              child: _buildProfileLeft(context, profileUser),
+            ),
           ),
           const SizedBox(width: 24),
           Expanded(
             flex: 4,
-            child: _buildStatsRow(context, appUserState, profileUser),
+            child: SlideTransition(
+              position: _statsSlide,
+              child: _buildStatsRow(context, appUserState, profileUser),
+            ),
           ),
         ],
       ),
@@ -243,7 +314,7 @@ class ProfilePage extends StatelessWidget {
   Widget _buildProfileLeft(BuildContext context, dynamic profileUser) {
     final friendsState = context.watch<FriendsCubit>().state;
     final bool isOnline;
-    if (!isUser && friendsState is FriendsLoaded) {
+    if (!widget.isUser && friendsState is FriendsLoaded) {
       isOnline = friendsState.friends[profileUser.id]?.isEffectivelyOnline ?? false;
     } else {
       isOnline = true;
@@ -294,7 +365,7 @@ class ProfilePage extends StatelessWidget {
                     : null,
               ),
             ),
-            if (isUser)
+            if (widget.isUser)
               Positioned(
                 bottom: 8,
                 right: 8,
@@ -405,13 +476,13 @@ class ProfilePage extends StatelessWidget {
           children: [
             Row(
               children: [
-                if (isUser) ...[
+                if (widget.isUser) ...[
                   _buildStatItem(
                     icon: Icons.people_outline,
                     value: friendsCount.toString(),
                     label: "Friends",
                     color: AppPallete.primaryOrange,
-                    isClickable: isUser,
+                    isClickable: widget.isUser,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -460,7 +531,7 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 20),
             UserDetailsCard(
               bio: profileUser.bio,
-              onEditBio: isUser ? () {} : null,
+              onEditBio: widget.isUser ? () {} : null,
               userId: profileUser.id,
             ),
           ],
@@ -562,7 +633,7 @@ class ProfilePage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          if (isUser)
+          if (widget.isUser)
             Row(
               children: [
                 Expanded(
