@@ -7,15 +7,13 @@ import 'package:chat_application/features/timeline/presentation/widgets/timeline
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_options_tray.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class PersonalTimeLinePage extends StatefulWidget {
   final String userId;
 
-  PersonalTimeLinePage({
-    super.key,
-    required this.userId,
-  });
+  PersonalTimeLinePage({super.key, required this.userId});
 
   @override
   State<PersonalTimeLinePage> createState() => _PersonalTimeLinePageState();
@@ -28,6 +26,7 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
   late Animation<Offset> _headerSlide;
   late Animation<Offset> _contentSlide;
   late Animation<Offset> _fabSlide;
+  final _kbFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -40,23 +39,32 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
     _headerSlide = Tween<Offset>(
-      begin: const Offset(0, -0.3), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+      ),
+    );
     _contentSlide = Tween<Offset>(
-      begin: const Offset(0.3, 0), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0.3, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+      ),
+    );
     _fabSlide = Tween<Offset>(
-      begin: const Offset(0, 0.3), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.3, 0.85, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.3, 0.85, curve: Curves.easeOutCubic),
+      ),
+    );
     _animationController.forward();
 
     Future.microtask(() {
@@ -69,6 +77,7 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
   @override
   void dispose() {
     _animationController.dispose();
+    _kbFocusNode.dispose();
     super.dispose();
   }
 
@@ -79,93 +88,107 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
         position: _fabSlide,
         child: FloatingActionButton(
           backgroundColor: AppPallete.primaryOrange,
-          onPressed: () async{
+          onPressed: () async {
             final result = await AddEventDialog.show(context);
 
             if (result != null) {
               context.read<PersonalTimelineBloc>().add(
-                    AddPersonalTimeLineEvent(
-                      userId: widget.userId,
-                      title: result["title"]!,
-                      content: result["content"]!,
-                      time: DateTime.now(),
-                      type: "text",
-                    ),
-                  );
+                AddPersonalTimeLineEvent(
+                  userId: widget.userId,
+                  title: result["title"]!,
+                  content: result["content"]!,
+                  time: DateTime.now(),
+                  type: "text",
+                ),
+              );
             }
           },
           child: const Icon(Icons.add),
         ),
       ),
       backgroundColor: AppPallete.darkBg,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppPallete.darkBg,
-              AppPallete.darkSecondary,
-              AppPallete.darkBg,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+      body: KeyboardListener(
+        focusNode: _kbFocusNode,
+        autofocus: true,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.pop(context);
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppPallete.darkBg,
+                AppPallete.darkSecondary,
+                AppPallete.darkBg,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              children: [
-                SlideTransition(
-                  position: _headerSlide,
-                  child: _buildHeader(context),
-                ),
-                Expanded(
-                  child: SlideTransition(
-                    position: _contentSlide,
-                    child: BlocBuilder<PersonalTimelineBloc, PersonalTimelineState>(
-                      builder: (context, state) {
-                        if (state is TimelineLoading) {
-                          return const Loader();
-                        }
-                                  
-                        if (state is PersonalTimelineLoaded) {
-                          if (state.events.isEmpty) {
-                            return _buildEmptyState();
+          child: SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+                children: [
+                  SlideTransition(
+                    position: _headerSlide,
+                    child: _buildHeader(context),
+                  ),
+                  Expanded(
+                    child: SlideTransition(
+                      position: _contentSlide,
+                      child: BlocBuilder<
+                        PersonalTimelineBloc,
+                        PersonalTimelineState
+                      >(
+                        builder: (context, state) {
+                          if (state is TimelineLoading) {
+                            return const Loader();
                           }
-                          
-                          return ListView.builder(
-                            cacheExtent: 100,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            itemCount: state.events.length,
-                            itemBuilder: (context, index) {
-                              final event = state.events[index];
-                              final isMe = index%2 == 0;
-                                    
-                              return _timelineItem(
-                                event, 
-                                isMe, 
-                                index == state.events.length - 1,
-                                context);
-                            },
-                          );
-                        }
-                                  
-                        if (state is PersonalTimelineError) {
-                          return Center(
-                            child: Text(
-                              state.message,
-                              style: TextStyle(color: AppPallete.errorColor),
-                            ),
-                          );
-                        }
-                                  
-                        return const SizedBox();
-                      },
+
+                          if (state is PersonalTimelineLoaded) {
+                            if (state.events.isEmpty) {
+                              return _buildEmptyState();
+                            }
+
+                            return ListView.builder(
+                              cacheExtent: 100,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              itemCount: state.events.length,
+                              itemBuilder: (context, index) {
+                                final event = state.events[index];
+                                final isMe = index % 2 == 0;
+
+                                return _timelineItem(
+                                  event,
+                                  isMe,
+                                  index == state.events.length - 1,
+                                  context,
+                                );
+                              },
+                            );
+                          }
+
+                          if (state is PersonalTimelineError) {
+                            return Center(
+                              child: Text(
+                                state.message,
+                                style: TextStyle(color: AppPallete.errorColor),
+                              ),
+                            );
+                          }
+
+                          return const SizedBox();
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -289,19 +312,18 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: isMe
-                ? const SizedBox()
-                : Align(
-                    alignment: Alignment.centerRight,
-                    child: _bubble(event, false, c),
-                  ),
+            child:
+                isMe
+                    ? const SizedBox()
+                    : Align(
+                      alignment: Alignment.centerRight,
+                      child: _bubble(event, false, c),
+                    ),
           ),
 
           Column(
             children: [
-              Expanded(
-                child: Container(width: 2, color: AppPallete.divider),
-              ),
+              Expanded(child: Container(width: 2, color: AppPallete.divider)),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -314,21 +336,24 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
                   color: AppPallete.whiteColor,
                 ),
               ),
-              !last ? Expanded(
-                child: Container(width: 2, color: AppPallete.divider),
-              ) : Expanded(
-                child: Container(width: 2, color: Colors.transparent),
-              ),
+              !last
+                  ? Expanded(
+                    child: Container(width: 2, color: AppPallete.divider),
+                  )
+                  : Expanded(
+                    child: Container(width: 2, color: Colors.transparent),
+                  ),
             ],
           ),
 
           Expanded(
-            child: isMe
-                ? Align(
-                    alignment: Alignment.centerLeft,
-                    child: _bubble(event, true, c),
-                  )
-                : const SizedBox(),
+            child:
+                isMe
+                    ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: _bubble(event, true, c),
+                    )
+                    : const SizedBox(),
           ),
         ],
       ),
@@ -337,25 +362,21 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
 
   Widget _bubble(dynamic event, bool isMe, BuildContext context) {
     return GestureDetector(
-      onLongPressStart: (details){
+      onLongPressStart: (details) {
         TimelineOptionsTray.show(
           context: context,
           position: details.globalPosition,
-          onDelete: (){
+          onDelete: () {
             context.read<PersonalTimelineBloc>().add(
               RemovePersonalTimelineEvent(
-                userId: widget.userId, 
+                userId: widget.userId,
                 eventId: event.id,
-              )
+              ),
             );
-          }
+          },
         );
       },
-      child: TimelineBubble(
-        event: event, 
-        isMe: isMe,
-        userId: widget.userId,
-      )
+      child: TimelineBubble(event: event, isMe: isMe, userId: widget.userId),
     );
   }
 

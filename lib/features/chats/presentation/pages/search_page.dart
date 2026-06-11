@@ -4,6 +4,7 @@ import 'package:chat_application/features/chats/presentation/bloc/search/search_
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SearchPage extends StatefulWidget {
@@ -19,6 +20,7 @@ class _SearchPageState extends State<SearchPage>
     with SingleTickerProviderStateMixin {
   final controller = TextEditingController();
   final _focusNode = FocusNode();
+  final _kbFocusNode = FocusNode();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _headerSlide;
@@ -36,23 +38,32 @@ class _SearchPageState extends State<SearchPage>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
     _headerSlide = Tween<Offset>(
-      begin: const Offset(0, -0.3), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+      ),
+    );
     _searchSlide = Tween<Offset>(
-      begin: const Offset(-0.3, 0), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.1, 0.65, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(-0.3, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.1, 0.65, curve: Curves.easeOutCubic),
+      ),
+    );
     _contentSlide = Tween<Offset>(
-      begin: const Offset(0.3, 0), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0.3, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+      ),
+    );
     _animationController.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
@@ -62,6 +73,7 @@ class _SearchPageState extends State<SearchPage>
   @override
   void dispose() {
     _animationController.dispose();
+    _kbFocusNode.dispose();
     controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -71,61 +83,71 @@ class _SearchPageState extends State<SearchPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppPallete.darkBg,
-              AppPallete.darkSecondary,
-              AppPallete.darkBg,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+      body: KeyboardListener(
+        focusNode: _kbFocusNode,
+        autofocus: true,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.pop(context);
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppPallete.darkBg,
+                AppPallete.darkSecondary,
+                AppPallete.darkBg,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              children: [
-                SlideTransition(
-                  position: _headerSlide,
-                  child: _buildHeader(context),
-                ),
-                SlideTransition(
-                  position: _searchSlide,
-                  child: _buildSearchInput(),
-                ),
-                Expanded(
-                  child: SlideTransition(
-                    position: _contentSlide,
-                    child: BlocBuilder<SearchBloc, SearchState>(
-                      builder: (context, state) {
-                        if (state is Searching) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: AppPallete.primaryOrange,
-                            ),
-                          );
-                        }
-
-                        if (state is SearchFound) {
-                          final users = state.user;
-
-                          if (users.isEmpty) {
-                            return _buildNoResults();
+          child: SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+                children: [
+                  SlideTransition(
+                    position: _headerSlide,
+                    child: _buildHeader(context),
+                  ),
+                  SlideTransition(
+                    position: _searchSlide,
+                    child: _buildSearchInput(),
+                  ),
+                  Expanded(
+                    child: SlideTransition(
+                      position: _contentSlide,
+                      child: BlocBuilder<SearchBloc, SearchState>(
+                        builder: (context, state) {
+                          if (state is Searching) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: AppPallete.primaryOrange,
+                              ),
+                            );
                           }
 
-                          return _buildUsersList(users);
-                        }
+                          if (state is SearchFound) {
+                            final users = state.user;
 
-                        return _buildInitialState();
-                      },
+                            if (users.isEmpty) {
+                              return _buildNoResults();
+                            }
+
+                            return _buildUsersList(users);
+                          }
+
+                          return _buildInitialState();
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -214,10 +236,12 @@ class _SearchPageState extends State<SearchPage>
           controller: controller,
           focusNode: _focusNode,
           onChanged: (value) {
-            context.read<SearchBloc>().add(SearchStart(
-              name: value.trim(),
-              currentUserId: widget.currentUserId,
-            ));
+            context.read<SearchBloc>().add(
+              SearchStart(
+                name: value.trim(),
+                currentUserId: widget.currentUserId,
+              ),
+            );
             setState(() {});
           },
           style: TextStyle(color: AppPallete.whiteColor),
@@ -226,7 +250,10 @@ class _SearchPageState extends State<SearchPage>
             hintStyle: TextStyle(color: AppPallete.greyText),
             prefixIcon: Icon(Icons.search, color: AppPallete.greyText),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
         ),
       ),
@@ -264,10 +291,7 @@ class _SearchPageState extends State<SearchPage>
             const SizedBox(height: 8),
             Text(
               "Enter a username to find people",
-              style: TextStyle(
-                color: AppPallete.greyText,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppPallete.greyText, fontSize: 14),
             ),
           ],
         ),
@@ -306,10 +330,7 @@ class _SearchPageState extends State<SearchPage>
             const SizedBox(height: 8),
             Text(
               "Try a different username",
-              style: TextStyle(
-                color: AppPallete.greyText,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppPallete.greyText, fontSize: 14),
             ),
           ],
         ),
@@ -352,10 +373,7 @@ class _SearchPageState extends State<SearchPage>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ProfilePage(
-                    isUser: false,
-                    user: user,
-                  ),
+                  builder: (_) => ProfilePage(isUser: false, user: user),
                 ),
               );
             },
@@ -382,17 +400,20 @@ class _SearchPageState extends State<SearchPage>
                         shape: BoxShape.circle,
                         color: AppPallete.cardBg,
                       ),
-                      child: user.profilePic != null && user.profilePic!.isNotEmpty
-                          ? CircleAvatar(
-                              radius: 24,
-                              backgroundImage: profileImageProvider(user.profilePic),
-                              backgroundColor: AppPallete.cardBg,
-                            )
-                          : Icon(
-                              Icons.person,
-                              color: AppPallete.greyText,
-                              size: 28,
-                            ),
+                      child:
+                          user.profilePic != null && user.profilePic!.isNotEmpty
+                              ? CircleAvatar(
+                                radius: 24,
+                                backgroundImage: profileImageProvider(
+                                  user.profilePic,
+                                ),
+                                backgroundColor: AppPallete.cardBg,
+                              )
+                              : Icon(
+                                Icons.person,
+                                color: AppPallete.greyText,
+                                size: 28,
+                              ),
                     ),
                   ),
                   const SizedBox(width: 16),

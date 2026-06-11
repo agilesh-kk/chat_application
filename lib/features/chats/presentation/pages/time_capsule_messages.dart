@@ -4,6 +4,7 @@ import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc
 import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
 import 'package:chat_application/features/chats/presentation/widgets/delete_message_confirmation_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
@@ -29,6 +30,7 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _headerSlide;
   late Animation<Offset> _contentSlide;
+  final _kbFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -74,6 +76,7 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages>
   @override
   void dispose() {
     _animationController.dispose();
+    _kbFocusNode.dispose();
     super.dispose();
   }
 
@@ -81,134 +84,146 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppPallete.darkBg,
-              AppPallete.darkSecondary,
-              AppPallete.darkBg,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+      body: KeyboardListener(
+        focusNode: _kbFocusNode,
+        autofocus: true,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.pop(context);
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppPallete.darkBg,
+                AppPallete.darkSecondary,
+                AppPallete.darkBg,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              children: [
-                SlideTransition(
-                  position: _headerSlide,
-                  child: _buildHeader(context),
-                ),
-                Expanded(
-                  child: SlideTransition(
-                    position: _contentSlide,
-                    child: BlocBuilder<TimeCapsuleBloc, TimeCapsuleState>(
-                      builder: (context, state) {
-                        if (state is TimeCapsuleLoading) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: AppPallete.primaryOrange,
-                            ),
-                          );
-                        }
-
-                        if (state is TimeCapsuleError) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(40),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: AppPallete.errorColor.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.error_outline,
-                                      size: 40,
-                                      color: AppPallete.errorColor,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'Something went wrong',
-                                    style: TextStyle(
-                                      color: AppPallete.whiteColor,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    state.message,
-                                    style: TextStyle(
-                                      color: AppPallete.greyText,
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  GestureDetector(
-                                    onTap: _loadMessages,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            AppPallete.primaryOrange,
-                                            AppPallete.lightOrange,
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        'Retry',
-                                        style: TextStyle(
-                                          color: AppPallete.whiteColor,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+          child: SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+                children: [
+                  SlideTransition(
+                    position: _headerSlide,
+                    child: _buildHeader(context),
+                  ),
+                  Expanded(
+                    child: SlideTransition(
+                      position: _contentSlide,
+                      child: BlocBuilder<TimeCapsuleBloc, TimeCapsuleState>(
+                        builder: (context, state) {
+                          if (state is TimeCapsuleLoading) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: AppPallete.primaryOrange,
                               ),
-                            ),
-                          );
-                        }
-
-                        if (state is TimeCapsuleLoaded) {
-                          final messages = state.messages;
-
-                          if (messages.isEmpty) {
-                            return _buildEmptyState();
+                            );
                           }
 
-                          return ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: messages.length,
-                            itemBuilder: (context, index) {
-                              final message = messages[index];
-                              return _buildScheduledTile(message);
-                            },
-                          );
-                        }
-                        return const SizedBox();
-                      },
+                          if (state is TimeCapsuleError) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(40),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: AppPallete.errorColor.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.error_outline,
+                                        size: 40,
+                                        color: AppPallete.errorColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Something went wrong',
+                                      style: TextStyle(
+                                        color: AppPallete.whiteColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      state.message,
+                                      style: TextStyle(
+                                        color: AppPallete.greyText,
+                                        fontSize: 14,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    GestureDetector(
+                                      onTap: _loadMessages,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 24,
+                                          vertical: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              AppPallete.primaryOrange,
+                                              AppPallete.lightOrange,
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Retry',
+                                          style: TextStyle(
+                                            color: AppPallete.whiteColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          if (state is TimeCapsuleLoaded) {
+                            final messages = state.messages;
+
+                            if (messages.isEmpty) {
+                              return _buildEmptyState();
+                            }
+
+                            return ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: messages.length,
+                              itemBuilder: (context, index) {
+                                final message = messages[index];
+                                return _buildScheduledTile(message);
+                              },
+                            );
+                          }
+                          return const SizedBox();
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -5,6 +5,7 @@ import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class FriendsPage extends StatefulWidget {
@@ -20,6 +21,7 @@ class _FriendsPageState extends State<FriendsPage>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _headerSlide;
   late Animation<Offset> _contentSlide;
+  final _kbFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -32,17 +34,23 @@ class _FriendsPageState extends State<FriendsPage>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
     _headerSlide = Tween<Offset>(
-      begin: const Offset(0, -0.3), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+      ),
+    );
     _contentSlide = Tween<Offset>(
-      begin: const Offset(0.3, 0), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0.3, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+      ),
+    );
     _animationController.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final appUserState = context.read<AppUserCubit>().state;
@@ -55,6 +63,7 @@ class _FriendsPageState extends State<FriendsPage>
   @override
   void dispose() {
     _animationController.dispose();
+    _kbFocusNode.dispose();
     super.dispose();
   }
 
@@ -66,74 +75,83 @@ class _FriendsPageState extends State<FriendsPage>
       return Scaffold(
         backgroundColor: AppPallete.darkBg,
         body: const Center(
-          child: CircularProgressIndicator(
-            color: AppPallete.primaryOrange,
-          ),
+          child: CircularProgressIndicator(color: AppPallete.primaryOrange),
         ),
       );
     }
 
     final currentUser = appUserState.user;
 
-return Scaffold(
+    return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppPallete.darkBg,
-              AppPallete.darkSecondary,
-              AppPallete.darkBg,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+      body: KeyboardListener(
+        focusNode: _kbFocusNode,
+        autofocus: true,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.pop(context);
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppPallete.darkBg,
+                AppPallete.darkSecondary,
+                AppPallete.darkBg,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: BlocBuilder<FriendsCubit, FriendsState>(
-              builder: (context, state) {
-                if (state is FriendsLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: AppPallete.primaryOrange,
-                    ),
-                  );
-                }
-
-                if (state is FriendsError) {
-                  return Center(
-                    child: Text(
-                      state.message,
-                      style: TextStyle(color: AppPallete.errorColor),
-                    ),
-                  );
-                }
-
-                if (state is FriendsLoaded) {
-                  final friends = state.friends.values.toList();
-
-                  return CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: SlideTransition(
-                          position: _headerSlide,
-                          child: _buildHeader(context),
-                        ),
+          child: SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: BlocBuilder<FriendsCubit, FriendsState>(
+                builder: (context, state) {
+                  if (state is FriendsLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppPallete.primaryOrange,
                       ),
-                      if (friends.isEmpty)
+                    );
+                  }
+
+                  if (state is FriendsError) {
+                    return Center(
+                      child: Text(
+                        state.message,
+                        style: TextStyle(color: AppPallete.errorColor),
+                      ),
+                    );
+                  }
+
+                  if (state is FriendsLoaded) {
+                    final friends = state.friends.values.toList();
+
+                    return CustomScrollView(
+                      slivers: [
                         SliverToBoxAdapter(
                           child: SlideTransition(
-                            position: _contentSlide,
-                            child: _buildEmptyState(),
+                            position: _headerSlide,
+                            child: _buildHeader(context),
                           ),
-                        )
-                      else
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
+                        ),
+                        if (friends.isEmpty)
+                          SliverToBoxAdapter(
+                            child: SlideTransition(
+                              position: _contentSlide,
+                              child: _buildEmptyState(),
+                            ),
+                          )
+                        else
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate((
+                              context,
+                              index,
+                            ) {
                               final friend = friends[index];
                               return SlideTransition(
                                 position: _contentSlide,
@@ -143,19 +161,16 @@ return Scaffold(
                                   currentUserId: currentUser.id,
                                 ),
                               );
-                            },
-                            childCount: friends.length,
+                            }, childCount: friends.length),
                           ),
-                        ),
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: 100),
-                      ),
-                    ],
-                  );
-                }
+                        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                      ],
+                    );
+                  }
 
-                return const SizedBox();
-              },
+                  return const SizedBox();
+                },
+              ),
             ),
           ),
         ),
@@ -241,11 +256,7 @@ return Scaffold(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.people_outline,
-            size: 64,
-            color: AppPallete.greyText,
-          ),
+          Icon(Icons.people_outline, size: 64, color: AppPallete.greyText),
           const SizedBox(height: 16),
           Text(
             "No friends yet",
@@ -296,11 +307,12 @@ return Scaffold(
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ChatPage(
-                    currentUserId: currentUserId,
-                    receiverId: friend.id,
-                    receiverName: friend.name,
-                  ),
+                  builder:
+                      (_) => ChatPage(
+                        currentUserId: currentUserId,
+                        receiverId: friend.id,
+                        receiverName: friend.name,
+                      ),
                 ),
               );
             },
@@ -329,17 +341,20 @@ return Scaffold(
                             shape: BoxShape.circle,
                             color: AppPallete.cardBg,
                           ),
-                          child: friend.profilePic.isNotEmpty
-                              ? CircleAvatar(
-                                  radius: 24,
-                                  backgroundImage: profileImageProvider(friend.profilePic),
-                                  backgroundColor: AppPallete.cardBg,
-                                )
-                              : Icon(
-                                  Icons.person,
-                                  color: AppPallete.greyText,
-                                  size: 28,
-                                ),
+                          child:
+                              friend.profilePic.isNotEmpty
+                                  ? CircleAvatar(
+                                    radius: 24,
+                                    backgroundImage: profileImageProvider(
+                                      friend.profilePic,
+                                    ),
+                                    backgroundColor: AppPallete.cardBg,
+                                  )
+                                  : Icon(
+                                    Icons.person,
+                                    color: AppPallete.greyText,
+                                    size: 28,
+                                  ),
                         ),
                       ),
                       Positioned(
@@ -349,9 +364,10 @@ return Scaffold(
                           width: 12,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: friend.isEffectivelyOnline
-                                ? AppPallete.statusGreen
-                                : AppPallete.greyText,
+                            color:
+                                friend.isEffectivelyOnline
+                                    ? AppPallete.statusGreen
+                                    : AppPallete.greyText,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: AppPallete.cardBg,

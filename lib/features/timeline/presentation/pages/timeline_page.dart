@@ -4,6 +4,7 @@ import 'package:chat_application/features/timeline/presentation/widgets/timeline
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_options_tray.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:chat_application/init_dependencies.dart';
@@ -17,7 +18,7 @@ class TimelinePage extends StatefulWidget {
     super.key,
     required this.userId,
     required this.receiverId,
-    required this.receiverName
+    required this.receiverName,
   });
 
   @override
@@ -31,6 +32,7 @@ class _TimelinePageState extends State<TimelinePage>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _headerSlide;
   late Animation<Offset> _contentSlide;
+  final _kbFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -43,23 +45,30 @@ class _TimelinePageState extends State<TimelinePage>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
     _headerSlide = Tween<Offset>(
-      begin: const Offset(0, -0.3), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+      ),
+    );
     _contentSlide = Tween<Offset>(
-      begin: const Offset(0.3, 0), end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
-    ));
+      begin: const Offset(0.3, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+      ),
+    );
     _animationController.forward();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _kbFocusNode.dispose();
     super.dispose();
   }
 
@@ -67,89 +76,105 @@ class _TimelinePageState extends State<TimelinePage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppPallete.darkBg,
-              AppPallete.darkSecondary,
-              AppPallete.darkBg,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+      body: KeyboardListener(
+        focusNode: _kbFocusNode,
+        autofocus: true,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.pop(context);
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppPallete.darkBg,
+                AppPallete.darkSecondary,
+                AppPallete.darkBg,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              children: [
-                SlideTransition(
-                  position: _headerSlide,
-                  child: _buildHeader(context),
-                ),
-                Expanded(
-                  child: SlideTransition(
-                    position: _contentSlide,
-                    child: BlocProvider(
-                      create: (context) { tb = serviceLocator<TimelineBloc>()
-                        ..add(
-                          FetchTimelineEvent(
-                            userId: widget.userId,
-                            receiverId: widget.receiverId,
-                          ),
-                        );
-                        return tb;
-                      },
-                      child: BlocBuilder<TimelineBloc, TimelineState>(
-                        builder: (context, state) {
-                          if (state is TimelineLoading) {
-                            return const Center(
-                              child: CircularProgressIndicator(
-                                color: AppPallete.primaryOrange,
-                              ),
-                            );
-                          }
-                  
-                          if (state is TimelineLoaded) {
-                            if (state.events.isEmpty) {
-                              return _buildEmptyState();
-                            }
-                            
-                            return ListView.builder(
-                              cacheExtent: 100,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              itemCount: state.events.length,
-                              itemBuilder: (context, index) {
-                                final event = state.events[index];
-                                final isMe = index%2 != 0;
-                    
-                                return _timelineItem(
-                                  event, 
-                                  isMe, 
-                                  index == state.events.length - 1,
-                                  context);
-                              },
-                            );
-                          }
-                  
-                          if (state is TimelineError) {
-                            return Center(
-                              child: Text(
-                                state.message,
-                                style: TextStyle(color: AppPallete.errorColor),
-                              ),
-                            );
-                          }
-                  
-                          return const SizedBox();
+          child: SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+                children: [
+                  SlideTransition(
+                    position: _headerSlide,
+                    child: _buildHeader(context),
+                  ),
+                  Expanded(
+                    child: SlideTransition(
+                      position: _contentSlide,
+                      child: BlocProvider(
+                        create: (context) {
+                          tb =
+                              serviceLocator<TimelineBloc>()..add(
+                                FetchTimelineEvent(
+                                  userId: widget.userId,
+                                  receiverId: widget.receiverId,
+                                ),
+                              );
+                          return tb;
                         },
+                        child: BlocBuilder<TimelineBloc, TimelineState>(
+                          builder: (context, state) {
+                            if (state is TimelineLoading) {
+                              return const Center(
+                                child: CircularProgressIndicator(
+                                  color: AppPallete.primaryOrange,
+                                ),
+                              );
+                            }
+
+                            if (state is TimelineLoaded) {
+                              if (state.events.isEmpty) {
+                                return _buildEmptyState();
+                              }
+
+                              return ListView.builder(
+                                cacheExtent: 100,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                itemCount: state.events.length,
+                                itemBuilder: (context, index) {
+                                  final event = state.events[index];
+                                  final isMe = index % 2 != 0;
+
+                                  return _timelineItem(
+                                    event,
+                                    isMe,
+                                    index == state.events.length - 1,
+                                    context,
+                                  );
+                                },
+                              );
+                            }
+
+                            if (state is TimelineError) {
+                              return Center(
+                                child: Text(
+                                  state.message,
+                                  style: TextStyle(
+                                    color: AppPallete.errorColor,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return const SizedBox();
+                          },
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -256,10 +281,7 @@ class _TimelinePageState extends State<TimelinePage>
             const SizedBox(height: 8),
             Text(
               "Long press a message to add to timeline",
-              style: TextStyle(
-                color: AppPallete.greyText,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppPallete.greyText, fontSize: 14),
             ),
           ],
         ),
@@ -273,19 +295,18 @@ class _TimelinePageState extends State<TimelinePage>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: isMe
-                ? const SizedBox()
-                : Align(
-                    alignment: Alignment.centerRight,
-                    child: _bubble(event, false, c),
-                  ),
+            child:
+                isMe
+                    ? const SizedBox()
+                    : Align(
+                      alignment: Alignment.centerRight,
+                      child: _bubble(event, false, c),
+                    ),
           ),
 
           Column(
             children: [
-              Expanded(
-                child: Container(width: 2, color: AppPallete.divider),
-              ),
+              Expanded(child: Container(width: 2, color: AppPallete.divider)),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -298,21 +319,24 @@ class _TimelinePageState extends State<TimelinePage>
                   color: AppPallete.whiteColor,
                 ),
               ),
-              !last ? Expanded(
-                child: Container(width: 2, color: AppPallete.divider),
-              ) : Expanded(
-                child: Container(width: 2, color: Colors.transparent),
-              ),
+              !last
+                  ? Expanded(
+                    child: Container(width: 2, color: AppPallete.divider),
+                  )
+                  : Expanded(
+                    child: Container(width: 2, color: Colors.transparent),
+                  ),
             ],
           ),
 
           Expanded(
-            child: isMe
-                ? Align(
-                    alignment: Alignment.centerLeft,
-                    child: _bubble(event, true, c),
-                  )
-                : const SizedBox(),
+            child:
+                isMe
+                    ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: _bubble(event, true, c),
+                    )
+                    : const SizedBox(),
           ),
         ],
       ),
@@ -324,31 +348,31 @@ class _TimelinePageState extends State<TimelinePage>
       // onDoubleTap: () async {
       //   final fullId = (event as Event).id;
       //   final messageId = fullId.split("_")[0];
-        
+
       //   Navigator.pop(context, messageId);
       // },
-      onLongPressStart: (details){
+      onLongPressStart: (details) {
         TimelineOptionsTray.show(
           context: context,
           position: details.globalPosition,
-          onDelete: (){
+          onDelete: () {
             context.read<TimelineBloc>().add(
               RemoveEvent(
-                eventId: event.id, 
-                messageId: event.messageId, 
-                userId: widget.userId, 
+                eventId: event.id,
+                messageId: event.messageId,
+                userId: widget.userId,
                 receiverId: widget.receiverId,
-              )
+              ),
             );
-          }
+          },
         );
       },
       child: TimelineBubble(
-        event: event, 
+        event: event,
         isMe: isMe,
         receiverId: widget.receiverId,
         userId: widget.userId,
-      )
+      ),
     );
   }
 
