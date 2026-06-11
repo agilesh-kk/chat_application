@@ -1,9 +1,7 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
-import 'package:chat_application/features/achievement/presentation/pages/achievement_page.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/presentation/pages/friends_page.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
@@ -754,19 +752,7 @@ class _ProfilePageState extends State<ProfilePage>
       BuildContext context, dynamic profileUser, dynamic appUserState) {
     return GestureDetector(
       onTap: () {
-        if (appUserState is AppUserIsSignedin) {
-          final currentuser = appUserState.user;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (c) => ChatPage(
-                currentUserId: currentuser.id,
-                receiverId: profileUser.id,
-                receiverName: profileUser.name,
-              ),
-            ),
-          );
-        }
+        Navigator.pop(context);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 24),

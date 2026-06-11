@@ -4,6 +4,7 @@ import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/features/timeline/domain/usecases/add_personal_event.dart';
 import 'package:chat_application/features/timeline/domain/usecases/load_personal_events.dart';
 import 'package:chat_application/features/timeline/domain/usecases/remove_personal_event.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -63,7 +64,8 @@ class PersonalTimelineBloc
         userId: event.userId, 
         content: event.content, 
         time: event.time, 
-        type: event.type
+        type: event.type,
+        image: event.image,
       )
     );
 

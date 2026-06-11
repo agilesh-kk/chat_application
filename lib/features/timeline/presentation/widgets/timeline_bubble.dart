@@ -10,6 +10,7 @@ class TimelineBubble extends StatefulWidget {
 
   final String userId;
   final String? receiverId;
+  final VoidCallback? onTap;
 
   const TimelineBubble({
     super.key,
@@ -18,6 +19,7 @@ class TimelineBubble extends StatefulWidget {
     
     required this.userId,
     this.receiverId,
+    this.onTap,
   });
 
   @override
@@ -66,103 +68,120 @@ class _TimelineBubbleState extends State<TimelineBubble>
       opacity: _fadeAnimation,
       child: ScaleTransition(
         scale: _scaleAnimation,
-child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          padding: const EdgeInsets.all(12),
-          constraints: const BoxConstraints(
-            maxWidth: 220,
-          ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: widget.isMe
-                  ? [AppPallete.primaryOrange.withValues(alpha: 0.3), AppPallete.lightOrange.withValues(alpha: 0.1)]
-                  : [AppPallete.cardBg, AppPallete.darkTertiary],
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.all(12),
+            constraints: const BoxConstraints(
+              maxWidth: 220,
             ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppPallete.primaryOrange.withValues(alpha: 0.4),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppPallete.primaryOrange.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: widget.isMe
+                    ? [AppPallete.primaryOrange.withValues(alpha: 0.3), AppPallete.lightOrange.withValues(alpha: 0.1)]
+                    : [AppPallete.cardBg, AppPallete.darkTertiary],
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: widget.isMe
-                ? CrossAxisAlignment.start
-                : CrossAxisAlignment.end,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _icon(widget.event.type),
-                    size: 14,
-                    color: AppPallete.primaryOrange,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppPallete.primaryOrange.withValues(alpha: 0.4),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppPallete.primaryOrange.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: widget.isMe
+                  ? CrossAxisAlignment.start
+                  : CrossAxisAlignment.end,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _icon(widget.event.type),
+                      size: 14,
+                      color: AppPallete.primaryOrange,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        widget.event.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppPallete.whiteColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  MomentsAgo.calculateMomentsAgo(
+                    widget.event.time.toString(),
                   ),
-                  const SizedBox(width: 6),
-                  Flexible(
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppPallete.greyText,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (widget.event.hasImage)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      widget.event.imageUrl,
+                      height: 120,
+                      width: 180,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox(),
+                    ),
+                  ),
+                if (widget.event.type == "image" && !widget.event.hasImage)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      widget.event.content,
+                      height: 120,
+                      width: 180,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox(),
+                    ),
+                  ),
+                if (widget.event.type != "image" || widget.event.hasImage)
+                  Text(
+                    widget.event.content,
+                    softWrap: true,
+                    maxLines: 10,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppPallete.whiteColor.withValues(alpha: 0.8),
+                      fontSize: 13,
+                    ),
+                  ),
+                if (widget.event.isManual)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      widget.event.title,
+                      "Added by ${widget.event.addedByName}",
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppPallete.whiteColor,
-                        fontSize: 14,
+                        fontSize: 10,
+                        color: AppPallete.greyText,
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                MomentsAgo.calculateMomentsAgo(
-                  widget.event.time.toString(),
-                ),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppPallete.greyText,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (widget.event.type == "image")
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    widget.event.content,
-                    height: 120,
-                    width: 180,
-                    fit: BoxFit.cover,
-                  ),
-                )
-              else
-                Text(
-                  widget.event.content,
-                  softWrap: true,
-                  maxLines: 10,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppPallete.whiteColor.withValues(alpha: 0.8),
-                    fontSize: 13,
-                  ),
-                ),
-              if (widget.event.isManual)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    "Added by ${widget.event.addedByName}",
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppPallete.greyText,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

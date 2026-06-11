@@ -75,9 +75,7 @@ import 'package:chat_application/features/timeline/presentation/bloc/time_line/t
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/adapters.dart';
@@ -427,7 +425,10 @@ void _initTimeline(){
   serviceLocator
   //data source
   ..registerFactory<TimelineRemoteDataSources>(
-    () => TimelineRemoteDataSourcesImpl(firebaseFirestore: serviceLocator<FirebaseFirestore>())
+    () => TimelineRemoteDataSourcesImpl(
+      firebaseFirestore: serviceLocator<FirebaseFirestore>(),
+      supabaseClient: serviceLocator<SupabaseClient>(),
+    )
   )
 
   //repository

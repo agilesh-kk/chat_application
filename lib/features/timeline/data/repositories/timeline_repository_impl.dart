@@ -5,6 +5,7 @@ import 'package:chat_application/features/timeline/data/datasources/timeline_rem
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/features/timeline/domain/repositories/timeline_repository.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 class TimelineRepositoryImpl implements TimelineRepository {
@@ -89,10 +90,19 @@ class TimelineRepositoryImpl implements TimelineRepository {
     required String content,
     required String type,
     required DateTime time,
+    XFile? image,
   }) async{
     try{
       var uuid = Uuid();
       String id = uuid.v4();
+
+      String imageUrl = "";
+      if (image != null) {
+        imageUrl = await timelineRemoteDataSources.uploadImage(
+          image: image,
+          eventId: id,
+        );
+      }
       
       await timelineRemoteDataSources.addPersonalEvent(
         userId: userId, 
@@ -100,7 +110,8 @@ class TimelineRepositoryImpl implements TimelineRepository {
         title: title, 
         content: content, 
         type: type, 
-        time: time
+        time: time,
+        imageUrl: imageUrl,
       );
     }
     catch(e){

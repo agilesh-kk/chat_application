@@ -16,6 +16,7 @@ class AddPersonalTimeLineEvent extends PersonalTimelineEvent {
   final String content;
   final DateTime time;
   final String type;
+  final XFile? image;
 
   AddPersonalTimeLineEvent({
     required this.title,
@@ -23,6 +24,7 @@ class AddPersonalTimeLineEvent extends PersonalTimelineEvent {
     required this.content,
     required this.time,
     required this.type,
+    this.image,
   });
 }
 

@@ -2,6 +2,7 @@ import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:image_picker/image_picker.dart';
 
 abstract interface class TimelineRepository {
   Future<Either<Failure,List<Event>>> getEvents({
@@ -34,6 +35,7 @@ abstract interface class TimelineRepository {
     required String content,
     required String type,
     required DateTime time,
+    XFile? image,
   });
 
   Future<void> removePersonalEvent({

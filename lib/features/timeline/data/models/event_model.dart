@@ -15,6 +15,10 @@ class EventModel extends Event{
     required super.addedBy,
     required super.addedByName,
     required super.isManual,
+
+    //personal timeline images
+    super.imageUrl,
+    super.hasImage,
   });
 
   factory EventModel.fromJson(
@@ -33,6 +37,9 @@ class EventModel extends Event{
       addedBy: map["addedBy"] ?? "",
       addedByName: map["addedByName"] ?? "",
       isManual: map["isManual"] ?? false,
+
+      imageUrl: map["imageUrl"] ?? "",
+      hasImage: map["hasImage"] ?? false,
     );
   }
 
@@ -50,6 +57,9 @@ class EventModel extends Event{
       "addedBy": addedBy,
       "addedByName": addedByName,
       "isManual": isManual,
+
+      "imageUrl" : imageUrl,
+      "hasImage" : hasImage,
     };
   }
   

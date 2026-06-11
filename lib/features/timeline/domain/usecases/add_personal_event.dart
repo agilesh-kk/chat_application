@@ -2,6 +2,7 @@ import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/core/usecase/usecase.dart';
 import 'package:chat_application/features/timeline/domain/repositories/timeline_repository.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AddPersonalEvent implements UseCase<void, AddPersonalEventParams>{
   final TimelineRepository timelineRepository;
@@ -17,6 +18,7 @@ class AddPersonalEvent implements UseCase<void, AddPersonalEventParams>{
         content: params.content,
         time: params.time,
         type: params.type,
+        image: params.image,
       );
       return right(null);
     }
@@ -32,6 +34,7 @@ class AddPersonalEventParams {
   final String content;
   final DateTime time;
   final String type;
+  final XFile? image;
 
   AddPersonalEventParams({
     required this.title, 
@@ -39,5 +42,6 @@ class AddPersonalEventParams {
     required this.content, 
     required this.time, 
     required this.type,
+    this.image,
   }); 
 }

@@ -11,6 +11,10 @@ class Event {
   final String addedBy;
   final String addedByName;
   final bool isManual;
+
+  //personal timeline image
+  final bool hasImage;
+  final String imageUrl;
   
   Event({
     required this.id, 
@@ -24,5 +28,8 @@ class Event {
     required this.addedBy,
     required this.addedByName,
     required this.isManual,
+
+    this.imageUrl="",
+    this.hasImage=false,
   });
 }

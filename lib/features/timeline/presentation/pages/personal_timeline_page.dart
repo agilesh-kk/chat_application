@@ -1,8 +1,10 @@
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/personal_time_line/personal_timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/add_event_dialog.dart';
+import 'package:chat_application/features/timeline/presentation/widgets/event_detail_dialog.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_bubble.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_options_tray.dart';
 
@@ -74,6 +76,23 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
     });
   }
 
+  Future<void> _onFabPressed() async {
+    final result = await AddEventDialog.show(context);
+
+    if (result != null && context.mounted) {
+      context.read<PersonalTimelineBloc>().add(
+        AddPersonalTimeLineEvent(
+          userId: widget.userId,
+          title: result.title,
+          content: result.content,
+          time: DateTime.now(),
+          type: "text",
+          image: result.image,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -88,21 +107,7 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
         position: _fabSlide,
         child: FloatingActionButton(
           backgroundColor: AppPallete.primaryOrange,
-          onPressed: () async {
-            final result = await AddEventDialog.show(context);
-
-            if (result != null) {
-              context.read<PersonalTimelineBloc>().add(
-                AddPersonalTimeLineEvent(
-                  userId: widget.userId,
-                  title: result["title"]!,
-                  content: result["content"]!,
-                  time: DateTime.now(),
-                  type: "text",
-                ),
-              );
-            }
-          },
+          onPressed: _onFabPressed,
           child: const Icon(Icons.add),
         ),
       ),
@@ -306,7 +311,7 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
     );
   }
 
-  Widget _timelineItem(dynamic event, bool isMe, bool last, BuildContext c) {
+  Widget _timelineItem(Event event, bool isMe, bool last, BuildContext c) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -360,7 +365,7 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
     );
   }
 
-  Widget _bubble(dynamic event, bool isMe, BuildContext context) {
+  Widget _bubble(Event event, bool isMe, BuildContext context) {
     return GestureDetector(
       onLongPressStart: (details) {
         TimelineOptionsTray.show(
@@ -376,7 +381,12 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
           },
         );
       },
-      child: TimelineBubble(event: event, isMe: isMe, userId: widget.userId),
+      child: TimelineBubble(
+        event: event,
+        isMe: isMe,
+        userId: widget.userId,
+        onTap: () => EventDetailDialog.show(context, event),
+      ),
     );
   }
 
