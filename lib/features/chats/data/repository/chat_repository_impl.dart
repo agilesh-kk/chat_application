@@ -16,7 +16,6 @@ class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
   final ChatLocalDataSource chatLocalDataSource;
   final FriendsCubit fb;
-  StreamSubscription? _streamController;
 
   final Map<String,StreamSubscription<Map<String, dynamic>>> _opSub = {};
 
@@ -126,7 +125,7 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<void> stopOperationListener() async {
     for(final e in _opSub.values){
-      //e.cancel();
+      e.cancel();
     }
   }
 
@@ -149,9 +148,9 @@ class ChatRepositoryImpl implements ChatRepository {
       switch (type) {
         case 'new_message':
           final msgId = opData['messageId'] as String? ?? docId;
-          await chatLocalDataSource.upsertMessageFromFirestore(opData, msgId);
           final content = opData['messageType'] == "text" ? opData['content'] : "📷 Image" ;
           await chatLocalDataSource.updateConvo(convoId,msgId,content,opData['createdAt'],opData['senderId'],opData['senderId']);
+          await chatLocalDataSource.upsertMessageFromFirestore(opData, msgId);
           break;
 
         case 'delete_message':
@@ -410,6 +409,7 @@ class ChatRepositoryImpl implements ChatRepository {
     required String userId,
     required String receiverId,
   }) async {
+    print("llllllllllllllllllllllllllllllllllllllllllllllllllllllllllll");
     chatLocalDataSource.resetUnread(generateConversationId(userId, receiverId));
     await chatRemoteDataSources.markMessagesDelivered(
       receiverId: receiverId,

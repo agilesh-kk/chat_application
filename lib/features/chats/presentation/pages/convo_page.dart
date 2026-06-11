@@ -109,6 +109,48 @@ class _ConversationPageState extends State<ConversationPage> {
                     if (state is ConversationLoading) {
                       return const Center(child: Loader());
                     }
+
+                    if (state is ConversationDownloading) {
+                      final progress = state.loaded / 100.0;
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "Downloading conversations...",
+                                style: TextStyle(
+                                  color: AppPallete.whiteColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: LinearProgressIndicator(
+                                  value: progress.clamp(0.0, 1.0),
+                                  minHeight: 8,
+                                  backgroundColor: AppPallete.cardBg,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppPallete.primaryOrange,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                "${state.loaded}%",
+                                style: TextStyle(
+                                  color: AppPallete.greyText,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
             
                       if (state is ConversationLoaded) {
                       var conversations = state.conversations;

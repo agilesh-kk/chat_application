@@ -34,3 +34,7 @@ class _ConversationErrorEvent extends ConversationEvent {
   final String message;
   _ConversationErrorEvent(this.message);
 }
+
+class ConversationCloseEvent extends ConversationEvent {
+  ConversationCloseEvent();
+}

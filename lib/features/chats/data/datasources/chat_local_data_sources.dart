@@ -36,6 +36,7 @@ abstract interface class ChatLocalDataSource {
 
   Future<bool> ischeckUserChanged(String userId);
   Future<void> updateUser(String userId);
+  Future<void> truncateDb();
   Future<void> populateMessages(List<Map<String,dynamic>> messages, String receiverId, String convoId);
 
   void dispose();
@@ -96,6 +97,12 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
 
     return true;
+  }
+
+  Future<void> truncateDb()async{
+    if (_db == null || kIsWeb) return;
+    await _db!.rawQuery("DELETE FROM messages");
+    await _db!.rawQuery("DELETE FROM conversations");
   }
 
   Future<void> updateUser(String userId)async{
@@ -547,6 +554,8 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       final convoId = rows.first['conversationId'] as String;
       _notify(convoId);
     }
+
+    
   }
 
     @override
@@ -557,7 +566,9 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
           ? _toMillis(lastMessageTime)
           : DateTime.now().millisecondsSinceEpoch;
 
+    try{
 
+      print(content);
     bool exist = (await _db!.query('conversations', where: 'convoId = ?', whereArgs: [convoId], limit: 1)).isNotEmpty;
     if(exist){
       await _db!.update(
@@ -573,7 +584,8 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
         "lastUpdateTime" : time,
         "msgId" : msgId,
         "receiverId" : receiverId,
-        "lastSender" : lastSender
+        "lastSender" : lastSender,
+        "unread" : 0
       });
     }
     
@@ -582,6 +594,13 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       'UPDATE conversations SET unread = unread + 1 WHERE convoId = ?',
       [convoId],
       );
+    }
+
+    }catch(e){
+      print(e);
+    }finally{
+      final unread = await _db!.query("conversations",where: "convoId = ?",whereArgs: [convoId]);
+      print(unread.first['unread']);
     }
     
 

@@ -50,7 +50,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                   (d) {
                   if(d is FriendsLoaded){
                     final ids = d.friends.values.map((e)=>e.id).toList();
-                    add(ConversationDownloadEvent(event.userId, ids, (100/ids.length as int)));
+                    add(ConversationDownloadEvent(event.userId, ids, (100/ids.length.toInt()).toInt()));
                   }
                 });
             }else{
@@ -144,7 +144,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
       final reId = event.receiverId.removeLast();
       final res = await chatRepositoryImpl.downloadConversation(userId: event.userId, friendId: reId);
       res.fold((e)=>emit(ConversationError(e.message)), (r){
-          if(state is ConversationDownloading){
+          if(state is ConversationLoading){
             emit(ConversationDownloading(event.val));
           }else{
             emit(ConversationDownloading((state as ConversationDownloading).loaded + event.val));
@@ -169,6 +169,12 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         
         conversations: List.from(event.convos), // 🔥 IMPORTANT
       ));
+    });
+
+
+    on<ConversationCloseEvent>((event, emit) {
+      //print("🚀 EMITTING STATE");
+      
     });
 
     // =========================================================
@@ -206,8 +212,11 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   // 🔥 CLEANUP
   // =========================================================
   @override
-  Future<void> close() {
+  Future<void> close() async {
     _convoSub?.cancel();
+    await chatRepositoryImpl.stopOperationListener();
+    _friendsub!.cancel();
+    
     return super.close();
   }
 }

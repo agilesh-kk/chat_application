@@ -3,13 +3,16 @@ import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/auth/data/datasources/auth_remote_data_sources.dart';
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
+import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
+import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:uuid/uuid.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSources remoteDataSources;
+  final ChatLocalDataSource chatLocalDataSource;
 
-  AuthRepositoryImpl(this.remoteDataSources);
+  AuthRepositoryImpl(this.remoteDataSources,this.chatLocalDataSource);
   @override
   Future<Either<Failure, User>> signUpWithEmailPassword({
     required String name,
@@ -57,6 +60,8 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, void>> signOut() async{
     try{
       await remoteDataSources.signout();
+      await chatLocalDataSource.updateUser("removed");
+      await chatLocalDataSource.truncateDb();
       return right(null);
     }
     on ServerExceptions catch(e){

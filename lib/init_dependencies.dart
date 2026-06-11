@@ -251,6 +251,7 @@ void _initAuth() {
   ..registerFactory<AuthRepository>(
     () => AuthRepositoryImpl(
       serviceLocator<AuthRemoteDataSources>(),
+      serviceLocator<ChatLocalDataSource>()
     ),
   )
 
@@ -374,7 +375,7 @@ void _initChat()async {
     )
   )
 
-  ..registerLazySingleton(
+  ..registerFactory(
     ()=> ConversationBloc(
       chatRepositoryImpl: serviceLocator<ChatRepository>(),
       friendsCubit: serviceLocator<FriendsCubit>(),

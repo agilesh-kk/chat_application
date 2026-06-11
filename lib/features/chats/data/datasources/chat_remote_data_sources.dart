@@ -991,7 +991,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .collection("Conversations")
         .doc(conversationId)
         .collection(opCollection)
-        .orderBy("timestamp", descending: true)
+        .orderBy("timestamp")
         .snapshots()
         .map((snapshot) {
           final results = <Map<String, dynamic>>[];

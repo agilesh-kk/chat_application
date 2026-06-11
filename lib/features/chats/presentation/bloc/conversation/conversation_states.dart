@@ -23,6 +23,10 @@ class ConversationDownloading extends ConversationState{
   ConversationDownloading(this.loaded);
 }
 
+class ConversationClosed extends ConversationState{
+  ConversationClosed();
+}
+
 class ConversationError extends ConversationState {
   final String message;
   ConversationError(this.message);

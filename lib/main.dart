@@ -656,9 +656,6 @@ void main() async {
           create: (_)=> serviceLocator<TimeCapsuleBloc>()
         ),
         BlocProvider(
-          create: (_) => serviceLocator<ConversationBloc>(), 
-        ),
-        BlocProvider(
           create: (_) => serviceLocator<SearchBloc>(),
         ),
 
