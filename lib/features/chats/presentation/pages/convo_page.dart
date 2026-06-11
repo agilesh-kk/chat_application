@@ -1,5 +1,6 @@
 import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
+import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
@@ -12,8 +13,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ConversationPage extends StatefulWidget {
   final String userId;
+  final void Function(Conversation)? onChatSelected;
+  final String? selectedConvoId;
 
-  const ConversationPage({super.key, required this.userId});
+  const ConversationPage({
+    super.key,
+    required this.userId,
+    this.onChatSelected,
+    this.selectedConvoId,
+  });
 
   @override
   State<ConversationPage> createState() => _ConversationPageState();
@@ -161,9 +169,14 @@ class _ConversationPageState extends State<ConversationPage> {
               lastSender: convo.lastSender == widget.userId ? "you" : "",
               isOnline: convo.receiverIsOnline,
               isTyping: typingMap[convo.convoId] == true,
+              isSelected: convo.convoId == widget.selectedConvoId,
               onTap: () {
                 _searchFocusNode.unfocus();
-                Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
+                if (widget.onChatSelected != null) {
+                  widget.onChatSelected!(convo);
+                } else {
+                  Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
+                }
               },
             );
           },

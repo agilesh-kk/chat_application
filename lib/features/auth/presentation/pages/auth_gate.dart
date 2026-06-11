@@ -1,7 +1,7 @@
 import 'package:chat_application/core/common/widgets/nav_page.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/sign_in_page.dart';
-import 'package:chat_application/features/chats/presentation/pages/convo_page.dart';
+import 'package:chat_application/features/chats/presentation/pages/home_page.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:chat_application/features/status/presentation/pages/status_page.dart';
 import 'package:flutter/material.dart';
@@ -18,7 +18,7 @@ class AuthGate extends StatelessWidget {
         if(state is AuthSuccess){
           return NavigationPage(
             pages: [
-              ConversationPage(userId: state.user.id),
+              HomePage(userId: state.user.id),
               StatusPage(),
               ProfilePage(
                 isUser: true,

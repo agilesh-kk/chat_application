@@ -37,6 +37,8 @@ class ChatPage extends StatefulWidget {
   final String currentUserId;
   final String receiverId;
   final String receiverName;
+  final bool isEmbedded;
+  final VoidCallback? onClose;
   int? scrolltoIndex;
   CacheService? cacheService;
   String? highlightMessageId;
@@ -47,6 +49,8 @@ class ChatPage extends StatefulWidget {
     required this.currentUserId,
     required this.receiverId,
     required this.receiverName,
+    this.isEmbedded = false,
+    this.onClose,
     this.scrolltoIndex,
     this.highlightMessageId,
   });
@@ -334,7 +338,11 @@ class _ChatPageState extends State<ChatPage> {
           GestureDetector(
             onTap: () {
               _messageFocusNode.unfocus();
-              Navigator.pop(context);
+              if (widget.isEmbedded) {
+                widget.onClose?.call();
+              } else {
+                Navigator.pop(context);
+              }
             },
             child: Container(
               padding: const EdgeInsets.all(10),

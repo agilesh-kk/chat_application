@@ -12,6 +12,7 @@ class ConvoTile extends StatelessWidget {
   final String lastSender;
   final bool isOnline;
   final bool isTyping;
+  final bool isSelected;
   final GestureTapCallback onTap;
 
   const ConvoTile({
@@ -24,6 +25,7 @@ class ConvoTile extends StatelessWidget {
     required this.lastSender,
     required this.isOnline,
     this.isTyping = false,
+    this.isSelected = false,
     required this.onTap,
   });
 
@@ -32,10 +34,14 @@ class ConvoTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppPallete.cardBg.withValues(alpha: 0.6),
+        color: isSelected
+            ? AppPallete.primaryOrange.withValues(alpha: 0.15)
+            : AppPallete.cardBg.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppPallete.divider.withValues(alpha: 0.3),
+          color: isSelected
+              ? AppPallete.primaryOrange.withValues(alpha: 0.5)
+              : AppPallete.divider.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(
