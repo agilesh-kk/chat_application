@@ -23,11 +23,42 @@ class TimeCapsuleMessages extends StatefulWidget {
   State<TimeCapsuleMessages> createState() => _TimeCapsuleMessagesState();
 }
 
-class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
+class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _headerSlide;
+  late Animation<Offset> _contentSlide;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+      ),
+    );
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0.3, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+      ),
+    );
+    _animationController.forward();
     _loadMessages();
   }
 
@@ -38,6 +69,12 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
         receiverId: widget.receiverId,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -58,110 +95,121 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: BlocBuilder<TimeCapsuleBloc, TimeCapsuleState>(
-                  builder: (context, state) {
-                    if (state is TimeCapsuleLoading) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: AppPallete.primaryOrange,
-                        ),
-                      );
-                    }
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                SlideTransition(
+                  position: _headerSlide,
+                  child: _buildHeader(context),
+                ),
+                Expanded(
+                  child: SlideTransition(
+                    position: _contentSlide,
+                    child: BlocBuilder<TimeCapsuleBloc, TimeCapsuleState>(
+                      builder: (context, state) {
+                        if (state is TimeCapsuleLoading) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: AppPallete.primaryOrange,
+                            ),
+                          );
+                        }
 
-                    if (state is TimeCapsuleError) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: AppPallete.errorColor.withValues(alpha: 0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.error_outline,
-                                  size: 40,
-                                  color: AppPallete.errorColor,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Something went wrong',
-                                style: TextStyle(
-                                  color: AppPallete.whiteColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                state.message,
-                                style: TextStyle(
-                                  color: AppPallete.greyText,
-                                  fontSize: 14,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 24),
-                              GestureDetector(
-                                onTap: _loadMessages,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        AppPallete.primaryOrange,
-                                        AppPallete.lightOrange,
-                                      ],
+                        if (state is TimeCapsuleError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(40),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: AppPallete.errorColor.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      shape: BoxShape.circle,
                                     ),
-                                    borderRadius: BorderRadius.circular(12),
+                                    child: Icon(
+                                      Icons.error_outline,
+                                      size: 40,
+                                      color: AppPallete.errorColor,
+                                    ),
                                   ),
-                                  child: Text(
-                                    'Retry',
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Something went wrong',
                                     style: TextStyle(
                                       color: AppPallete.whiteColor,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    state.message,
+                                    style: TextStyle(
+                                      color: AppPallete.greyText,
+                                      fontSize: 14,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  GestureDetector(
+                                    onTap: _loadMessages,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            AppPallete.primaryOrange,
+                                            AppPallete.lightOrange,
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        'Retry',
+                                        style: TextStyle(
+                                          color: AppPallete.whiteColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
+                            ),
+                          );
+                        }
 
-                    if (state is TimeCapsuleLoaded) {
-                      final messages = state.messages;
+                        if (state is TimeCapsuleLoaded) {
+                          final messages = state.messages;
 
-                      if (messages.isEmpty) {
-                        return _buildEmptyState();
-                      }
+                          if (messages.isEmpty) {
+                            return _buildEmptyState();
+                          }
 
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final message = messages[index];
-                          return _buildScheduledTile(message);
-                        },
-                      );
-                    }
-                    return const SizedBox();
-                  },
+                          return ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: messages.length,
+                            itemBuilder: (context, index) {
+                              final message = messages[index];
+                              return _buildScheduledTile(message);
+                            },
+                          );
+                        }
+                        return const SizedBox();
+                      },
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -267,10 +315,7 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
             const SizedBox(height: 8),
             Text(
               "Long press send button to create\ntime capsule",
-              style: TextStyle(
-                color: AppPallete.greyText,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppPallete.greyText, fontSize: 14),
               textAlign: TextAlign.center,
             ),
           ],
@@ -292,9 +337,10 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
           color: AppPallete.cardBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isPast 
-                ? AppPallete.errorColor.withValues(alpha: 0.5)
-                : AppPallete.divider,
+            color:
+                isPast
+                    ? AppPallete.errorColor.withValues(alpha: 0.5)
+                    : AppPallete.divider,
           ),
         ),
         child: Column(
@@ -320,7 +366,7 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isScheduled 
+                        isScheduled
                             ? 'Scheduled for ${DateFormat('MMM d, h:mm a').format(scheduledTime)}'
                             : 'Pending',
                         style: TextStyle(
@@ -347,25 +393,25 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
                       messageContent: message.content,
                       onDeleteForMe: () {
                         context.read<ChatBloc>().add(
-                              DeleteMessageEvent(
-                                msgId: message.id,
-                                userId: widget.currentUserId,
-                                type: message.type,
-                                receiverId: widget.receiverId,
-                                deleteForEveryone: false,
-                              ),
-                            );
+                          DeleteMessageEvent(
+                            msgId: message.id,
+                            userId: widget.currentUserId,
+                            type: message.type,
+                            receiverId: widget.receiverId,
+                            deleteForEveryone: false,
+                          ),
+                        );
                       },
                       onDeleteForEveryone: () {
                         context.read<ChatBloc>().add(
-                              DeleteMessageEvent(
-                                msgId: message.id,
-                                userId: widget.currentUserId,
-                                type: message.type,
-                                receiverId: widget.receiverId,
-                                deleteForEveryone: true,
-                              ),
-                            );
+                          DeleteMessageEvent(
+                            msgId: message.id,
+                            userId: widget.currentUserId,
+                            type: message.type,
+                            receiverId: widget.receiverId,
+                            deleteForEveryone: true,
+                          ),
+                        );
                       },
                     );
                   },
@@ -393,10 +439,7 @@ class _TimeCapsuleMessagesState extends State<TimeCapsuleMessages> {
               ),
               child: Text(
                 message.content,
-                style: TextStyle(
-                  color: AppPallete.whiteColor,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: AppPallete.whiteColor, fontSize: 14),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),

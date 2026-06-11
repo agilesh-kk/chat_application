@@ -21,12 +21,44 @@ class PersonalTimeLinePage extends StatefulWidget {
   State<PersonalTimeLinePage> createState() => _PersonalTimeLinePageState();
 }
 
-class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
+class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _headerSlide;
+  late Animation<Offset> _contentSlide;
+  late Animation<Offset> _fabSlide;
+
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.3), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+    ));
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0.3, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+    ));
+    _fabSlide = Tween<Offset>(
+      begin: const Offset(0, 0.3), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.3, 0.85, curve: Curves.easeOutCubic),
+    ));
+    _animationController.forward();
 
-    // ✅ Correct place to trigger bloc event
     Future.microtask(() {
       context.read<PersonalTimelineBloc>().add(
         FetchPersonalTimeLine(userId: widget.userId),
@@ -35,26 +67,35 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
   }
 
   @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppPallete.primaryOrange,
-        onPressed: () async{
-          final result = await AddEventDialog.show(context);
+      floatingActionButton: SlideTransition(
+        position: _fabSlide,
+        child: FloatingActionButton(
+          backgroundColor: AppPallete.primaryOrange,
+          onPressed: () async{
+            final result = await AddEventDialog.show(context);
 
-          if (result != null) {
-            context.read<PersonalTimelineBloc>().add(
-                  AddPersonalTimeLineEvent(
-                    userId: widget.userId,
-                    title: result["title"]!,
-                    content: result["content"]!,
-                    time: DateTime.now(),
-                    type: "text",
-                  ),
-                );
-          }
-        },
-        child: const Icon(Icons.add),
+            if (result != null) {
+              context.read<PersonalTimelineBloc>().add(
+                    AddPersonalTimeLineEvent(
+                      userId: widget.userId,
+                      title: result["title"]!,
+                      content: result["content"]!,
+                      time: DateTime.now(),
+                      type: "text",
+                    ),
+                  );
+            }
+          },
+          child: const Icon(Icons.add),
+        ),
       ),
       backgroundColor: AppPallete.darkBg,
       body: Container(
@@ -71,52 +112,61 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: BlocBuilder<PersonalTimelineBloc, PersonalTimelineState>(
-                  builder: (context, state) {
-                    if (state is TimelineLoading) {
-                      return const Loader();
-                    }
-                              
-                    if (state is PersonalTimelineLoaded) {
-                      if (state.events.isEmpty) {
-                        return _buildEmptyState();
-                      }
-                      
-                      return ListView.builder(
-                        cacheExtent: 100,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        itemCount: state.events.length,
-                        itemBuilder: (context, index) {
-                          final event = state.events[index];
-                          final isMe = index%2 == 0;
-                                
-                          return _timelineItem(
-                            event, 
-                            isMe, 
-                            index == state.events.length - 1,
-                            context);
-                        },
-                      );
-                    }
-                              
-                    if (state is PersonalTimelineError) {
-                      return Center(
-                        child: Text(
-                          state.message,
-                          style: TextStyle(color: AppPallete.errorColor),
-                        ),
-                      );
-                    }
-                              
-                    return const SizedBox();
-                  },
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                SlideTransition(
+                  position: _headerSlide,
+                  child: _buildHeader(context),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: SlideTransition(
+                    position: _contentSlide,
+                    child: BlocBuilder<PersonalTimelineBloc, PersonalTimelineState>(
+                      builder: (context, state) {
+                        if (state is TimelineLoading) {
+                          return const Loader();
+                        }
+                                  
+                        if (state is PersonalTimelineLoaded) {
+                          if (state.events.isEmpty) {
+                            return _buildEmptyState();
+                          }
+                          
+                          return ListView.builder(
+                            cacheExtent: 100,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            itemCount: state.events.length,
+                            itemBuilder: (context, index) {
+                              final event = state.events[index];
+                              final isMe = index%2 == 0;
+                                    
+                              return _timelineItem(
+                                event, 
+                                isMe, 
+                                index == state.events.length - 1,
+                                context);
+                            },
+                          );
+                        }
+                                  
+                        if (state is PersonalTimelineError) {
+                          return Center(
+                            child: Text(
+                              state.message,
+                              style: TextStyle(color: AppPallete.errorColor),
+                            ),
+                          );
+                        }
+                                  
+                        return const SizedBox();
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

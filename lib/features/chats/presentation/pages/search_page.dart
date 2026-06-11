@@ -15,13 +15,45 @@ class SearchPage extends StatefulWidget {
   State<SearchPage> createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> {
+class _SearchPageState extends State<SearchPage>
+    with SingleTickerProviderStateMixin {
   final controller = TextEditingController();
   final _focusNode = FocusNode();
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _headerSlide;
+  late Animation<Offset> _searchSlide;
+  late Animation<Offset> _contentSlide;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.3), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+    ));
+    _searchSlide = Tween<Offset>(
+      begin: const Offset(-0.3, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.1, 0.65, curve: Curves.easeOutCubic),
+    ));
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0.3, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+    ));
+    _animationController.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -29,6 +61,7 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   void dispose() {
+    _animationController.dispose();
     controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -52,36 +85,48 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              _buildSearchInput(),
-              Expanded(
-                child: BlocBuilder<SearchBloc, SearchState>(
-                  builder: (context, state) {
-                    if (state is Searching) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: AppPallete.primaryOrange,
-                        ),
-                      );
-                    }
-
-                    if (state is SearchFound) {
-                      final users = state.user;
-
-                      if (users.isEmpty) {
-                        return _buildNoResults();
-                      }
-
-                      return _buildUsersList(users);
-                    }
-
-                    return _buildInitialState();
-                  },
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                SlideTransition(
+                  position: _headerSlide,
+                  child: _buildHeader(context),
                 ),
-              ),
-            ],
+                SlideTransition(
+                  position: _searchSlide,
+                  child: _buildSearchInput(),
+                ),
+                Expanded(
+                  child: SlideTransition(
+                    position: _contentSlide,
+                    child: BlocBuilder<SearchBloc, SearchState>(
+                      builder: (context, state) {
+                        if (state is Searching) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: AppPallete.primaryOrange,
+                            ),
+                          );
+                        }
+
+                        if (state is SearchFound) {
+                          final users = state.user;
+
+                          if (users.isEmpty) {
+                            return _buildNoResults();
+                          }
+
+                          return _buildUsersList(users);
+                        }
+
+                        return _buildInitialState();
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -14,16 +14,48 @@ class FriendsPage extends StatefulWidget {
   State<FriendsPage> createState() => _FriendsPageState();
 }
 
-class _FriendsPageState extends State<FriendsPage> {
+class _FriendsPageState extends State<FriendsPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _headerSlide;
+  late Animation<Offset> _contentSlide;
+
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.3), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+    ));
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0.3, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+    ));
+    _animationController.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final appUserState = context.read<AppUserCubit>().state;
       if (appUserState is AppUserIsSignedin) {
         context.read<FriendsCubit>().loadFriends(userId: appUserState.user.id);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -59,60 +91,72 @@ return Scaffold(
           ),
         ),
         child: SafeArea(
-          child: BlocBuilder<FriendsCubit, FriendsState>(
-            builder: (context, state) {
-              if (state is FriendsLoading) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    color: AppPallete.primaryOrange,
-                  ),
-                );
-              }
-
-              if (state is FriendsError) {
-                return Center(
-                  child: Text(
-                    state.message,
-                    style: TextStyle(color: AppPallete.errorColor),
-                  ),
-                );
-              }
-
-              if (state is FriendsLoaded) {
-                final friends = state.friends.values.toList();
-
-                return CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: _buildHeader(context),
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: BlocBuilder<FriendsCubit, FriendsState>(
+              builder: (context, state) {
+                if (state is FriendsLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppPallete.primaryOrange,
                     ),
-                    if (friends.isEmpty)
+                  );
+                }
+
+                if (state is FriendsError) {
+                  return Center(
+                    child: Text(
+                      state.message,
+                      style: TextStyle(color: AppPallete.errorColor),
+                    ),
+                  );
+                }
+
+                if (state is FriendsLoaded) {
+                  final friends = state.friends.values.toList();
+
+                  return CustomScrollView(
+                    slivers: [
                       SliverToBoxAdapter(
-                        child: _buildEmptyState(),
-                      )
-                    else
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final friend = friends[index];
-                            return _buildFriendTile(
-                              context,
-                              friend: friend,
-                              currentUserId: currentUser.id,
-                            );
-                          },
-                          childCount: friends.length,
+                        child: SlideTransition(
+                          position: _headerSlide,
+                          child: _buildHeader(context),
                         ),
                       ),
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 100),
-                    ),
-                  ],
-                );
-              }
+                      if (friends.isEmpty)
+                        SliverToBoxAdapter(
+                          child: SlideTransition(
+                            position: _contentSlide,
+                            child: _buildEmptyState(),
+                          ),
+                        )
+                      else
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final friend = friends[index];
+                              return SlideTransition(
+                                position: _contentSlide,
+                                child: _buildFriendTile(
+                                  context,
+                                  friend: friend,
+                                  currentUserId: currentUser.id,
+                                ),
+                              );
+                            },
+                            childCount: friends.length,
+                          ),
+                        ),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: 100),
+                      ),
+                    ],
+                  );
+                }
 
-              return const SizedBox();
-            },
+                return const SizedBox();
+              },
+            ),
           ),
         ),
       ),

@@ -1,5 +1,4 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
-import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_bubble.dart';
 import 'package:chat_application/features/timeline/presentation/widgets/timeline_options_tray.dart';
@@ -9,18 +8,60 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:chat_application/init_dependencies.dart';
 
-class TimelinePage extends StatelessWidget {
+class TimelinePage extends StatefulWidget {
   final String userId;
   final String receiverId;
   final String receiverName;
-  late final TimelineBloc tb;
 
-  TimelinePage({
+  const TimelinePage({
     super.key,
     required this.userId,
     required this.receiverId,
     required this.receiverName
   });
+
+  @override
+  State<TimelinePage> createState() => _TimelinePageState();
+}
+
+class _TimelinePageState extends State<TimelinePage>
+    with SingleTickerProviderStateMixin {
+  late final TimelineBloc tb;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _headerSlide;
+  late Animation<Offset> _contentSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.3), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+    ));
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0.3, 0), end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+    ));
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,67 +81,76 @@ class TimelinePage extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: BlocProvider(
-                  create: (context) { tb = serviceLocator<TimelineBloc>()
-                    ..add(
-                      FetchTimelineEvent(
-                        userId: userId,
-                        receiverId: receiverId,
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                SlideTransition(
+                  position: _headerSlide,
+                  child: _buildHeader(context),
+                ),
+                Expanded(
+                  child: SlideTransition(
+                    position: _contentSlide,
+                    child: BlocProvider(
+                      create: (context) { tb = serviceLocator<TimelineBloc>()
+                        ..add(
+                          FetchTimelineEvent(
+                            userId: widget.userId,
+                            receiverId: widget.receiverId,
+                          ),
+                        );
+                        return tb;
+                      },
+                      child: BlocBuilder<TimelineBloc, TimelineState>(
+                        builder: (context, state) {
+                          if (state is TimelineLoading) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: AppPallete.primaryOrange,
+                              ),
+                            );
+                          }
+                  
+                          if (state is TimelineLoaded) {
+                            if (state.events.isEmpty) {
+                              return _buildEmptyState();
+                            }
+                            
+                            return ListView.builder(
+                              cacheExtent: 100,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              itemCount: state.events.length,
+                              itemBuilder: (context, index) {
+                                final event = state.events[index];
+                                final isMe = index%2 != 0;
+                    
+                                return _timelineItem(
+                                  event, 
+                                  isMe, 
+                                  index == state.events.length - 1,
+                                  context);
+                              },
+                            );
+                          }
+                  
+                          if (state is TimelineError) {
+                            return Center(
+                              child: Text(
+                                state.message,
+                                style: TextStyle(color: AppPallete.errorColor),
+                              ),
+                            );
+                          }
+                  
+                          return const SizedBox();
+                        },
                       ),
-                    );
-                    return tb;
-                  },
-                  child: BlocBuilder<TimelineBloc, TimelineState>(
-                    builder: (context, state) {
-                      if (state is TimelineLoading) {
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            color: AppPallete.primaryOrange,
-                          ),
-                        );
-                      }
-              
-                      if (state is TimelineLoaded) {
-                        if (state.events.isEmpty) {
-                          return _buildEmptyState();
-                        }
-                        
-                        return ListView.builder(
-                          cacheExtent: 100,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          itemCount: state.events.length,
-                          itemBuilder: (context, index) {
-                            final event = state.events[index];
-                            final isMe = index%2 != 0;
-                
-                            return _timelineItem(
-                              event, 
-                              isMe, 
-                              index == state.events.length - 1,
-                              context);
-                          },
-                        );
-                      }
-              
-                      if (state is TimelineError) {
-                        return Center(
-                          child: Text(
-                            state.message,
-                            style: TextStyle(color: AppPallete.errorColor),
-                          ),
-                        );
-                      }
-              
-                      return const SizedBox();
-                    },
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -286,8 +336,8 @@ class TimelinePage extends StatelessWidget {
               RemoveEvent(
                 eventId: event.id, 
                 messageId: event.messageId, 
-                userId: userId, 
-                receiverId: receiverId,
+                userId: widget.userId, 
+                receiverId: widget.receiverId,
               )
             );
           }
@@ -296,8 +346,8 @@ class TimelinePage extends StatelessWidget {
       child: TimelineBubble(
         event: event, 
         isMe: isMe,
-        receiverId: receiverId,
-        userId: userId,
+        receiverId: widget.receiverId,
+        userId: widget.userId,
       )
     );
   }
