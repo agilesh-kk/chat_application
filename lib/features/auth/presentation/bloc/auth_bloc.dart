@@ -98,6 +98,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       (failure) => emit(AuthFailure(failure.message)),
       (_) {
          _appUserCubit.updateUser(null);
+         friendsCubit.clear();
          emit(AuthUnauthenticated());
       },
     );

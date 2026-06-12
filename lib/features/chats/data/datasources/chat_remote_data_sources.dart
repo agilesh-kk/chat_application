@@ -82,6 +82,7 @@ abstract interface class ChatRemoteDataSources {
   Future<Stream<Map<String, dynamic>>> listenToOperations({
     required String conversationId,
     required String opCollection,
+    bool skipFirst = false
   });
 
   Future<void> deleteOperation({
@@ -985,6 +986,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
   Future<Stream<Map<String, dynamic>>> listenToOperations({
     required String conversationId,
     required String opCollection,
+    bool skipFirst = false
   }) async {
     try{
     return firestore
@@ -993,6 +995,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         .collection(opCollection)
         .orderBy("timestamp")
         .snapshots()
+        .skip((skipFirst)?1:0)
         .map((snapshot) {
           final results = <Map<String, dynamic>>[];
           for (final change in snapshot.docChanges) {

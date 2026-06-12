@@ -597,9 +597,6 @@ void main() async {
     firebaseMessagingBackgroundHandler
   );
 
-  final token = await FirebaseMessaging.instance.getToken();
-  print("FCM TOKEN: $token");
-
   await _initNotification();
 
   final launchDetails = await flutterLocalNotificationsPlugin

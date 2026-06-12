@@ -478,7 +478,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   }
 
   Future<void> changeLastMessageToPreviousMessage(String convoId,String userId,String receiverId, int place) async{
-    final row = await _db!.query("messages",where: "deletedfor NOT LIKE ?",whereArgs: ["%$userId%"],limit: place,orderBy: "createdAt DESC");
+    final row = await _db!.query("messages",where: "deletedfor NOT LIKE ? and conversationId = ?",whereArgs: ["%$userId%",convoId],limit: place,orderBy: "createdAt DESC");
     if(row.isNotEmpty){
       final prev = row[place-1];
       await updateConvo(convoId, prev['id'] as String, prev['content'] as String, DateTime.fromMillisecondsSinceEpoch(prev['createdAt'] as int), receiverId, prev['senderId'] as String);
@@ -550,6 +550,15 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       whereArgs: [msgId],
     );
     final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
+    final convoId = rows.first['conversationId'] as String;
+
+    final convo = await _db!.query("conversations",where: "convoId = ?",whereArgs: [convoId],limit: 1);
+
+    if(convo.first['msgId'] == msgId){
+        await _db!.update("conversations", {"lastMessage":newContent,"lastUpdateTime":_toMillis(DateTime.now())},where : "convoId = ?" , whereArgs: [convoId]);
+      _notifyConvo();
+    }
+
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
       _notify(convoId);
@@ -559,7 +568,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   }
 
     @override
-  Future<void> updateConvo(String convoId, String msgId ,String content, dynamic lastMessageTime, String receiverId, String lastSender) async{
+  Future<void> updateConvo(String convoId, String msgId ,String content, dynamic lastMessageTime, String receiverId, String lastSender, {int incUnread = 1}) async{
     if (_db == null || kIsWeb) return;
 
     final time = lastMessageTime!=null
@@ -568,33 +577,37 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
     try{
 
-      print(content);
-    bool exist = (await _db!.query('conversations', where: 'convoId = ?', whereArgs: [convoId], limit: 1)).isNotEmpty;
-    if(exist){
-      await _db!.update(
-      'conversations',
-      {"msgId":msgId,"lastMessage":content, "lastUpdateTime":time, "receiverId":receiverId, "lastSender":lastSender},
-      where: 'convoId = ?',
-      whereArgs: [convoId],
-    );
-    }else{
-      await _db!.insert("conversations",{
-        "convoId" : convoId,
-        "lastMessage" : content,
-        "lastUpdateTime" : time,
-        "msgId" : msgId,
-        "receiverId" : receiverId,
-        "lastSender" : lastSender,
-        "unread" : 0
+      await _db!.transaction((txn) async {
+        bool exist = (await txn.query('conversations', where: 'convoId = ?', whereArgs: [convoId], limit: 1)).isNotEmpty;
+        if (exist) {
+          await txn.update(
+            'conversations',
+            {"msgId":msgId,"lastMessage":content, "lastUpdateTime":time, "receiverId":receiverId, "lastSender":lastSender},
+            where: 'convoId = ?',
+            whereArgs: [convoId],
+          );
+        } else {
+          await txn.insert("conversations",{
+            "convoId" : convoId,
+            "lastMessage" : content,
+            "lastUpdateTime" : time,
+            "msgId" : msgId,
+            "receiverId" : receiverId,
+            "lastSender" : lastSender,
+             "unread" : 0
+          });
+        }
+
+        if(receiverId == lastSender){
+          await txn.rawUpdate(
+          'UPDATE conversations SET unread = unread + $incUnread WHERE convoId = ?',
+          [convoId],
+          );
+          print("updatinnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn");
+        }
       });
-    }
     
-    if(receiverId == lastSender){
-      await _db!.rawUpdate(
-      'UPDATE conversations SET unread = unread + 1 WHERE convoId = ?',
-      [convoId],
-      );
-    }
+    
 
     }catch(e){
       print(e);
@@ -652,6 +665,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     if (_db == null || kIsWeb || firestoreDocs.isEmpty) return;
     final batch = _db!.batch();
     String? convoId;
+    int unread = 0;
 
     for (var i = 0; i < firestoreDocs.length; i++) {
       final data = firestoreDocs[i];
@@ -659,6 +673,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       final cId = data['convoId'] as String? ?? '';
       convoId ??= cId;
       final row = _firestoreToDb(data, id, cId);
+      unread += (row['status']=='sent' && row['senderId']==receiverId)?1:0;
       batch.insert('messages', row, conflictAlgorithm: ConflictAlgorithm.replace);
     }
 
@@ -670,7 +685,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     if(rows.isNotEmpty){
       final first = rows[0];
       print(first['content']);
-      updateConvo(convoId!, first['id'] as String, first['content'] as String, DateTime.fromMillisecondsSinceEpoch(first['createdAt'] as int), receiverId, first['senderId'] as String);
+      updateConvo(convoId!, first['id'] as String, first['content'] as String, DateTime.fromMillisecondsSinceEpoch(first['createdAt'] as int), receiverId, first['senderId'] as String,incUnread: unread);
     }
   }
 

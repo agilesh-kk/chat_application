@@ -15,6 +15,11 @@ class FriendsCubit extends Cubit<FriendsState> {
 
   FriendsCubit(this.repository, this._profilePicLocalDataSource) : super(FriendsInitial());
 
+  Future<void> clear()async{
+    _friendsub?.cancel();
+    emit(FriendsInitial());
+  }
+
   /// 🔹 Fetch friends using IDs from user doc
   Future<void> loadFriends({
     required String userId,

@@ -16,6 +16,7 @@ class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
   final ChatLocalDataSource chatLocalDataSource;
   final FriendsCubit fb;
+  bool isRecentlyDownloaded = false;
 
   final Map<String,StreamSubscription<Map<String, dynamic>>> _opSub = {};
 
@@ -59,6 +60,8 @@ class ChatRepositoryImpl implements ChatRepository {
                 final docIds = docs.map((d) => d['_docId'] as String).toList();
                 await chatLocalDataSource.bulkInsertMessages(docs, docIds, friendId);
               }
+            
+            isRecentlyDownloaded = true;
 
             return right(true);
           }
@@ -106,6 +109,7 @@ class ChatRepositoryImpl implements ChatRepository {
     final stream = await chatRemoteDataSources.listenToOperations(
       conversationId: convoId,
       opCollection: opCollection,
+      skipFirst: isRecentlyDownloaded
     );
 
     await _opSub[opCollection]?.cancel();
