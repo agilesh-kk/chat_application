@@ -100,25 +100,25 @@ class _ProfilePageState extends State<ProfilePage>
         child: SafeArea(
           child: profileUser == null
               ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.person_off_outlined,
-                        size: 64,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.person_off_outlined,
+                      size: 64,
+                      color: AppPallete.greyText,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "No user found",
+                      style: TextStyle(
                         color: AppPallete.greyText,
+                        fontSize: 18,
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        "No user found",
-                        style: TextStyle(
-                          color: AppPallete.greyText,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
+                    ),
+                  ],
+                ),
+              )
               : BlocListener<BioBloc, BioState>(
                   listener: (context, state) {
                     if (state is BioUpdateSuccess) {
@@ -134,26 +134,18 @@ class _ProfilePageState extends State<ProfilePage>
                   child: FadeTransition(
                     opacity: _fadeAnimation,
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 24,
-                      ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1200),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SlideTransition(
-                                position: _appBarSlide,
-                                child: _buildAppBar(context, profileUser),
-                              ),
-                              const SizedBox(height: 32),
-                              _buildWebLayout(context, profileUser),
-                              const SizedBox(height: 40),
-                            ],
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SlideTransition(
+                            position: _appBarSlide,
+                            child: _buildAppBar(context, profileUser),
                           ),
-                        ),
+                          const SizedBox(height: 32),
+                          _buildWebLayout(context, profileUser),
+                          const SizedBox(height: 40),
+                        ],
                       ),
                     ),
                   ),
@@ -164,95 +156,98 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildAppBar(BuildContext context, dynamic profileUser) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            if (!widget.isUser)
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppPallete.cardBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppPallete.divider),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.arrow_back,
-                        color: AppPallete.whiteColor,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Back",
-                        style: TextStyle(
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (!widget.isUser)
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppPallete.cardBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppPallete.divider),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.arrow_back,
                           color: AppPallete.whiteColor,
-                          fontSize: 15,
+                          size: 20,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          "Back",
+                          style: TextStyle(
+                            color: AppPallete.whiteColor,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Text(
+                  "Profile",
+                  style: TextStyle(
+                    color: AppPallete.whiteColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 32,
+                    letterSpacing: -0.5,
                   ),
                 ),
-              )
-            else
-              Text(
-                "Profile",
-                style: TextStyle(
-                  color: AppPallete.whiteColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 32,
-                  letterSpacing: -0.5,
+              const Spacer(),
+              if (widget.isUser)
+                _buildActionButton(
+                  icon: Icons.logout_rounded,
+                  onTap: () async {
+                    final shouldLogout = await showConfirmationDialog(
+                      context,
+                      'Log out?',
+                      Icons.warning_amber_outlined,
+                    );
+                    if (shouldLogout == true && context.mounted) {
+                      context.read<AuthBloc>().add(AuthSignOut());
+                      await FlutterShortcut.clearShortcutItems();
+                    }
+                  },
+                  color: AppPallete.errorColor,
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 3,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            const Spacer(),
-            if (widget.isUser)
-              _buildActionButton(
-                icon: Icons.logout_rounded,
-                onTap: () async {
-                  final shouldLogout = await showConfirmationDialog(
-                    context,
-                    'Log out?',
-                    Icons.warning_amber_outlined,
-                  );
-                  if (shouldLogout == true && context.mounted) {
-                    context.read<AuthBloc>().add(AuthSignOut());
-                    await FlutterShortcut.clearShortcutItems();
-                  }
-                },
-                color: AppPallete.errorColor,
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Container(
-              width: 30,
-              height: 3,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+              const SizedBox(width: 4),
+              Container(
+                width: 12,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: AppPallete.divider,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                borderRadius: BorderRadius.circular(2),
               ),
-            ),
-            const SizedBox(width: 4),
-            Container(
-              width: 12,
-              height: 3,
-              decoration: BoxDecoration(
-                color: AppPallete.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -303,8 +298,10 @@ class _ProfilePageState extends State<ProfilePage>
             child: Column(
               children: [
                 _buildProfileCard(context, profileUser),
-                const SizedBox(height: 24),
-                _buildTimelineCard(context, profileUser),
+                if (widget.isUser) ...[
+                  const SizedBox(height: 24),
+                  _buildTimelineCard(context, profileUser),
+                ],
               ],
             ),
           ),
@@ -655,7 +652,7 @@ class _ProfilePageState extends State<ProfilePage>
           ),
           const SizedBox(height: 12),
           const Text(
-            "Activity Timeline",
+            "Personal Timeline",
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
