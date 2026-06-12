@@ -16,7 +16,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource{
   @override
   Future<void> updateProfilePic(String userId,String imageUrl) async{
     try{
-      await FirebaseFirestore.instance
+      await firebaseFirestore
         .collection('users')
         .doc(userId)
         .update({
@@ -24,7 +24,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource{
         });
 
 
-      final docs = (await FirebaseFirestore.instance
+      final docs = (await firebaseFirestore
         .collection('Conversations')
         .where("participantsId",arrayContains: userId)
         .get())

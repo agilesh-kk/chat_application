@@ -90,7 +90,7 @@ class _UserDetailsCardState extends State<UserDetailsCard> {
         }
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20),
+        margin: EdgeInsets.zero,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: AppPallete.cardBg.withValues(alpha: 0.5),
