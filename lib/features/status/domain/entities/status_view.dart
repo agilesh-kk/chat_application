@@ -5,6 +5,7 @@ class StatusView {
   final String viewerId;
   final String viewerName;
   final DateTime viewedAt;
+  final bool? isLiked;
 
   StatusView({
     required this.id,
@@ -12,6 +13,7 @@ class StatusView {
     required this.viewerId,
     required this.viewerName,
     required this.viewedAt,
+    this.isLiked = false,
   });
 
   

@@ -9,7 +9,8 @@ class StatusModel extends Status {
     required super.createdAt,
     required super.expiresAt,
     required super.userName, 
-    required super.profilepic
+    required super.profilepic,
+    required super.likedBy,
   });
 
   Map<String, dynamic> toJson() {
@@ -21,7 +22,8 @@ class StatusModel extends Status {
       'created_at': createdAt.toIso8601String(),
       'expires_at': expiresAt.toIso8601String(),
       'name' : userName,
-      'profilepic' : profilepic
+      'profilepic' : profilepic,
+      'liked_by' : likedBy,
     };
   }
 
@@ -34,7 +36,10 @@ class StatusModel extends Status {
       createdAt: DateTime.parse(map['created_at']),
       expiresAt: DateTime.parse(map['expires_at']),
       userName: map['name'] ?? "",
-      profilepic: map['profilepic'] ?? ""
+      profilepic: map['profilepic'] ?? "",
+      likedBy: map['liked_by'] == null
+        ? []
+        : List<String>.from(map['liked_by']),
     );
   }
 
@@ -46,7 +51,8 @@ class StatusModel extends Status {
     DateTime? createdAt,
     DateTime? expiresAt,
     String? userName,
-    String? profilepic
+    String? profilepic,
+    List<String>? likedBy,
   }) {
     return StatusModel(
       id: id ?? this.id,
@@ -56,7 +62,8 @@ class StatusModel extends Status {
       createdAt: createdAt ?? this.createdAt,
       expiresAt: expiresAt ?? this.expiresAt,
       userName: userName ?? this.userName,
-      profilepic: profilepic ?? this.profilepic
+      profilepic: profilepic ?? this.profilepic,
+      likedBy: likedBy ?? this.likedBy,
     );
   }
 }

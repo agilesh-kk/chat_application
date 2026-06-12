@@ -36,7 +36,8 @@ class StatusRepositoryImpl implements StatusRepository {
         createdAt: now,
         expiresAt: now.add(const Duration(hours: 24)),
         userName: userName,
-        profilepic: profilepic
+        profilepic: profilepic,
+        likedBy: [],
       );
 
       //Upload Image
@@ -127,6 +128,25 @@ class StatusRepositoryImpl implements StatusRepository {
       return left(Failure(e.message));
     }
     catch(e){
+      return left(Failure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> addLike({
+    required String statusId,
+    required String userId,
+  }) async {
+    try {
+      await statusRemoteDataSource.addLike(
+        statusId: statusId,
+        userId: userId,
+      );
+
+      return right(null);
+    } on ServerExceptions catch (e) {
+      return left(Failure(e.message));
+    } catch (e) {
       return left(Failure(e.toString()));
     }
   }

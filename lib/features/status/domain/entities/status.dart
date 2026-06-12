@@ -8,6 +8,7 @@ class Status {
   final String userName;
   final String profilepic;
   String? localPath;
+  List<String> likedBy;
 
   Status({
     required this.id,
@@ -18,6 +19,7 @@ class Status {
     required this.expiresAt,
     required this.userName, 
     required this.profilepic,
-    this.localPath
+    this.localPath,
+    required this.likedBy,
   });
 }

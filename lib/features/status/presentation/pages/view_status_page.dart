@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
@@ -126,6 +127,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
         listener: (context, state) async {
           if (state is ViewDisplaySuccess) {
             pauseStory();
+            final currentStatusId = widget.statuses[currentIndex].id;
             await showModalBottomSheet(
               context: context,
               isScrollControlled: true,
@@ -136,6 +138,11 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                 ),
               ),
               builder: (context) {
+                final blocState = context.read<StatusBloc>().state;
+                final likedBy = blocState is StatusDisplaySuccess
+                    ? (blocState.status.where((s) => s.id == currentStatusId).firstOrNull?.likedBy ?? <String>[])
+                    : <String>[];
+
                 return Container(
                   constraints: BoxConstraints(
                     maxHeight: MediaQuery.of(context).size.height * 0.6,
@@ -240,13 +247,28 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              viewer.viewerName,
-                                              style: const TextStyle(
-                                                color: AppPallete.whiteColor,
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w500,
-                                              ),
+                                            Row(
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    viewer.viewerName,
+                                                    style: const TextStyle(
+                                                      color: AppPallete.whiteColor,
+                                                      fontSize: 15,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (likedBy.contains(viewer.viewerId))
+                                                  const Padding(
+                                                    padding: EdgeInsets.only(left: 6),
+                                                    child: Icon(
+                                                      Icons.favorite,
+                                                      size: 14,
+                                                      color: Colors.red,
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
@@ -271,6 +293,27 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                           },
                         ),
                       ),
+                      if (likedBy.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.favorite,
+                                size: 14,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${likedBy.length} likes',
+                                style: const TextStyle(
+                                  color: AppPallete.greyText,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 );
@@ -281,6 +324,14 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
         },
         builder: (context, state) {
           final status = widget.statuses[currentIndex];
+          final appUserState = context.read<AppUserCubit>().state;
+          final currentUserId = appUserState is AppUserIsSignedin
+              ? appUserState.user.id
+              : '';
+          final statusBlocState = context.watch<StatusBloc>().state;
+          final liveStatus = statusBlocState is StatusDisplaySuccess
+              ? (statusBlocState.status.where((s) => s.id == status.id).firstOrNull ?? status)
+              : status;
 
           return GestureDetector(
             onTapUp: (details) {
@@ -434,6 +485,44 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                 : const SizedBox.shrink(),
                           ),
                         ),
+                        if (!widget.isUserStatus)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: GestureDetector(
+                              onTap: () {
+                                context.read<StatusBloc>().add(
+                                  AddLikeEvent(
+                                    statusId: status.id,
+                                    userId: currentUserId,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppPallete.cardBg
+                                      .withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                      color: AppPallete.divider),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      liveStatus.likedBy.contains(currentUserId)
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      size: 18,
+                                      color: liveStatus.likedBy.contains(currentUserId)
+                                          ? Colors.red
+                                          : AppPallete.primaryOrange,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         if (widget.isUserStatus && widget.hasInternet)
                           Padding(
                             padding: const EdgeInsets.only(left: 8),
