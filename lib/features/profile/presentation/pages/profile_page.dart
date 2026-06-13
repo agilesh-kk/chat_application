@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/cubit/nav_page_index_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
@@ -33,17 +35,31 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _appBarSlide;
   late Animation<Offset> _profileCardSlide;
   late Animation<Offset> _contentSlide;
+  late AnimationController _avatarAnimController;
+  late Animation<double> _avatarFadeAnimation;
+  late Animation<double> _avatarScaleAnimation;
   dynamic _selectedFriend;
+  bool _showEditAvatar = false;
   final FocusNode _profileFocusNode = FocusNode();
+  final FocusNode _avatarFocusNode = FocusNode();
 
   void _closeFriendProfile() {
     setState(() => _selectedFriend = null);
+  }
+
+  void _openEditAvatar() {
+    setState(() => _showEditAvatar = true);
+    _avatarAnimController.forward(from: 0);
+  }
+
+  void _closeEditAvatar() {
+    setState(() => _showEditAvatar = false);
   }
 
   @override
@@ -84,12 +100,31 @@ class _ProfilePageState extends State<ProfilePage>
       ),
     );
     _animationController.forward();
+
+    _avatarAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _avatarFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _avatarAnimController,
+        curve: Curves.easeOut,
+      ),
+    );
+    _avatarScaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _avatarAnimController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _avatarAnimController.dispose();
     _profileFocusNode.dispose();
+    _avatarFocusNode.dispose();
     super.dispose();
   }
 
@@ -185,6 +220,75 @@ class _ProfilePageState extends State<ProfilePage>
                             user: _selectedFriend,
                             isEmbedded: true,
                             onClose: _closeFriendProfile,
+                          ),
+                        ),
+                      ),
+                    if (_showEditAvatar)
+                      Positioned.fill(
+                        child: KeyboardListener(
+                          focusNode: _avatarFocusNode,
+                          autofocus: true,
+                          onKeyEvent: (event) {
+                            if (event is KeyDownEvent &&
+                                event.logicalKey == LogicalKeyboardKey.escape) {
+                              _closeEditAvatar();
+                            }
+                          },
+                          child: Stack(
+                            children: [
+                              ClipRect(
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 6,
+                                    sigmaY: 6,
+                                  ),
+                                  child: Container(
+                                    color: Colors.black.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                              ),
+                              Center(
+                                child: AnimatedBuilder(
+                                  animation: _avatarAnimController,
+                                  builder: (context, child) {
+                                    return Opacity(
+                                      opacity: _avatarFadeAnimation.value,
+                                      child: Transform.scale(
+                                        scale: _avatarScaleAnimation.value,
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 480,
+                                      maxHeight: 620,
+                                    ),
+                                    margin: const EdgeInsets.all(24),
+                                    decoration: BoxDecoration(
+                                      color: AppPallete.cardBg,
+                                      borderRadius: BorderRadius.circular(24),
+                                      border: Border.all(
+                                        color: AppPallete.divider,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.3),
+                                          blurRadius: 40,
+                                          offset: const Offset(0, 12),
+                                        ),
+                                      ],
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: EditAvatarContent(
+                                      userId: profileUser.id,
+                                      onClose: _closeEditAvatar,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -461,14 +565,7 @@ class _ProfilePageState extends State<ProfilePage>
               bottom: 24,
               right: 24,
               child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EditAvatar(userId: profileUser.id),
-                    ),
-                  );
-                },
+                onTap: () => _openEditAvatar(),
                 child: Container(
                   width: 42,
                   height: 42,

@@ -2,14 +2,12 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/app_images.dart';
 import 'package:chat_application/core/utils/image_picker_service.dart';
-import 'package:chat_application/core/utils/modal_bottom_sheet.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:image_picker/image_picker.dart';
 
-class EditAvatar extends StatefulWidget {
+class EditAvatar extends StatelessWidget {
   final String userId;
 
   const EditAvatar({
@@ -18,17 +16,53 @@ class EditAvatar extends StatefulWidget {
   });
 
   @override
-  State<EditAvatar> createState() => _EditAvatarState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppPallete.darkBg,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppPallete.darkBg,
+              AppPallete.darkSecondary,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: EditAvatarContent(
+            userId: userId,
+            onClose: () => Navigator.pop(context),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _EditAvatarState extends State<EditAvatar> {
+class EditAvatarContent extends StatefulWidget {
+  final String userId;
+  final VoidCallback onClose;
+
+  const EditAvatarContent({
+    super.key,
+    required this.userId,
+    required this.onClose,
+  });
+
+  @override
+  State<EditAvatarContent> createState() => _EditAvatarContentState();
+}
+
+class _EditAvatarContentState extends State<EditAvatarContent> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<ProfilePicBloc, ProfilePicState>(
       listener: (context, state) {
         if (state is ProfilePicUpdateScuccess) {
           context.read<AppUserCubit>().updateUserProfilePic(state.imageUrl);
-          Navigator.pop(context);
+          widget.onClose();
         }
 
         if (state is ProfilePicUpdateFailure) {
@@ -40,58 +74,42 @@ class _EditAvatarState extends State<EditAvatar> {
           );
         }
       },
-      child: Scaffold(
-        backgroundColor: AppPallete.darkBg,
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppPallete.darkBg,
-                AppPallete.darkSecondary,
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                _buildAppBar(context),
-                Expanded(
-                  child: BlocBuilder<ProfilePicBloc, ProfilePicState>(
-                    builder: (context, state) {
-                      if (state is ProfilePicLoading) {
-                        return _buildLoading();
-                      }
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildAppBar(context),
+          Flexible(
+            child: BlocBuilder<ProfilePicBloc, ProfilePicState>(
+              builder: (context, state) {
+                if (state is ProfilePicLoading) {
+                  return _buildLoading();
+                }
 
-                      return GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: AppImages.profileImages.length + 1,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                        itemBuilder: (context, index) {
-                          if (index == 0) {
-                            return _AddCustomAvatarTile(
-                              onTap: () => _onAddCustomTap(context),
-                            );
-                          }
-                          return _AvatarCircle(
-                            imagePath: AppImages.profileImages[index - 1],
-                            onTap: () => _onAvatarTap(context, index - 1),
-                          );
-                        },
-                      );
-                    },
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: AppImages.profileImages.length + 1,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
                   ),
-                ),
-              ],
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return _AddCustomAvatarTile(
+                        onTap: () => _onAddCustomTap(context),
+                      );
+                    }
+                    return _AvatarCircle(
+                      imagePath: AppImages.profileImages[index - 1],
+                      onTap: () => _onAvatarTap(context, index - 1),
+                    );
+                  },
+                );
+              },
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -118,7 +136,7 @@ class _EditAvatarState extends State<EditAvatar> {
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () => Navigator.pop(context),
+                onTap: () => widget.onClose(),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
                   child: Icon(
@@ -203,32 +221,8 @@ class _EditAvatarState extends State<EditAvatar> {
   }
 
   Future<void> _onAddCustomTap(BuildContext context) async {
-    final result = await ModalBottomSheet.show<String>(
-      context,
-      title: "Select Image Source",
-      options: [
-        BottomSheetOption(
-          value: 'camera',
-          label: 'Camera',
-          icon: Icons.camera_alt,
-        ),
-        BottomSheetOption(
-          value: 'gallery',
-          label: 'Gallery',
-          icon: Icons.photo_library,
-        ),
-      ],
-    );
-
-    if (result == null || !context.mounted) return;
-
     final imagePickerService = ImagePickerService();
-    XFile? image;
-    if (result == 'camera') {
-      image = await imagePickerService.pickFromCamera();
-    } else if (result == 'gallery') {
-      image = await imagePickerService.pickFromGallery();
-    }
+    final image = await imagePickerService.pickFromGallery();
 
     if (image != null && context.mounted) {
       context.read<ProfilePicBloc>().add(
