@@ -16,7 +16,15 @@ import 'package:flutter_shortcut_plus/flutter_shortcut.dart';
 class ProfilePage extends StatefulWidget {
   final bool isUser;
   final dynamic user;
-  const ProfilePage({super.key, required this.isUser, this.user});
+  final bool isEmbedded;
+  final VoidCallback? onClose;
+  const ProfilePage({
+    super.key,
+    required this.isUser,
+    this.user,
+    this.isEmbedded = false,
+    this.onClose,
+  });
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -165,7 +173,13 @@ class _ProfilePageState extends State<ProfilePage>
             children: [
               if (!widget.isUser)
                 GestureDetector(
-                  onTap: () => Navigator.pop(context),
+                  onTap: () {
+                    if (widget.isEmbedded) {
+                      widget.onClose?.call();
+                    } else {
+                      Navigator.pop(context);
+                    }
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
@@ -867,7 +881,11 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildMessageButton(BuildContext context, dynamic profileUser) {
     return GestureDetector(
       onTap: () {
-        Navigator.pop(context);
+        if (widget.isEmbedded) {
+          widget.onClose?.call();
+        } else {
+          Navigator.pop(context);
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 24),

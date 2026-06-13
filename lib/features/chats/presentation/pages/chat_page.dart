@@ -15,7 +15,6 @@ import 'package:chat_application/features/chats/presentation/widgets/time_capsul
 import 'package:chat_application/features/timeline/presentation/pages/timeline_page.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
-import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:chat_application/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,6 +39,7 @@ class ChatPage extends StatefulWidget {
   final String receiverName;
   final bool isEmbedded;
   final VoidCallback? onClose;
+  final void Function(dynamic friend)? onShowProfile;
   int? scrolltoIndex;
   CacheService? cacheService;
   String? highlightMessageId;
@@ -52,6 +52,7 @@ class ChatPage extends StatefulWidget {
     required this.receiverName,
     this.isEmbedded = false,
     this.onClose,
+    this.onShowProfile,
     this.scrolltoIndex,
     this.highlightMessageId,
   });
@@ -640,12 +641,7 @@ class _ChatPageState extends State<ChatPage>
   void _showFriendProfile(BuildContext context, FriendModel? friend) {
     if (friend == null) return;
     _messageFocusNode.unfocus();
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ProfilePage(isUser: false, user: friend),
-      ),
-    );
+    widget.onShowProfile?.call(friend);
   }
 
   Widget _buildMessages() {

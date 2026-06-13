@@ -3,6 +3,7 @@ import 'package:chat_application/features/chats/domain/entities/conversation.dar
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/convo_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
+import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -17,6 +18,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   Conversation? _selectedConvo;
+  dynamic _profileFriend;
   final FocusNode _keyboardFocusNode = FocusNode();
 
   void _onConversationSelected(Conversation convo) {
@@ -24,7 +26,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onCloseChat() {
-    setState(() => _selectedConvo = null);
+    setState(() {
+      _selectedConvo = null;
+      _profileFriend = null;
+    });
+  }
+
+  void _onShowFriendProfile(dynamic friend) {
+    setState(() => _profileFriend = friend);
+  }
+
+  void _onCloseProfile() {
+    setState(() => _profileFriend = null);
   }
 
   @override
@@ -40,9 +53,12 @@ class _HomePageState extends State<HomePage> {
       autofocus: true,
       onKeyEvent: (event) {
         if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.escape &&
-            _selectedConvo != null) {
-          _onCloseChat();
+            event.logicalKey == LogicalKeyboardKey.escape) {
+          if (_profileFriend != null) {
+            _onCloseProfile();
+          } else if (_selectedConvo != null) {
+            _onCloseChat();
+          }
         }
       },
       child: Row(
@@ -57,17 +73,31 @@ class _HomePageState extends State<HomePage> {
           ),
           Container(width: 1, color: AppPallete.divider),
           Expanded(
-            child: _selectedConvo != null
-                ? ChatPage(
-                    key: ValueKey(_selectedConvo!.convoId),
-                    currentUserId: widget.userId,
-                    receiverId: _selectedConvo!.receiverId,
-                    receiverName: _selectedConvo!.receiverName,
-                    convoId: _selectedConvo!.convoId,
-                    isEmbedded: true,
-                    onClose: _onCloseChat,
-                  )
-                : _buildPlaceholder(),
+            child: Stack(
+              children: [
+                _selectedConvo != null
+                    ? ChatPage(
+                        key: ValueKey(_selectedConvo!.convoId),
+                        currentUserId: widget.userId,
+                        receiverId: _selectedConvo!.receiverId,
+                        receiverName: _selectedConvo!.receiverName,
+                        convoId: _selectedConvo!.convoId,
+                        isEmbedded: true,
+                        onClose: _onCloseChat,
+                        onShowProfile: _onShowFriendProfile,
+                      )
+                    : _buildPlaceholder(),
+                if (_profileFriend != null)
+                  Positioned.fill(
+                    child: ProfilePage(
+                      isUser: false,
+                      user: _profileFriend,
+                      isEmbedded: true,
+                      onClose: _onCloseProfile,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
