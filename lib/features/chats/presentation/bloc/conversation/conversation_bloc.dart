@@ -40,27 +40,22 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
             emit(ConversationError(failure.message));
           },
           (convoStream) {
-            _convoSub = convoStream
-            //timeout to check if no convo arrives
-            .timeout(Duration(seconds: 5),onTimeout: (sink) {
-              sink.add([]);
-            },)
-            .listen(
+            _convoSub = convoStream.listen(
               (convos) {
-                //checks for empty convo list
-                if(convos.isEmpty){
+                if (convos.isEmpty) {
                   add(_ConversationUpdated([]));
+                  return;
                 }
-                //print("📦 BLOC RECEIVED: ${convos.length}");
-                var sub = {}; 
-                if(friendsCubit.state is FriendsLoaded){
+
+                var sub = {};
+                if (friendsCubit.state is FriendsLoaded) {
                   sub = (friendsCubit.state as FriendsLoaded).friends;
                 }
 
-                final List<Conversation> updated = <Conversation>[];
-                  for(final c in convos){
-                    updated.add(
-                      Conversation(
+                final List<Conversation> updated = [];
+                for (final c in convos) {
+                  updated.add(
+                    Conversation(
                       convoId: c.convoId,
                       receiverId: c.receiverId,
                       lastMessage: c.lastMessage,
@@ -69,13 +64,11 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                       receiverName: sub[c.receiverId]?.name ?? "loading",
                       unread: c.unread,
                       lastSender: c.lastSender,
-                      receiverIsOnline: sub[c.receiverId]?.isEffectivelyOnline ?? false)
-                    );
-                  
-
-                  add(_ConversationUpdated(updated));
+                      receiverIsOnline: sub[c.receiverId]?.isEffectivelyOnline ?? false,
+                    ),
+                  );
                 }
-                
+                add(_ConversationUpdated(updated));
               },
               onError: (error) {
                 add(_ConversationErrorEvent(error.toString()));
@@ -85,26 +78,36 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
             _friendsub?.cancel();
 
             _friendsub = (friendsCubit).stream.listen(
-                  (d) {
-                  if(d is FriendsLoaded){
-                  final List<Conversation> updated = <Conversation>[];
-                  for(final c in (state as ConversationLoaded).conversations){
-                    updated.add(
-                      Conversation(
+              (d) {
+                if (d is! FriendsLoaded) return;
+                if (state is! ConversationLoaded) return;
+
+                final currentState = state as ConversationLoaded;
+                final friends = d.friends;
+
+                final List<Conversation> updated = [];
+                for (final c in currentState.conversations) {
+                  final friend = friends[c.receiverId];
+                  updated.add(
+                    Conversation(
                       convoId: c.convoId,
                       receiverId: c.receiverId,
                       lastMessage: c.lastMessage,
                       lastupdateTime: c.lastupdateTime,
-                      profilepicLink: d.friends[c.receiverId]!.profilePic,
-                      receiverName: d.friends[c.receiverId]!.name,
+                      profilepicLink: friend?.profilePic ?? c.profilepicLink,
+                      receiverName: friend?.name ?? c.receiverName,
                       unread: c.unread,
                       lastSender: c.lastSender,
-                      receiverIsOnline: d.friends[c.receiverId]?.isEffectivelyOnline ?? false)
-                    );
-                  }
-                  add(_ConversationUpdated(updated));
+                      receiverIsOnline: friend?.isEffectivelyOnline ?? false,
+                    ),
+                  );
                 }
-                },);
+                add(_ConversationUpdated(updated));
+              },
+              onError: (error) {
+                add(_ConversationErrorEvent(error.toString()));
+              },
+            );
           },
         );
 
@@ -155,6 +158,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   @override
   Future<void> close() {
     _convoSub?.cancel();
+    _friendsub?.cancel();
     return super.close();
   }
 }
