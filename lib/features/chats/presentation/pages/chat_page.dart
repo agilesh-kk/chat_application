@@ -39,6 +39,7 @@ class ChatPage extends StatefulWidget {
   final String receiverId;
   final String receiverName;
   final bool isEmbedded;
+  final bool hasActiveOverlay;
   final VoidCallback? onClose;
   final void Function(dynamic friend)? onShowProfile;
   int? scrolltoIndex;
@@ -52,6 +53,7 @@ class ChatPage extends StatefulWidget {
     required this.receiverId,
     required this.receiverName,
     this.isEmbedded = false,
+    this.hasActiveOverlay = false,
     this.onClose,
     this.onShowProfile,
     this.scrolltoIndex,
@@ -419,7 +421,7 @@ class _ChatPageState extends State<ChatPage>
           focusNode: _kbFocusNode,
           autofocus: true,
           onKeyEvent: (event) {
-            if (_showTimelineCard) return;
+            if (_showTimelineCard || widget.hasActiveOverlay) return;
             if (event is KeyDownEvent &&
                 event.logicalKey == LogicalKeyboardKey.escape) {
               _messageFocusNode.unfocus();
@@ -738,8 +740,8 @@ class _ChatPageState extends State<ChatPage>
                             !firstTime) {
                           isAnimate = true;
                         }
-                        if (index == messages.length - 1)
-                          lastAnimated = message.id;
+                        if (index == messages.length - 1){
+                          lastAnimated = message.id;}
                         firstTime = false;
 
                         return Padding(
@@ -903,19 +905,17 @@ class _ChatPageState extends State<ChatPage>
                   ),
                 if (_showTimelineCard)
                   Positioned.fill(
-                    child: KeyboardListener(
+                    child: Focus(
                       focusNode: _timelineFocusNode,
                       autofocus: true,
-                      onKeyEvent: (event) {
+                      onKeyEvent: (node, event) {
                         if (event is KeyDownEvent &&
                             event.logicalKey == LogicalKeyboardKey.escape) {
                           _messageFocusNode.unfocus();
-                          if (widget.isEmbedded) {
-                            widget.onClose?.call();
-                          } else {
-                            Navigator.pop(context);
-                          }
+                          _closeTimelineCard();
+                          return KeyEventResult.handled;
                         }
+                        return KeyEventResult.ignored;
                       },
                       child: Stack(
                         children: [

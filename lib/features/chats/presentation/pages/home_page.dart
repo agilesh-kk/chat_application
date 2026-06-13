@@ -129,6 +129,7 @@ class _HomePageState extends State<HomePage> {
                           isEmbedded: true,
                           onClose: _onCloseChat,
                           onShowProfile: _onShowFriendProfile,
+                          hasActiveOverlay: _profileFriend != null,
                         )
                       : _buildPlaceholder(),
                   if (_profileFriend != null)
