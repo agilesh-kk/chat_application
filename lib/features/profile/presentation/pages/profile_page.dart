@@ -1,4 +1,5 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+import 'package:chat_application/core/common/cubit/nav_page_index_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
@@ -10,6 +11,7 @@ import 'package:chat_application/features/profile/presentation/widgets/user_deta
 import 'package:chat_application/features/timeline/presentation/pages/personal_timeline_page.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_shortcut_plus/flutter_shortcut.dart';
 
@@ -37,6 +39,12 @@ class _ProfilePageState extends State<ProfilePage>
   late Animation<Offset> _appBarSlide;
   late Animation<Offset> _profileCardSlide;
   late Animation<Offset> _contentSlide;
+  dynamic _selectedFriend;
+  final FocusNode _profileFocusNode = FocusNode();
+
+  void _closeFriendProfile() {
+    setState(() => _selectedFriend = null);
+  }
 
   @override
   void initState() {
@@ -81,6 +89,7 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   void dispose() {
     _animationController.dispose();
+    _profileFocusNode.dispose();
     super.dispose();
   }
 
@@ -127,36 +136,59 @@ class _ProfilePageState extends State<ProfilePage>
                   ],
                 ),
               )
-              : BlocListener<BioBloc, BioState>(
-                  listener: (context, state) {
-                    if (state is BioUpdateSuccess) {
-                      final appUserState = context.read<AppUserCubit>().state;
-                      if (appUserState is AppUserIsSignedin) {
-                        final updatedUser = appUserState.user.copyWith(
-                          bio: state.bio,
-                        );
-                        context.read<AppUserCubit>().updateUser(updatedUser);
-                      }
-                    }
-                  },
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SlideTransition(
-                            position: _appBarSlide,
-                            child: _buildAppBar(context, profileUser),
+              : Stack(
+                  children: [
+                    BlocListener<BioBloc, BioState>(
+                      listener: (context, state) {
+                        if (state is BioUpdateSuccess) {
+                          final appUserState = context.read<AppUserCubit>().state;
+                          if (appUserState is AppUserIsSignedin) {
+                            final updatedUser = appUserState.user.copyWith(
+                              bio: state.bio,
+                            );
+                            context.read<AppUserCubit>().updateUser(updatedUser);
+                          }
+                        }
+                      },
+                      child: FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SlideTransition(
+                                position: _appBarSlide,
+                                child: _buildAppBar(context, profileUser),
+                              ),
+                              const SizedBox(height: 32),
+                              _buildWebLayout(context, profileUser),
+                              const SizedBox(height: 40),
+                            ],
                           ),
-                          const SizedBox(height: 32),
-                          _buildWebLayout(context, profileUser),
-                          const SizedBox(height: 40),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                    if (_selectedFriend != null)
+                      Positioned.fill(
+                        child: KeyboardListener(
+                          focusNode: _profileFocusNode,
+                          autofocus: true,
+                          onKeyEvent: (event) {
+                            if (event is KeyDownEvent &&
+                                event.logicalKey == LogicalKeyboardKey.escape) {
+                              _closeFriendProfile();
+                            }
+                          },
+                          child: ProfilePage(
+                            isUser: false,
+                            user: _selectedFriend,
+                            isEmbedded: true,
+                            onClose: _closeFriendProfile,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
         ),
       ),
@@ -781,18 +813,10 @@ class _ProfilePageState extends State<ProfilePage>
               spacing: 16,
               runSpacing: 16,
               children: friends.map((friend) {
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProfilePage(
-                          isUser: false,
-                          user: friend,
-                        ),
-                      ),
-                    );
-                  },
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedFriend = friend);
+                    },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -883,6 +907,10 @@ class _ProfilePageState extends State<ProfilePage>
       onTap: () {
         if (widget.isEmbedded) {
           widget.onClose?.call();
+          context.read<NavPageIndexCubit>().navigateToChat(
+            profileUser.id as String,
+            profileUser.name as String,
+          );
         } else {
           Navigator.pop(context);
         }

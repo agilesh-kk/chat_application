@@ -1,3 +1,4 @@
+import 'package:chat_application/core/common/cubit/nav_page_index_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
@@ -6,6 +7,7 @@ import 'package:chat_application/features/chats/presentation/pages/search_page.d
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class HomePage extends StatefulWidget {
   final String userId;
@@ -41,6 +43,27 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_selectedConvo != null) return;
+    final navState = context.read<NavPageIndexCubit>().state;
+    if (navState is NavPageChanged && navState.chatReceiverId != null) {
+      final sorted = [widget.userId, navState.chatReceiverId!]..sort();
+      final convoId = "${sorted[0]}_${sorted[1]}";
+      _selectedConvo = Conversation(
+        convoId: convoId,
+        receiverId: navState.chatReceiverId!,
+        receiverName: navState.chatReceiverName ?? '',
+        lastMessage: '',
+        lastupdateTime: DateTime.now().toIso8601String(),
+        profilepicLink: '',
+        unread: 0,
+        lastSender: widget.userId,
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _keyboardFocusNode.dispose();
     super.dispose();
@@ -61,45 +84,67 @@ class _HomePageState extends State<HomePage> {
           }
         }
       },
-      child: Row(
-        children: [
-          SizedBox(
-            width: 380,
-            child: ConversationPage(
-              userId: widget.userId,
-              onChatSelected: _onConversationSelected,
-              selectedConvoId: _selectedConvo?.convoId,
+      child: BlocListener<NavPageIndexCubit, NavPageState>(
+        listenWhen: (previous, current) =>
+          current is NavPageChanged && current.chatReceiverId != null,
+        listener: (context, state) {
+          if (state is NavPageChanged) {
+            final sorted = [widget.userId, state.chatReceiverId!]..sort();
+            final convoId = "${sorted[0]}_${sorted[1]}";
+            setState(() {
+              _selectedConvo = Conversation(
+                convoId: convoId,
+                receiverId: state.chatReceiverId!,
+                receiverName: state.chatReceiverName ?? '',
+                lastMessage: '',
+                lastupdateTime: DateTime.now().toIso8601String(),
+                profilepicLink: '',
+                unread: 0,
+                lastSender: widget.userId,
+              );
+            });
+          }
+        },
+        child: Row(
+          children: [
+            SizedBox(
+              width: 380,
+              child: ConversationPage(
+                userId: widget.userId,
+                onChatSelected: _onConversationSelected,
+                selectedConvoId: _selectedConvo?.convoId,
+              ),
             ),
-          ),
-          Container(width: 1, color: AppPallete.divider),
-          Expanded(
-            child: Stack(
-              children: [
-                _selectedConvo != null
-                    ? ChatPage(
-                        key: ValueKey(_selectedConvo!.convoId),
-                        currentUserId: widget.userId,
-                        receiverId: _selectedConvo!.receiverId,
-                        receiverName: _selectedConvo!.receiverName,
-                        convoId: _selectedConvo!.convoId,
+            Container(width: 1, color: AppPallete.divider),
+            Expanded(
+              child: Stack(
+                children: [
+                  _selectedConvo != null
+                      ? ChatPage(
+                          key: ValueKey(_selectedConvo!.convoId),
+                          currentUserId: widget.userId,
+                          receiverId: _selectedConvo!.receiverId,
+                          receiverName: _selectedConvo!.receiverName,
+                          convoId: _selectedConvo!.convoId,
+                          isEmbedded: true,
+                          onClose: _onCloseChat,
+                          onShowProfile: _onShowFriendProfile,
+                        )
+                      : _buildPlaceholder(),
+                  if (_profileFriend != null)
+                    Positioned.fill(
+                      child: ProfilePage(
+                        isUser: false,
+                        user: _profileFriend,
                         isEmbedded: true,
-                        onClose: _onCloseChat,
-                        onShowProfile: _onShowFriendProfile,
-                      )
-                    : _buildPlaceholder(),
-                if (_profileFriend != null)
-                  Positioned.fill(
-                    child: ProfilePage(
-                      isUser: false,
-                      user: _profileFriend,
-                      isEmbedded: true,
-                      onClose: _onCloseProfile,
+                        onClose: _onCloseProfile,
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

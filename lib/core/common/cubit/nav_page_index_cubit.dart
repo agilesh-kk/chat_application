@@ -9,5 +9,9 @@ class NavPageIndexCubit extends Cubit<NavPageState>{
   void pageChanged(int index){
     emit(NavPageChanged(index: index));
   }
+
+  void navigateToChat(String receiverId, String receiverName) {
+    emit(NavPageChanged(index: 0, chatReceiverId: receiverId, chatReceiverName: receiverName));
+  }
   
 }

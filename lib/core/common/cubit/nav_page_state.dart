@@ -9,5 +9,7 @@ final class NavPageInitial extends NavPageState {
 
 final class NavPageChanged extends NavPageState {
   final int index;
-  NavPageChanged({required this.index});
+  final String? chatReceiverId;
+  final String? chatReceiverName;
+  NavPageChanged({required this.index, this.chatReceiverId, this.chatReceiverName});
 }

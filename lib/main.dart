@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+import 'package:chat_application/core/common/cubit/nav_page_index_cubit.dart';
 import 'package:chat_application/core/keys/app_keys.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:chat_application/features/achievement/presentation/bloc/achievement_bloc.dart';
@@ -485,6 +486,11 @@ void main() async {
         //app user signed in cubit
         BlocProvider(
           create: (_) => serviceLocator<AppUserCubit>(), //loads the app_user_cubit contents from the dependency file
+        ),
+
+        //nav page index cubit
+        BlocProvider(
+          create: (_) => serviceLocator<NavPageIndexCubit>(),
         ),
 
         //user friends cubit

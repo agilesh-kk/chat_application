@@ -1,4 +1,5 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+import 'package:chat_application/core/common/cubit/nav_page_index_cubit.dart';
 import 'package:chat_application/core/common/data/presence_remote_data_source.dart';
 import 'package:chat_application/core/data/user_device_data_source.dart';
 import 'package:chat_application/core/keys/app_keys.dart';
@@ -125,6 +126,7 @@ Future<void> initDependencies() async {
     () => UserDeviceDataSourceImpl(serviceLocator<SupabaseClient>()),
   );
   serviceLocator.registerLazySingleton(() => AppUserCubit(serviceLocator<PresenceRemoteDataSource>(), serviceLocator<UserDeviceDataSource>()));
+  serviceLocator.registerLazySingleton(() => NavPageIndexCubit());
 
   serviceLocator.registerFactory<FriendsRemoteDataSource>(()=>FriendsRemoteDataSourceImpl(serviceLocator<FirebaseFirestore>()));
 

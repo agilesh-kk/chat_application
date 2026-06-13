@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:chat_application/core/common/cubit/nav_page_index_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 
 class NavigationPage extends StatefulWidget {
@@ -11,13 +13,12 @@ class NavigationPage extends StatefulWidget {
 }
 
 class _NavigationPageState extends State<NavigationPage> {
-  int _currentIndex = 0;
   late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: _currentIndex);
+    _pageController = PageController(initialPage: 0);
   }
 
   @override
@@ -28,31 +29,39 @@ class _NavigationPageState extends State<NavigationPage> {
 
   void _switchPage(int index) {
     FocusManager.instance.primaryFocus?.unfocus();
-    _pageController.jumpToPage(index);
+    context.read<NavPageIndexCubit>().pageChanged(index);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          _buildNavBar(),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (index) {
-                setState(() => _currentIndex = index);
-              },
-              children: widget.pages,
+    return BlocListener<NavPageIndexCubit, NavPageState>(
+      listenWhen: (previous, current) => current is NavPageChanged,
+      listener: (context, state) {
+        if (state is NavPageChanged) {
+          _pageController.jumpToPage(state.index);
+        }
+      },
+      child: Scaffold(
+        body: Row(
+          children: [
+            _buildNavBar(),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: widget.pages,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildNavBar() {
+    final navState = context.watch<NavPageIndexCubit>().state;
+    final currentIndex = navState is NavPageChanged ? navState.index : 0;
+
     return Container(
       width: 72,
       decoration: BoxDecoration(
@@ -67,19 +76,19 @@ class _NavigationPageState extends State<NavigationPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble),
+            _buildNavItem(currentIndex, 0, Icons.chat_bubble_outline, Icons.chat_bubble),
             const SizedBox(height: 32),
-            _buildNavItem(1, Icons.remove_red_eye_outlined, Icons.remove_red_eye),
+            _buildNavItem(currentIndex, 1, Icons.remove_red_eye_outlined, Icons.remove_red_eye),
             const SizedBox(height: 32),
-            _buildNavItem(2, Icons.person_outline, Icons.person),
+            _buildNavItem(currentIndex, 2, Icons.person_outline, Icons.person),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(int index, IconData outlineIcon, IconData filledIcon) {
-    final isSelected = _currentIndex == index;
+  Widget _buildNavItem(int currentIndex, int index, IconData outlineIcon, IconData filledIcon) {
+    final isSelected = currentIndex == index;
 
     return GestureDetector(
       onTap: () => _switchPage(index),
