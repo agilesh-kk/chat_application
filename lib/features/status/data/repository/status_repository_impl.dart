@@ -1,8 +1,6 @@
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
-import 'package:chat_application/features/status/data/datasources/status_local_data_source.dart';
 import 'package:chat_application/features/status/data/datasources/status_remote_data_source.dart';
-import 'package:chat_application/features/status/data/model/status_hive_model.dart';
 import 'package:chat_application/features/status/data/model/status_model.dart';
 import 'package:chat_application/features/status/data/model/status_view_model.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
@@ -15,9 +13,8 @@ import 'package:uuid/uuid.dart';
 
 class StatusRepositoryImpl implements StatusRepository {
   final StatusRemoteDataSource statusRemoteDataSource;
-  final StatusLocalDataSource statusLocalDataSource;
 
-  StatusRepositoryImpl({required this.statusRemoteDataSource, required this.statusLocalDataSource});
+  StatusRepositoryImpl({required this.statusRemoteDataSource});
   @override
   Future<Either<Failure, Status>> uploadStatus({
     required XFile image,
@@ -38,6 +35,7 @@ class StatusRepositoryImpl implements StatusRepository {
         userName: userName,
         profilepic: profilepic,
         likedBy: [],
+        viewedBy: [],
       );
 
       //Upload Image
@@ -64,21 +62,28 @@ class StatusRepositoryImpl implements StatusRepository {
 
   //fetches all status from the db.
   @override
-  Future<Either<Failure, List<Status>>> getAllStatus() async {
+  Future<Either<Failure, List<Status>>> getAllStatus({required String currentUserId}) async {
     try {
+      final models = await statusRemoteDataSource.getAllStatus();
+      final statuses = models.map((m) => Status(
+        id: m.id,
+        userId: m.userId,
+        imageUrl: m.imageUrl,
+        caption: m.caption,
+        createdAt: m.createdAt,
+        expiresAt: m.expiresAt,
+        userName: m.userName,
+        profilepic: m.profilepic,
+        likedBy: m.likedBy,
+        isViewed: m.viewedBy.contains(currentUserId),
+      )).toList();
 
-      final status = await statusRemoteDataSource.getAllStatus();
-      statusLocalDataSource.updateStatuses(status.map((e)=>StatusHiveModel.fromEntity(e)).toList());
+      return right(statuses);
 
-      return right(status);
-
-    } on ServerExceptions catch (_) {
-      try{
-        final status = await statusLocalDataSource.getAllStatuses();
-        return right(status);
-      }catch(e){
-        return left(Failure(e.toString()));
-      }
+    } on ServerExceptions catch (e) {
+      return left(Failure(e.message));
+    } catch (e) {
+      return left(Failure(e.toString()));
     }
   }
 

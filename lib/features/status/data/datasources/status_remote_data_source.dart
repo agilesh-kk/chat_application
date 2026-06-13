@@ -94,12 +94,30 @@ class StatusRemoteDataSourceImpl implements StatusRemoteDataSource{
   @override
   Future<void> updateView(StatusViewModel statusView) async{
     try{
-      await supabaseClient
-        .from('status_views')
-        .insert(statusView.toJson())
-        .select()
+      try {
+        await supabaseClient
+          .from('status_views')
+          .insert(statusView.toJson())
+          .select()
+          .single();
+      } on PostgrestException catch (e) {
+        if (e.code != '23505') rethrow;
+      }
+
+      final response = await supabaseClient
+        .from('statuses')
+        .select('viewed_by')
+        .eq('id', statusView.statusId)
         .single();
-      //print("updating");
+
+      List<String> viewedBy = List<String>.from(response['viewed_by'] ?? []);
+      if (!viewedBy.contains(statusView.viewerId)) {
+        viewedBy.add(statusView.viewerId);
+        await supabaseClient
+            .from('statuses')
+            .update({'viewed_by': viewedBy})
+            .eq('id', statusView.statusId);
+      }
     }
     on PostgrestException catch (e) {
       throw ServerExceptions(e.message);

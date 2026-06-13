@@ -9,26 +9,25 @@ import 'package:chat_application/features/friends/presentation/friends_cubit.dar
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
+import 'package:chat_application/features/status/presentation/models/user_status_batch.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ViewStatusPage extends StatefulWidget {
-  final List<Status> statuses;
-  final String userProfilePic;
-  final bool isUserStatus;
+  final List<UserStatusBatch> userStatusBatches;
+  final int startBatchIndex;
+  final int startStatusIndex;
   final bool hasInternet;
-  final String userName;
   final bool fromChat;
 
   const ViewStatusPage({
     super.key,
-    required this.statuses,
-    required this.isUserStatus,
-    required this.hasInternet,
-    required this.userProfilePic,
-    required this.userName,
+    required this.userStatusBatches,
+    this.startBatchIndex = 0,
+    this.startStatusIndex = 0,
+    this.hasInternet = true,
     this.fromChat = false,
   });
 
@@ -38,37 +37,89 @@ class ViewStatusPage extends StatefulWidget {
 
 class _ViewStatusPageState extends State<ViewStatusPage> {
   late PageController pageController;
-  int currentIndex = 0;
+  late List<Status> _flatStatuses;
+  late List<int> _batchStartIndices;
+  int _currentFlatIndex = 0;
   Timer? timer;
   double progress = 0;
   bool _isCaptionExpanded = false;
   bool _isUIVisible = true;
+  bool _isPaused = false;
   final Duration storyDuration = const Duration(seconds: 5);
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _replyFocusNode = FocusNode();
   final FocusNode _kbFocusNode = FocusNode();
 
+  int get _currentBatchIndex {
+    for (int i = _batchStartIndices.length - 1; i >= 0; i--) {
+      if (_currentFlatIndex >= _batchStartIndices[i]) return i;
+    }
+    return 0;
+  }
+
+  UserStatusBatch get _currentBatch => widget.userStatusBatches[_currentBatchIndex];
+
+  bool get _isCurrentUserBatch {
+    final appUserState = context.read<AppUserCubit>().state;
+    if (appUserState is! AppUserIsSignedin) return false;
+    return _currentBatch.userId == appUserState.user.id;
+  }
+
+  void _buildFlatStatuses() {
+    _flatStatuses = [];
+    _batchStartIndices = [];
+    for (final batch in widget.userStatusBatches) {
+      _batchStartIndices.add(_flatStatuses.length);
+      _flatStatuses.addAll(batch.statuses);
+    }
+  }
+
   void toggleUIVisibility() {
     setState(() {
       _isUIVisible = !_isUIVisible;
     });
-    if (_isUIVisible) {
-      resumeStory();
-    } else {
-      pauseStory();
-    }
   }
 
   @override
   void initState() {
     super.initState();
-    pageController = PageController();
+    _buildFlatStatuses();
+    if (_batchStartIndices.isNotEmpty) {
+      final batchStart = _batchStartIndices[widget.startBatchIndex.clamp(0, _batchStartIndices.length - 1)];
+      final batch = widget.userStatusBatches[widget.startBatchIndex.clamp(0, widget.userStatusBatches.length - 1)];
+      final clampedStatusIndex = widget.startStatusIndex.clamp(0, batch.statuses.length - 1);
+      _currentFlatIndex = batchStart + clampedStatusIndex;
+    } else {
+      _currentFlatIndex = 0;
+    }
+    pageController = PageController(initialPage: _currentFlatIndex);
     startStoryTimer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _markCurrentStatusAsViewed();
+    });
     _replyFocusNode.addListener(_onReplyFocusChange);
+  }
+
+  void _markCurrentStatusAsViewed() {
+    final appUserState = context.read<AppUserCubit>().state;
+    if (appUserState is! AppUserIsSignedin) return;
+    final currentUserId = appUserState.user.id;
+    final currentUserName = appUserState.user.name;
+    if (_isCurrentUserBatch) return;
+    final status = _flatStatuses[_currentFlatIndex];
+    if (status.isViewed) return;
+    context.read<StatusBloc>().add(
+      UpdateViewEvent(
+        statusId: status.id,
+        viewerId: currentUserId,
+        viewerName: currentUserName,
+      ),
+    );
   }
 
   void startStoryTimer() {
     timer?.cancel();
+    if (_isPaused) return;
     progress = progress <= 1 ? progress : 0;
     timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       setState(() {
@@ -81,17 +132,29 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
     });
   }
 
+  void togglePause() {
+    setState(() {
+      _isPaused = !_isPaused;
+    });
+    if (_isPaused) {
+      pauseStory();
+    } else {
+      resumeStory();
+    }
+  }
+
   void nextStory() {
-    if (currentIndex < widget.statuses.length - 1) {
-      currentIndex++;
+    if (_currentFlatIndex < _flatStatuses.length - 1) {
+      _currentFlatIndex++;
       pageController.animateToPage(
-        currentIndex,
+        _currentFlatIndex,
         duration: const Duration(milliseconds: 300),
         curve: Curves.ease,
       );
       progress = 0;
       _isCaptionExpanded = false;
       startStoryTimer();
+      _markCurrentStatusAsViewed();
     } else {
       timer?.cancel();
       Navigator.pop(context);
@@ -99,15 +162,43 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   }
 
   void previousStory() {
-    if (currentIndex > 0) {
-      currentIndex--;
+    if (_currentFlatIndex > 0) {
+      _currentFlatIndex--;
       pageController.animateToPage(
-        currentIndex,
+        _currentFlatIndex,
         duration: const Duration(milliseconds: 300),
         curve: Curves.ease,
       );
       progress = 0;
       startStoryTimer();
+      _markCurrentStatusAsViewed();
+    }
+  }
+
+  void _goToNextUser() {
+    final nextBatch = _currentBatchIndex + 1;
+    if (nextBatch < widget.userStatusBatches.length) {
+      setState(() {
+        _currentFlatIndex = _batchStartIndices[nextBatch];
+        progress = 0;
+        _isCaptionExpanded = false;
+      });
+      pageController.jumpToPage(_currentFlatIndex);
+      startStoryTimer();
+      _markCurrentStatusAsViewed();
+    }
+  }
+
+  void _goToPreviousUser() {
+    final prevBatch = _currentBatchIndex - 1;
+    if (prevBatch >= 0) {
+      setState(() {
+        _currentFlatIndex = _batchStartIndices[prevBatch];
+        progress = 0;
+      });
+      pageController.jumpToPage(_currentFlatIndex);
+      startStoryTimer();
+      _markCurrentStatusAsViewed();
     }
   }
 
@@ -116,14 +207,14 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   }
 
   void resumeStory() {
-    startStoryTimer();
+    if (!_isPaused) startStoryTimer();
   }
 
   void _onReplyFocusChange() {
     if (_replyFocusNode.hasFocus) {
       pauseStory();
     } else {
-      resumeStory();
+      if (!_isPaused) resumeStory();
     }
   }
 
@@ -132,7 +223,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
     if (text.isEmpty) return;
     pauseStory();
 
-    final status = widget.statuses[currentIndex];
+    final status = _flatStatuses[_currentFlatIndex];
     final appUserState = context.read<AppUserCubit>().state;
     if (appUserState is! AppUserIsSignedin) {
       resumeStory();
@@ -161,7 +252,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Reply sent to ${widget.userName}"),
+          content: Text("Reply sent to ${_currentBatch.userName}"),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
@@ -189,7 +280,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
         listener: (context, state) async {
           if (state is ViewDisplaySuccess) {
             pauseStory();
-            final currentStatusId = widget.statuses[currentIndex].id;
+            final currentStatusId = _flatStatuses[_currentFlatIndex].id;
             await showModalBottomSheet(
               context: context,
               isScrollControlled: true,
@@ -385,7 +476,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
           }
         },
         builder: (context, state) {
-          final status = widget.statuses[currentIndex];
+          final status = _flatStatuses[_currentFlatIndex];
           final appUserState = context.read<AppUserCubit>().state;
           final currentUserId = appUserState is AppUserIsSignedin
               ? appUserState.user.id
@@ -423,23 +514,25 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
             },
             onLongPressEnd: (_){
               toggleUIVisibility();
-              resumeStory();
+              if (_isUIVisible && !_isPaused) {
+                resumeStory();
+              }
             },
             child: Stack(
               children: [
                 PageView.builder(
                   controller: pageController,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: widget.statuses.length,
+                  itemCount: _flatStatuses.length,
                   itemBuilder: (context, index) {
-                    if (widget.statuses[index].localPath != null) {
+                    if (_flatStatuses[index].localPath != null) {
                       return Image.file(
-                        File(widget.statuses[index].localPath!),
+                        File(_flatStatuses[index].localPath!),
                         fit: BoxFit.contain,
                       );
                     }
                     return Image.network(
-                      widget.statuses[index].imageUrl,
+                      _flatStatuses[index].imageUrl,
                       fit: BoxFit.contain,
                     );
                   },
@@ -466,6 +559,35 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                     ),
                   ),
                 ),
+                // Navigation buttons overlay - top right
+                if (!_isCurrentUserBatch)
+                  Positioned(
+                    top: 125,
+                    right: 12,
+                    child: AnimatedOpacity(
+                      opacity: _isUIVisible ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 300),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildNavButton(
+                            icon: Icons.skip_previous,
+                            onTap: _currentBatchIndex > 0 ? _goToPreviousUser : null,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildNavButton(
+                            icon: _isPaused ? Icons.play_arrow : Icons.pause,
+                            onTap: togglePause,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildNavButton(
+                            icon: Icons.skip_next,
+                            onTap: _currentBatchIndex < widget.userStatusBatches.length - 1 ? _goToNextUser : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 // Bottom section - always show caption container (transparent if empty)
                 Positioned(
                   bottom: 25,
@@ -563,7 +685,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                     : const SizedBox.shrink(),
                               ),
                             ),
-                            if (!widget.isUserStatus)
+                            if (!_isCurrentUserBatch)
                               Padding(
                                 padding: const EdgeInsets.only(left: 8),
                                 child: GestureDetector(
@@ -601,7 +723,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                   ),
                                 ),
                               ),
-                            if (widget.isUserStatus && widget.hasInternet)
+                            if (_isCurrentUserBatch && widget.hasInternet)
                               Padding(
                                 padding: const EdgeInsets.only(left: 8),
                                 child: GestureDetector(
@@ -646,20 +768,54 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   );
 }
 
+  Widget _buildNavButton({
+    required IconData icon,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: onTap != null
+              ? AppPallete.cardBg.withValues(alpha: 0.8)
+              : AppPallete.cardBg.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: onTap != null
+                ? AppPallete.divider
+                : AppPallete.divider.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Icon(
+          icon,
+          color: onTap != null
+              ? AppPallete.whiteColor
+              : AppPallete.greyText.withValues(alpha: 0.4),
+          size: 22,
+        ),
+      ),
+    );
+  }
+
   Widget _buildProgressBars() {
+    final batch = _currentBatch;
+    final batchStart = _batchStartIndices[_currentBatchIndex];
     return Row(
       children: List.generate(
-        widget.statuses.length,
+        batch.statuses.length,
         (index) {
+          final globalIndex = batchStart + index;
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
-                  value: index < currentIndex
+                  value: globalIndex < _currentFlatIndex
                       ? 1
-                      : index == currentIndex
+                      : globalIndex == _currentFlatIndex
                           ? progress
                           : 0,
                   backgroundColor: Colors.white24,
@@ -676,6 +832,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   }
 
   Widget _buildUserInfo(Status status) {
+    final batch = _currentBatch;
     return Row(
       children: [
         Container(
@@ -691,7 +848,9 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
           ),
           child: CircleAvatar(
             radius: 18,
-            backgroundImage: profileImageProvider(widget.userProfilePic),
+            backgroundImage: batch.profilePic.startsWith('assets/')
+                ? AssetImage(batch.profilePic) as ImageProvider
+                : NetworkImage(batch.profilePic),
             backgroundColor: AppPallete.darkSecondary,
           ),
         ),
@@ -701,7 +860,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.userName,
+                batch.userName,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -720,7 +879,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
             ],
           ),
         ),
-        if (widget.isUserStatus && widget.hasInternet)
+        if (_isCurrentUserBatch && widget.hasInternet)
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
             shape: RoundedRectangleBorder(

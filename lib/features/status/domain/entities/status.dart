@@ -9,6 +9,7 @@ class Status {
   final String profilepic;
   String? localPath;
   List<String> likedBy;
+  bool isViewed;
 
   Status({
     required this.id,
@@ -21,5 +22,6 @@ class Status {
     required this.profilepic,
     this.localPath,
     required this.likedBy,
+    required this.isViewed,
   });
 }

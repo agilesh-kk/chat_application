@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:chat_application/core/usecase/usecase.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
@@ -82,7 +81,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
       emit(StatusLoading());
     }
 
-    final res = (await _getAllStatus(NoParams()));
+    final res = (await _getAllStatus(GetAllStatusParams(currentUserId: event.currentUserId)));
 
     res.fold(
       (l) => emit(StatusFailure(l.message)),
@@ -96,49 +95,51 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
     friendsStream = friendsStreamBroadcast.listen(
       (d){
         if(d is FriendsLoaded){
-        final List<Status> updated = <Status>[];
-        final current = (state as StatusDisplaySuccess).status;
+          final List<Status> updated = <Status>[];
+          final current = (state as StatusDisplaySuccess).status;
 
-        for (final s in current) {
-          updated.add(
-            Status(
-              localPath: s.localPath,
-              id: s.id, 
-              userId: s.userId, 
-              imageUrl: s.imageUrl, 
-              caption: s.caption, 
-              createdAt: s.createdAt, 
-              expiresAt: s.expiresAt, 
-              userName: d.friends[s.userId]?.name ?? "unknown", 
-              profilepic: d.friends[s.userId]?.profilePic ?? "not found",
-              likedBy: s.likedBy,
-            )
-          );
-        }
+          for (final s in current) {
+            updated.add(
+              Status(
+                localPath: s.localPath,
+                id: s.id, 
+                userId: s.userId, 
+                imageUrl: s.imageUrl, 
+                caption: s.caption, 
+                createdAt: s.createdAt, 
+                expiresAt: s.expiresAt, 
+                userName: d.friends[s.userId]?.name ?? "unknown", 
+                profilepic: d.friends[s.userId]?.profilePic ?? "not found",
+                likedBy: s.likedBy,
+                isViewed: s.isViewed,
+              )
+            );
+          }
 
-      add(UpdateStatusPage(statuses: updated));
+          add(UpdateStatusPage(statuses: updated));
         }
     });
 
     final friends = _friendsCubit.state;
     if(friends is FriendsLoaded){
-        final List<Status> updated = <Status>[];
+      final List<Status> updated = <Status>[];
 
-        for (final s in r) {
-          updated.add(
-            Status(
-              localPath: s.localPath,
-              id: s.id, 
-              userId: s.userId, 
-              imageUrl: s.imageUrl, 
-              caption: s.caption, 
-              createdAt: s.createdAt, 
-              expiresAt: s.expiresAt, 
-              userName: friends.friends[s.userId]?.name ?? "unknown", 
-              profilepic: friends.friends[s.userId]?.profilePic ?? "not found",
-              likedBy: s.likedBy,
-            )
-          );
+      for (final s in r) {
+        updated.add(
+          Status(
+            localPath: s.localPath,
+            id: s.id, 
+            userId: s.userId, 
+            imageUrl: s.imageUrl, 
+            caption: s.caption, 
+            createdAt: s.createdAt, 
+            expiresAt: s.expiresAt, 
+            userName: friends.friends[s.userId]?.name ?? "unknown", 
+            profilepic: friends.friends[s.userId]?.profilePic ?? "not found",
+            likedBy: s.likedBy,
+            isViewed: s.isViewed,
+          )
+        );
       }
       add(UpdateStatusPage(statuses: updated));
     }
@@ -149,19 +150,41 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
   }
 
   FutureOr<void> _onUpdateViewEvent(UpdateViewEvent event, Emitter<StatusState> emit) async{
-    await _updateView(
+    final res = await _updateView(
       UpdateViewParams(
         statusId: event.statusId,
         viewerId: event.viewerId,
         viewerName: event.viewerName,
-        //viewedAt: event.viewedAt,
       ),
     );
 
-    // res.fold(
-    //   (l) => emit(StatusFailure(l.message)),
-    //   (_) => emit(UpdateViewSuccess()),
-    // );
+    res.fold(
+      (l) => emit(StatusFailure(l.message)),
+      (_) {
+        if (state is StatusDisplaySuccess) {
+          final current = (state as StatusDisplaySuccess).status;
+          final updated = current.map((s) {
+            if (s.id == event.statusId) {
+              return Status(
+                id: s.id,
+                userId: s.userId,
+                imageUrl: s.imageUrl,
+                caption: s.caption,
+                createdAt: s.createdAt,
+                expiresAt: s.expiresAt,
+                userName: s.userName,
+                profilepic: s.profilepic,
+                localPath: s.localPath,
+                likedBy: s.likedBy,
+                isViewed: true,
+              );
+            }
+            return s;
+          }).toList();
+          emit(StatusDisplaySuccess(updated));
+        }
+      },
+    );
   }
 
   FutureOr<void> _onDeleteStatus(DeleteStatusEvent event, Emitter<StatusState> emit) async {
@@ -230,6 +253,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
             profilepic: s.profilepic,
             localPath: s.localPath,
             likedBy: newLikedBy,
+            isViewed: s.isViewed,
           );
         }
         return s;

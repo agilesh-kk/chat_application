@@ -3,18 +3,17 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
+import 'package:chat_application/features/status/presentation/widgets/status_ring_painter.dart';
 import 'package:flutter/material.dart';
 
 class FriendsStatusCard extends StatefulWidget {
-  final Status status;
+  final List<Status> statuses;
   final VoidCallback onstatusTap;
-  final String latestStatusTime;
 
   const FriendsStatusCard({
     super.key,
-    required this.status,
+    required this.statuses,
     required this.onstatusTap,
-    required this.latestStatusTime,
   });
 
   @override
@@ -64,6 +63,10 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
     super.dispose();
   }
 
+  int get _totalStatuses => widget.statuses.length;
+  int get _viewedStatuses =>
+      widget.statuses.where((s) => s.isViewed).length;
+
   @override
   Widget build(BuildContext context) {
     return SlideTransition(
@@ -94,13 +97,30 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
   }
 
   Widget _buildProfileAvatar() {
-    return CircleAvatar(
-      radius: 26,
-      backgroundImage: displayImage(widget.status),
-      backgroundColor: AppPallete.cardBg,
-      child: widget.status.profilepic.isEmpty
-          ? const Icon(Icons.person, color: AppPallete.greyText, size: 22)
-          : null,
+    final first = widget.statuses.first;
+    return SizedBox(
+      width: 56,
+      height: 56,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: const Size(56, 56),
+            painter: StatusRingPainter(
+              totalStatuses: _totalStatuses,
+              viewedStatuses: _viewedStatuses,
+            ),
+          ),
+          CircleAvatar(
+            radius: 24,
+            backgroundImage: displayImage(first),
+            backgroundColor: AppPallete.cardBg,
+            child: first.profilepic.isEmpty
+                ? const Icon(Icons.person, color: AppPallete.greyText, size: 22)
+                : null,
+          ),
+        ],
+      ),
     );
   }
 
@@ -124,6 +144,7 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
   }
 
   Widget _buildStatusInfo() {
+    final latest = widget.statuses.first;
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -132,7 +153,7 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              widget.status.userName,
+              latest.userName,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -142,7 +163,9 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
             ),
             const SizedBox(height: 4),
             Text(
-              MomentsAgo.calculateMomentsAgo(widget.latestStatusTime),
+              MomentsAgo.calculateMomentsAgo(
+                widget.statuses.last.createdAt.toIso8601String(),
+              ),
               style: TextStyle(
                 fontSize: 12,
                 color: AppPallete.greyText,
@@ -165,9 +188,10 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
   }
 
   Widget _buildStatusImage() {
-    if (widget.status.localPath != null) {
+    final status = widget.statuses.first;
+    if (status.localPath != null) {
       return Image.file(
-        File(widget.status.localPath!),
+        File(status.localPath!),
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
@@ -178,8 +202,9 @@ class _FriendsStatusCardState extends State<FriendsStatusCard>
   }
 
   Widget _buildNetworkImage() {
+    final status = widget.statuses.first;
     return Image.network(
-      widget.status.imageUrl,
+      status.imageUrl,
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,

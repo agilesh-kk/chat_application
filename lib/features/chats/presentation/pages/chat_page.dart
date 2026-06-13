@@ -15,6 +15,7 @@ import 'package:chat_application/features/chats/presentation/widgets/delete_mess
 import 'package:chat_application/features/chats/presentation/widgets/send_options_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/time_capsule_picker.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
+import 'package:chat_application/features/status/presentation/models/user_status_batch.dart';
 import 'package:chat_application/features/status/presentation/pages/view_status_page.dart';
 import 'package:chat_application/features/timeline/presentation/pages/timeline_page.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
@@ -366,16 +367,21 @@ class _ChatPageState extends State<ChatPage>
         userName: data['userName'] as String? ?? widget.receiverName,
         profilepic: data['profilepic'] as String? ?? '',
         likedBy: const [],
+        isViewed: false,
       );
 
       if (mounted) {
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => ViewStatusPage(
-            statuses: [status],
-            isUserStatus: false,
+            userStatusBatches: [
+              UserStatusBatch(
+                userId: status.userId,
+                userName: status.userName,
+                profilePic: status.profilepic,
+                statuses: [status],
+              ),
+            ],
             hasInternet: true,
-            userProfilePic: status.profilepic,
-            userName: status.userName,
             fromChat: true,
           ),
         ));
