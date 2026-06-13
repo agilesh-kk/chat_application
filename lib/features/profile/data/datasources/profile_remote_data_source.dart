@@ -1,16 +1,30 @@
+import 'dart:io';
+
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract interface class ProfileRemoteDataSource {
   Future<void> updateProfilePic(String userId, String imageUrl);
 
   Future<void> updateBio(String userId, String bio);
+
+  Future<String> uploadCustomPfp({
+    required String userId,
+    required XFile image,
+  });
 }
 
 class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource{
   final FirebaseFirestore firebaseFirestore;
+  final SupabaseClient supabaseClient;
 
-  ProfileRemoteDataSourceImpl({required this.firebaseFirestore});
+  ProfileRemoteDataSourceImpl({
+    required this.firebaseFirestore,
+    required this.supabaseClient,
+  });
 
   //for updating profilepic
   @override
@@ -69,5 +83,48 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource{
     catch(e){
       throw ServerExceptions(e.toString());
     }
-  } 
+  }
+
+  @override
+  Future<String> uploadCustomPfp({
+    required String userId,
+    required XFile image,
+  }) async{
+    try{
+      final imageUrl = "$userId${DateTime.now().millisecondsSinceEpoch}";
+      if (kIsWeb) {
+        final bytes = await image.readAsBytes();
+
+        await supabaseClient.storage
+            .from('custom_pfp')
+            .uploadBinary(
+              imageUrl,
+              bytes,
+              fileOptions: const FileOptions(
+                upsert: true,
+              ),
+            );
+      } else {
+        final file = File(image.path);
+
+        await supabaseClient.storage
+            .from('custom_pfp')
+            .upload(
+              imageUrl,
+              file,
+              fileOptions: const FileOptions(
+                upsert: true,
+              ),
+            );
+      }
+
+      return supabaseClient.storage.from('custom_pfp').getPublicUrl(imageUrl);
+    }
+    on ServerExceptions catch(e){
+      throw ServerExceptions(e.message);
+    }
+    catch(e){
+      throw ServerExceptions(e.toString());
+    }
+  }
 }

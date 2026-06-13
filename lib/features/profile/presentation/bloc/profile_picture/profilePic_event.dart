@@ -12,3 +12,13 @@ final class ProfilePicUpdate extends ProfilePicEvent{
     required this.imageUrl
   });
 }
+
+final class ProfilePicCustomUpload extends ProfilePicEvent{
+  final String userId;
+  final XFile image;
+
+  ProfilePicCustomUpload({
+    required this.userId, 
+    required this.image
+  });
+}
