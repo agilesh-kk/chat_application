@@ -25,9 +25,7 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _headerSlide;
   late Animation<Offset> _contentSlide;
-  late Animation<Offset> _fabSlide;
   final _kbFocusNode = FocusNode();
 
   @override
@@ -40,57 +38,16 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-    _headerSlide = Tween<Offset>(
-      begin: const Offset(0, -0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
-      ),
-    );
     _contentSlide = Tween<Offset>(
-      begin: const Offset(0.3, 0),
+      begin: const Offset(0, 0.08),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
         parent: _animationController,
-        curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
-      ),
-    );
-    _fabSlide = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.3, 0.85, curve: Curves.easeOutCubic),
+        curve: Curves.easeOutCubic,
       ),
     );
     _animationController.forward();
-
-    Future.microtask(() {
-      context.read<PersonalTimelineBloc>().add(
-        FetchPersonalTimeLine(userId: widget.userId),
-      );
-    });
-  }
-
-  Future<void> _onFabPressed() async {
-    final result = await AddEventDialog.show(context);
-
-    if (result != null && context.mounted) {
-      context.read<PersonalTimelineBloc>().add(
-        AddPersonalTimeLineEvent(
-          userId: widget.userId,
-          title: result.title,
-          content: result.content,
-          time: DateTime.now(),
-          type: "text",
-          image: result.image,
-        ),
-      );
-    }
   }
 
   @override
@@ -103,14 +60,6 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: SlideTransition(
-        position: _fabSlide,
-        child: FloatingActionButton(
-          backgroundColor: AppPallete.primaryOrange,
-          onPressed: _onFabPressed,
-          child: const Icon(Icons.add),
-        ),
-      ),
       backgroundColor: AppPallete.darkBg,
       body: KeyboardListener(
         focusNode: _kbFocusNode,
@@ -137,67 +86,129 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
           child: SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  SlideTransition(
-                    position: _headerSlide,
-                    child: _buildHeader(context),
-                  ),
-                  Expanded(
-                    child: SlideTransition(
-                      position: _contentSlide,
-                      child: BlocBuilder<
-                        PersonalTimelineBloc,
-                        PersonalTimelineState
-                      >(
-                        builder: (context, state) {
-                          if (state is TimelineLoading) {
-                            return const Loader();
-                          }
-
-                          if (state is PersonalTimelineLoaded) {
-                            if (state.events.isEmpty) {
-                              return _buildEmptyState();
-                            }
-
-                            return ListView.builder(
-                              cacheExtent: 100,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              itemCount: state.events.length,
-                              itemBuilder: (context, index) {
-                                final event = state.events[index];
-                                final isMe = index % 2 == 0;
-
-                                return _timelineItem(
-                                  event,
-                                  isMe,
-                                  index == state.events.length - 1,
-                                  context,
-                                );
-                              },
-                            );
-                          }
-
-                          if (state is PersonalTimelineError) {
-                            return Center(
-                              child: Text(
-                                state.message,
-                                style: TextStyle(color: AppPallete.errorColor),
-                              ),
-                            );
-                          }
-
-                          return const SizedBox();
-                        },
-                      ),
-                    ),
-                  ),
-                ],
+              child: SlideTransition(
+                position: _contentSlide,
+                child: PersonalTimelineContent(
+                  userId: widget.userId,
+                  onClose: () => Navigator.pop(context),
+                ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class PersonalTimelineContent extends StatefulWidget {
+  final String userId;
+  final VoidCallback onClose;
+
+  const PersonalTimelineContent({
+    super.key,
+    required this.userId,
+    required this.onClose,
+  });
+
+  @override
+  State<PersonalTimelineContent> createState() => _PersonalTimelineContentState();
+}
+
+class _PersonalTimelineContentState extends State<PersonalTimelineContent> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      context.read<PersonalTimelineBloc>().add(
+        FetchPersonalTimeLine(userId: widget.userId),
+      );
+    });
+  }
+
+  Future<void> _onFabPressed() async {
+    final result = await AddEventDialog.show(context);
+
+    if (result != null && context.mounted) {
+      context.read<PersonalTimelineBloc>().add(
+        AddPersonalTimeLineEvent(
+          userId: widget.userId,
+          title: result.title,
+          content: result.content,
+          time: DateTime.now(),
+          type: "text",
+          image: result.image,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHeader(context),
+            Flexible(
+              child: BlocBuilder<
+                PersonalTimelineBloc,
+                PersonalTimelineState
+              >(
+                builder: (context, state) {
+                  if (state is TimelineLoading) {
+                    return const Loader();
+                  }
+
+                  if (state is PersonalTimelineLoaded) {
+                    if (state.events.isEmpty) {
+                      return _buildEmptyState();
+                    }
+
+                    return ListView.builder(
+                      cacheExtent: 100,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      itemCount: state.events.length,
+                      itemBuilder: (context, index) {
+                        final event = state.events[index];
+                        final isMe = index % 2 == 0;
+
+                        return _timelineItem(
+                          event,
+                          isMe,
+                          index == state.events.length - 1,
+                          context,
+                        );
+                      },
+                    );
+                  }
+
+                  if (state is PersonalTimelineError) {
+                    return Center(
+                      child: Text(
+                        state.message,
+                        style: TextStyle(color: AppPallete.errorColor),
+                      ),
+                    );
+                  }
+
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ],
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton(
+            backgroundColor: AppPallete.primaryOrange,
+            onPressed: _onFabPressed,
+            child: const Icon(Icons.add),
+          ),
+        ),
+      ],
     );
   }
 
@@ -207,7 +218,7 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: () => widget.onClose(),
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -297,14 +308,6 @@ class _PersonalTimeLinePageState extends State<PersonalTimeLinePage>
                 fontSize: 20,
               ),
             ),
-            const SizedBox(height: 8),
-            // Text(
-            //   "Add new events to your TimeLine!",
-            //   style: TextStyle(
-            //     color: AppPallete.greyText,
-            //     fontSize: 14,
-            //   ),
-            // ),
           ],
         ),
       ),

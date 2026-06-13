@@ -44,10 +44,15 @@ class _ProfilePageState extends State<ProfilePage>
   late AnimationController _avatarAnimController;
   late Animation<double> _avatarFadeAnimation;
   late Animation<double> _avatarScaleAnimation;
+  late AnimationController _personalTimelineAnimController;
+  late Animation<double> _personalTimelineFadeAnimation;
+  late Animation<double> _personalTimelineScaleAnimation;
   dynamic _selectedFriend;
   bool _showEditAvatar = false;
+  bool _showPersonalTimeline = false;
   final FocusNode _profileFocusNode = FocusNode();
   final FocusNode _avatarFocusNode = FocusNode();
+  final FocusNode _personalTimelineFocusNode = FocusNode();
 
   void _closeFriendProfile() {
     setState(() => _selectedFriend = null);
@@ -60,6 +65,15 @@ class _ProfilePageState extends State<ProfilePage>
 
   void _closeEditAvatar() {
     setState(() => _showEditAvatar = false);
+  }
+
+  void _openPersonalTimeline() {
+    setState(() => _showPersonalTimeline = true);
+    _personalTimelineAnimController.forward(from: 0);
+  }
+
+  void _closePersonalTimeline() {
+    setState(() => _showPersonalTimeline = false);
   }
 
   @override
@@ -117,14 +131,33 @@ class _ProfilePageState extends State<ProfilePage>
         curve: Curves.easeOutCubic,
       ),
     );
+
+    _personalTimelineAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _personalTimelineFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _personalTimelineAnimController,
+        curve: Curves.easeOut,
+      ),
+    );
+    _personalTimelineScaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _personalTimelineAnimController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     _avatarAnimController.dispose();
+    _personalTimelineAnimController.dispose();
     _profileFocusNode.dispose();
     _avatarFocusNode.dispose();
+    _personalTimelineFocusNode.dispose();
     super.dispose();
   }
 
@@ -284,6 +317,75 @@ class _ProfilePageState extends State<ProfilePage>
                                     child: EditAvatarContent(
                                       userId: profileUser.id,
                                       onClose: _closeEditAvatar,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (_showPersonalTimeline)
+                      Positioned.fill(
+                        child: KeyboardListener(
+                          focusNode: _personalTimelineFocusNode,
+                          autofocus: true,
+                          onKeyEvent: (event) {
+                            if (event is KeyDownEvent &&
+                                event.logicalKey == LogicalKeyboardKey.escape) {
+                              _closePersonalTimeline();
+                            }
+                          },
+                          child: Stack(
+                            children: [
+                              ClipRect(
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 6,
+                                    sigmaY: 6,
+                                  ),
+                                  child: Container(
+                                    color: Colors.black.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                              ),
+                              Center(
+                                child: AnimatedBuilder(
+                                  animation: _personalTimelineAnimController,
+                                  builder: (context, child) {
+                                    return Opacity(
+                                      opacity: _personalTimelineFadeAnimation.value,
+                                      child: Transform.scale(
+                                        scale: _personalTimelineScaleAnimation.value,
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 520,
+                                      maxHeight: 700,
+                                    ),
+                                    margin: const EdgeInsets.all(24),
+                                    decoration: BoxDecoration(
+                                      color: AppPallete.cardBg,
+                                      borderRadius: BorderRadius.circular(24),
+                                      border: Border.all(
+                                        color: AppPallete.divider,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.3),
+                                          blurRadius: 40,
+                                          offset: const Offset(0, 12),
+                                        ),
+                                      ],
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: PersonalTimelineContent(
+                                      userId: profileUser.id,
+                                      onClose: _closePersonalTimeline,
                                     ),
                                   ),
                                 ),
@@ -813,15 +915,7 @@ class _ProfilePageState extends State<ProfilePage>
           ),
           const SizedBox(height: 16),
           GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      PersonalTimeLinePage(userId: profileUser.id),
-                ),
-              );
-            },
+            onTap: () => _openPersonalTimeline(),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),

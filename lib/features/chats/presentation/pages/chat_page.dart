@@ -1,5 +1,6 @@
 // ignore_for_file: must_be_immutable
 import 'dart:async';
+import 'dart:ui';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
@@ -62,23 +63,37 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _headerSlide;
   late Animation<Offset> _messagesSlide;
   late Animation<Offset> _inputSlide;
+  late AnimationController _timelineAnimController;
+  late Animation<double> _timelineFadeAnimation;
+  late Animation<double> _timelineScaleAnimation;
   final TextEditingController controller = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final FocusNode _kbFocusNode = FocusNode();
+  final FocusNode _timelineFocusNode = FocusNode();
   late final ChatBloc cb;
   int? highlightedIndex;
   String lastAnimated = "";
   bool firstTime = true;
   Message? _replyToMessage;
   String? _editingMessageId;
+  bool _showTimelineCard = false;
 
   bool get _isEditing => _editingMessageId != null;
+
+  void _openTimelineCard() {
+    setState(() => _showTimelineCard = true);
+    _timelineAnimController.forward(from: 0);
+  }
+
+  void _closeTimelineCard() {
+    setState(() => _showTimelineCard = false);
+  }
 
   final ItemScrollController _scrollController = ItemScrollController();
   final ItemPositionsListener _positionsListener =
@@ -158,17 +173,36 @@ class _ChatPageState extends State<ChatPage>
       ),
     );
     _animationController.forward();
+
+    _timelineAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _timelineFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _timelineAnimController,
+        curve: Curves.easeOut,
+      ),
+    );
+    _timelineScaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _timelineAnimController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _timelineAnimController.dispose();
     ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     typingCubit.unsubscribeFromTyping(_conversationId);
     cb.add(Closechat());
     _kbFocusNode.dispose();
+    _timelineFocusNode.dispose();
     super.dispose();
   }
 
@@ -385,6 +419,7 @@ class _ChatPageState extends State<ChatPage>
           focusNode: _kbFocusNode,
           autofocus: true,
           onKeyEvent: (event) {
+            if (_showTimelineCard) return;
             if (event is KeyDownEvent &&
                 event.logicalKey == LogicalKeyboardKey.escape) {
               _messageFocusNode.unfocus();
@@ -573,26 +608,9 @@ class _ChatPageState extends State<ChatPage>
           _buildHeaderButton(
             icon: Icons.favorite,
             color: AppPallete.primaryOrange,
-            onTap: () async {
+            onTap: () {
               _messageFocusNode.unfocus();
-              String? messageId = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (_) => TimelinePage(
-                        receiverName: widget.receiverName,
-                        userId: widget.currentUserId,
-                        receiverId: widget.receiverId,
-                      ),
-                ),
-              );
-              if (cb.state is ChatLoaded) {
-                final cl = cb.state as ChatLoaded;
-                if (messageId != null &&
-                    cl.messages.any((m) => m.id == messageId)) {
-                  setState(() => widget.highlightMessageId = messageId);
-                }
-              }
+              _openTimelineCard();
             },
           ),
           const SizedBox(width: 8),
@@ -880,6 +898,82 @@ class _ChatPageState extends State<ChatPage>
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                  ),
+                if (_showTimelineCard)
+                  Positioned.fill(
+                    child: KeyboardListener(
+                      focusNode: _timelineFocusNode,
+                      autofocus: true,
+                      onKeyEvent: (event) {
+                        if (event is KeyDownEvent &&
+                            event.logicalKey == LogicalKeyboardKey.escape) {
+                          _messageFocusNode.unfocus();
+                          if (widget.isEmbedded) {
+                            widget.onClose?.call();
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        }
+                      },
+                      child: Stack(
+                        children: [
+                          ClipRect(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(
+                                sigmaX: 6,
+                                sigmaY: 6,
+                              ),
+                              child: Container(
+                                color: Colors.black.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ),
+                          Center(
+                            child: AnimatedBuilder(
+                              animation: _timelineAnimController,
+                              builder: (context, child) {
+                                return Opacity(
+                                  opacity: _timelineFadeAnimation.value,
+                                  child: Transform.scale(
+                                    scale: _timelineScaleAnimation.value,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 520,
+                                  maxHeight: 700,
+                                ),
+                                margin: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: AppPallete.cardBg,
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: AppPallete.divider,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black
+                                          .withValues(alpha: 0.3),
+                                      blurRadius: 40,
+                                      offset: const Offset(0, 12),
+                                    ),
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: TimelineContent(
+                                  userId: widget.currentUserId,
+                                  receiverId: widget.receiverId,
+                                  receiverName: widget.receiverName,
+                                  onClose: _closeTimelineCard,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
