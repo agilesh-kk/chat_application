@@ -7,13 +7,16 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract interface class ProfileRemoteDataSource {
+  //updating profile pic
   Future<void> updateProfilePic(String userId, String imageUrl);
 
   Future<void> updateBio(String userId, String bio);
 
+  //uploading custom pfp
   Future<String> uploadCustomPfp({
     required String userId,
     required XFile image,
+    required String oldPfpImage,
   });
 }
 
@@ -89,20 +92,29 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource{
   Future<String> uploadCustomPfp({
     required String userId,
     required XFile image,
-  }) async{
-    try{
-      final imageUrl = "$userId${DateTime.now().millisecondsSinceEpoch}";
+    required String oldPfpImage,
+  }) async {
+    try {
+      // Delete old profile picture
+      if (oldPfpImage.isNotEmpty) {
+        final oldFileName = oldPfpImage.split('/').last;
+
+        await supabaseClient.storage
+            .from('custom_pfp')
+            .remove([oldFileName]);
+      }
+
+      final fileName =
+          "${userId}_${DateTime.now().millisecondsSinceEpoch}";
+
       if (kIsWeb) {
         final bytes = await image.readAsBytes();
 
         await supabaseClient.storage
             .from('custom_pfp')
             .uploadBinary(
-              imageUrl,
+              fileName,
               bytes,
-              fileOptions: const FileOptions(
-                upsert: true,
-              ),
             );
       } else {
         final file = File(image.path);
@@ -110,20 +122,15 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource{
         await supabaseClient.storage
             .from('custom_pfp')
             .upload(
-              imageUrl,
+              fileName,
               file,
-              fileOptions: const FileOptions(
-                upsert: true,
-              ),
             );
       }
 
-      return supabaseClient.storage.from('custom_pfp').getPublicUrl(imageUrl);
-    }
-    on ServerExceptions catch(e){
-      throw ServerExceptions(e.message);
-    }
-    catch(e){
+      return supabaseClient.storage
+          .from('custom_pfp')
+          .getPublicUrl(fileName);
+    } catch (e) {
       throw ServerExceptions(e.toString());
     }
   }

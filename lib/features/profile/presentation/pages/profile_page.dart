@@ -317,6 +317,7 @@ class _ProfilePageState extends State<ProfilePage>
                                     child: EditAvatarContent(
                                       userId: profileUser.id,
                                       onClose: _closeEditAvatar,
+                                      pfpUrl: profileUser.profilePic,
                                     ),
                                   ),
                                 ),

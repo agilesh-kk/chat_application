@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
@@ -144,9 +146,20 @@ class _MessageBubbleState extends State<MessageBubble>
 
     final isOwnReply = widget.message.replyToSenderId == widget.currentUserId;
     final senderName = isOwnReply ? "You" : (widget.receiverName ?? "Unknown");
-    final previewText = widget.message.replyToType == "image"
-        ? "📷 Image"
-        : (widget.message.replyToContent ?? "");
+    String previewText;
+    if (widget.message.replyToType == "image") {
+      previewText = "📷 Image";
+    } else if (widget.message.replyToType == "status") {
+      try {
+        final data = jsonDecode(widget.message.replyToContent ?? '{}') as Map;
+        final caption = data['caption'] as String? ?? '';
+        previewText = caption.isNotEmpty ? "📸 $caption" : "📸 Status";
+      } catch (_) {
+        previewText = "📸 Status";
+      }
+    } else {
+      previewText = widget.message.replyToContent ?? "";
+    }
 
     return GestureDetector(
       onTap: widget.onReplyTap,

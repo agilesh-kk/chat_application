@@ -142,6 +142,7 @@ class ChatRepositoryImpl implements ChatRepository {
     String? replyToType,
   }) async {
     try {
+      //await chatLocalDataSource.initDatabase();
       await chatRemoteDataSources.sendMessage(
         receiverId: receiverId,
         userId: userId,

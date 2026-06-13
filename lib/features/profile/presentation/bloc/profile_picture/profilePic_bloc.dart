@@ -42,7 +42,8 @@ class ProfilePicBloc extends Bloc<ProfilePicEvent, ProfilePicState> {
     final res = await _updateCustomPfp(
       UpdateCustomPfpParams(
         userId: event.userId,
-        image: event.image
+        image: event.image,
+        oldPfpImage: event.oldPfpImage,
       )
     );
 

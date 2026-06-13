@@ -13,7 +13,8 @@ class UpdateCustomPfp implements UseCase<String, UpdateCustomPfpParams>{
   Future<Either<Failure, String>> call(params) {
     return profileRepository.updateCustompfp(
       userId: params.userId, 
-      image: params.image
+      image: params.image,
+      oldPfpImage: params.oldPfpImage,
     );
   }
 }
@@ -21,9 +22,11 @@ class UpdateCustomPfp implements UseCase<String, UpdateCustomPfpParams>{
 class UpdateCustomPfpParams {
   final String userId;
   final XFile image;
+  final String oldPfpImage;
 
   UpdateCustomPfpParams({
     required this.userId, 
-    required this.image
+    required this.image,
+    required this.oldPfpImage,
   });
 }

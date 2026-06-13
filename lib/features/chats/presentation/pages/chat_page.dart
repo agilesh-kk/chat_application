@@ -1,5 +1,6 @@
 // ignore_for_file: must_be_immutable
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
@@ -13,6 +14,8 @@ import 'package:chat_application/features/chats/presentation/widgets/reply_previ
 import 'package:chat_application/features/chats/presentation/widgets/delete_message_confirmation_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/send_options_dialog.dart';
 import 'package:chat_application/features/chats/presentation/widgets/time_capsule_picker.dart';
+import 'package:chat_application/features/status/domain/entities/status.dart';
+import 'package:chat_application/features/status/presentation/pages/view_status_page.dart';
 import 'package:chat_application/features/timeline/presentation/pages/timeline_page.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
@@ -74,10 +77,14 @@ class _ChatPageState extends State<ChatPage>
   late AnimationController _timelineAnimController;
   late Animation<double> _timelineFadeAnimation;
   late Animation<double> _timelineScaleAnimation;
+  late AnimationController _tcAnimController;
+  late Animation<double> _tcFadeAnimation;
+  late Animation<double> _tcScaleAnimation;
   final TextEditingController controller = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final FocusNode _kbFocusNode = FocusNode();
   final FocusNode _timelineFocusNode = FocusNode();
+  final FocusNode _tcFocusNode = FocusNode();
   late final ChatBloc cb;
   int? highlightedIndex;
   String lastAnimated = "";
@@ -85,6 +92,7 @@ class _ChatPageState extends State<ChatPage>
   Message? _replyToMessage;
   String? _editingMessageId;
   bool _showTimelineCard = false;
+  bool _showTimeCapsuleCard = false;
 
   bool get _isEditing => _editingMessageId != null;
 
@@ -95,6 +103,15 @@ class _ChatPageState extends State<ChatPage>
 
   void _closeTimelineCard() {
     setState(() => _showTimelineCard = false);
+  }
+
+  void _openTimeCapsuleCard() {
+    setState(() => _showTimeCapsuleCard = true);
+    _tcAnimController.forward(from: 0);
+  }
+
+  void _closeTimeCapsuleCard() {
+    setState(() => _showTimeCapsuleCard = false);
   }
 
   final ItemScrollController _scrollController = ItemScrollController();
@@ -176,6 +193,10 @@ class _ChatPageState extends State<ChatPage>
     );
     _animationController.forward();
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _messageFocusNode.requestFocus();
+    });
+
     _timelineAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -192,19 +213,39 @@ class _ChatPageState extends State<ChatPage>
         curve: Curves.easeOutCubic,
       ),
     );
+
+    _tcAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _tcFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _tcAnimController,
+        curve: Curves.easeOut,
+      ),
+    );
+    _tcScaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _tcAnimController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     _timelineAnimController.dispose();
+    _tcAnimController.dispose();
     ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     typingCubit.unsubscribeFromTyping(_conversationId);
     cb.add(Closechat());
+    _messageFocusNode.dispose();
     _kbFocusNode.dispose();
     _timelineFocusNode.dispose();
+    _tcFocusNode.dispose();
     super.dispose();
   }
 
@@ -299,6 +340,58 @@ class _ChatPageState extends State<ChatPage>
     }
   }
 
+  void _onStatusReplyTap(Message msg) {
+    try {
+      final data = jsonDecode(msg.replyToContent ?? '{}') as Map<String, dynamic>;
+      final expiresAt = DateTime.parse(data['expiresAt'] as String);
+      if (expiresAt.isBefore(DateTime.now())) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Status has expired"),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      final status = Status(
+        id: msg.replyToId!,
+        userId: msg.replyToSenderId ?? '',
+        imageUrl: data['imageUrl'] as String? ?? '',
+        caption: data['caption'] as String? ?? '',
+        createdAt: DateTime.parse(data['createdAt'] as String),
+        expiresAt: expiresAt,
+        userName: data['userName'] as String? ?? widget.receiverName,
+        profilepic: data['profilepic'] as String? ?? '',
+        likedBy: const [],
+      );
+
+      if (mounted) {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => ViewStatusPage(
+            statuses: [status],
+            isUserStatus: false,
+            hasInternet: true,
+            userProfilePic: status.profilepic,
+            userName: status.userName,
+            fromChat: true,
+          ),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Could not load status"),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   void _send() {
     final text = controller.text.trim();
     if (text.isEmpty) return;
@@ -335,6 +428,7 @@ class _ChatPageState extends State<ChatPage>
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     controller.clear();
     _clearReply();
+    _messageFocusNode.requestFocus();
   }
 
   void _clearReply() {
@@ -421,7 +515,7 @@ class _ChatPageState extends State<ChatPage>
           focusNode: _kbFocusNode,
           autofocus: true,
           onKeyEvent: (event) {
-            if (_showTimelineCard || widget.hasActiveOverlay) return;
+            if (_showTimelineCard || _showTimeCapsuleCard || widget.hasActiveOverlay) return;
             if (event is KeyDownEvent &&
                 event.logicalKey == LogicalKeyboardKey.escape) {
               _messageFocusNode.unfocus();
@@ -621,17 +715,7 @@ class _ChatPageState extends State<ChatPage>
             color: AppPallete.primaryOrange,
             onTap: () {
               _messageFocusNode.unfocus();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (_) => TimeCapsuleMessages(
-                        currentUserId: widget.currentUserId,
-                        receiverId: widget.receiverId,
-                        receiverName: widget.receiverName,
-                      ),
-                ),
-              );
+              _openTimeCapsuleCard();
             },
           ),
         ],
@@ -905,17 +989,17 @@ class _ChatPageState extends State<ChatPage>
                   ),
                 if (_showTimelineCard)
                   Positioned.fill(
-                    child: Focus(
+                    child: KeyboardListener(
                       focusNode: _timelineFocusNode,
                       autofocus: true,
-                      onKeyEvent: (node, event) {
+                      onKeyEvent: (event) {
                         if (event is KeyDownEvent &&
                             event.logicalKey == LogicalKeyboardKey.escape) {
                           _messageFocusNode.unfocus();
-                          _closeTimelineCard();
-                          return KeyEventResult.handled;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _closeTimelineCard();
+                          });
                         }
-                        return KeyEventResult.ignored;
                       },
                       child: Stack(
                         children: [
@@ -969,6 +1053,79 @@ class _ChatPageState extends State<ChatPage>
                                   receiverId: widget.receiverId,
                                   receiverName: widget.receiverName,
                                   onClose: _closeTimelineCard,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (_showTimeCapsuleCard)
+                  Positioned.fill(
+                    child: KeyboardListener(
+                      focusNode: _tcFocusNode,
+                      autofocus: true,
+                      onKeyEvent: (event) {
+                        if (event is KeyDownEvent &&
+                            event.logicalKey == LogicalKeyboardKey.escape) {
+                          _messageFocusNode.unfocus();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _closeTimeCapsuleCard();
+                          });
+                        }
+                      },
+                      child: Stack(
+                        children: [
+                          ClipRect(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(
+                                sigmaX: 6,
+                                sigmaY: 6,
+                              ),
+                              child: Container(
+                                color: Colors.black.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ),
+                          Center(
+                            child: AnimatedBuilder(
+                              animation: _tcAnimController,
+                              builder: (context, child) {
+                                return Opacity(
+                                  opacity: _tcFadeAnimation.value,
+                                  child: Transform.scale(
+                                    scale: _tcScaleAnimation.value,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 520,
+                                  maxHeight: 700,
+                                ),
+                                margin: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: AppPallete.cardBg,
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: AppPallete.divider,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.3),
+                                      blurRadius: 40,
+                                      offset: const Offset(0, 12),
+                                    ),
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: TimeCapsuleContent(
+                                  currentUserId: widget.currentUserId,
+                                  receiverId: widget.receiverId,
+                                  receiverName: widget.receiverName,
+                                  onClose: _closeTimeCapsuleCard,
                                 ),
                               ),
                             ),
@@ -1133,6 +1290,8 @@ class _ChatPageState extends State<ChatPage>
               child: TextField(
                 controller: controller,
                 focusNode: _messageFocusNode,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _send(),
                 onChanged:
                     (text) => typingCubit.onTextChanged(
                       _conversationId,
@@ -1241,7 +1400,9 @@ class _ChatPageState extends State<ChatPage>
             setState(() => _replyToMessage = msg);
             _messageFocusNode.requestFocus();
           },
-          onReplyTap: () => _onReplyTap(msg.replyToId!),
+          onReplyTap: msg.replyToType == "status"
+              ? () => _onStatusReplyTap(msg)
+              : () => _onReplyTap(msg.replyToId!),
           onEdit: isMe ? () => _onEditMessage(msg) : null,
         );
       case "image":
@@ -1286,7 +1447,9 @@ class _ChatPageState extends State<ChatPage>
             setState(() => _replyToMessage = msg);
             _messageFocusNode.requestFocus();
           },
-          onReplyTap: () => _onReplyTap(msg.replyToId!),
+          onReplyTap: msg.replyToType == "status"
+              ? () => _onStatusReplyTap(msg)
+              : () => _onReplyTap(msg.replyToId!),
           onEdit: null,
         );
       default:

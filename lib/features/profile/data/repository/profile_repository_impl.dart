@@ -39,11 +39,13 @@ class ProfileRepositoryImpl implements ProfileRepository{
   Future<Either<Failure, String>> updateCustompfp({
     required String userId,
     required XFile image,
+    required String oldPfpImage,
   }) async{
     try{
       final imageUrl = await profileRemoteDataSource.uploadCustomPfp(
         userId: userId,
-        image: image
+        image: image,
+        oldPfpImage: oldPfpImage,
       );
 
       await profileRemoteDataSource.updateProfilePic(userId, imageUrl);

@@ -11,6 +11,7 @@ import 'package:chat_application/features/status/presentation/bloc/status/status
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ViewStatusPage extends StatefulWidget {
@@ -19,6 +20,7 @@ class ViewStatusPage extends StatefulWidget {
   final bool isUserStatus;
   final bool hasInternet;
   final String userName;
+  final bool fromChat;
 
   const ViewStatusPage({
     super.key,
@@ -27,6 +29,7 @@ class ViewStatusPage extends StatefulWidget {
     required this.hasInternet,
     required this.userProfilePic,
     required this.userName,
+    this.fromChat = false,
   });
 
   @override
@@ -41,6 +44,9 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
   bool _isCaptionExpanded = false;
   bool _isUIVisible = true;
   final Duration storyDuration = const Duration(seconds: 5);
+  final TextEditingController _replyController = TextEditingController();
+  final FocusNode _replyFocusNode = FocusNode();
+  final FocusNode _kbFocusNode = FocusNode();
 
   void toggleUIVisibility() {
     setState(() {
@@ -58,6 +64,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
     super.initState();
     pageController = PageController();
     startStoryTimer();
+    _replyFocusNode.addListener(_onReplyFocusChange);
   }
 
   void startStoryTimer() {
@@ -112,10 +119,65 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
     startStoryTimer();
   }
 
+  void _onReplyFocusChange() {
+    if (_replyFocusNode.hasFocus) {
+      pauseStory();
+    } else {
+      resumeStory();
+    }
+  }
+
+  void _sendReply() {
+    final text = _replyController.text.trim();
+    if (text.isEmpty) return;
+    pauseStory();
+
+    final status = widget.statuses[currentIndex];
+    final appUserState = context.read<AppUserCubit>().state;
+    if (appUserState is! AppUserIsSignedin) {
+      resumeStory();
+      return;
+    }
+
+    context.read<StatusBloc>().add(ReplyToStatusEvent(
+      receiverId: status.userId,
+      userId: appUserState.user.id,
+      content: text,
+      userName: appUserState.user.name,
+      userProfile: appUserState.user.profilePic ?? '',
+      statusId: status.id,
+      statusUserId: status.userId,
+      statusImageUrl: status.imageUrl,
+      statusCaption: status.caption,
+      statusCreatedAt: status.createdAt,
+      statusExpiresAt: status.expiresAt,
+      statusUserName: status.userName,
+      statusProfilepic: status.profilepic,
+    ));
+
+    _replyController.clear();
+    _replyFocusNode.unfocus();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Reply sent to ${widget.userName}"),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    resumeStory();
+  }
+
   @override
   void dispose() {
     timer?.cancel();
     pageController.dispose();
+    _replyController.dispose();
+    _replyFocusNode.removeListener(_onReplyFocusChange);
+    _replyFocusNode.dispose();
+    _kbFocusNode.dispose();
     super.dispose();
   }
 
@@ -333,8 +395,21 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
               ? (statusBlocState.status.where((s) => s.id == status.id).firstOrNull ?? status)
               : status;
 
-          return GestureDetector(
-            onTapUp: (details) {
+          return KeyboardListener(
+            focusNode: _kbFocusNode,
+            autofocus: true,
+            onKeyEvent: (event) {
+              if (event is KeyDownEvent &&
+                  event.logicalKey == LogicalKeyboardKey.escape) {
+                if (_replyFocusNode.hasFocus) {
+                  _replyFocusNode.unfocus();
+                } else {
+                  Navigator.pop(context);
+                }
+              }
+            },
+            child: GestureDetector(
+              onTapUp: (details) {
               final width = MediaQuery.of(context).size.width;
               if (details.globalPosition.dx < width / 2) {
                 previousStory();
@@ -399,140 +474,108 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                   child: AnimatedOpacity(
                     opacity: _isUIVisible ? 1.0 : 0.0,
                     duration: const Duration(milliseconds: 300),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: status.caption.isNotEmpty
-                                  ? AppPallete.darkBg.withValues(alpha: 0.75)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(16),
-                              border: status.caption.isNotEmpty
-                                  ? Border.all(
-                                      color: AppPallete.primaryOrange
-                                          .withValues(alpha: 0.3),
-                                      width: 1,
-                                    )
-                                  : null,
-                            ),
-                            child: status.caption.isNotEmpty
-                                ? Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxHeight:
-                                              _isCaptionExpanded ? 200 : 75,
-                                        ),
-                                        child: SingleChildScrollView(
-                                          child: RichText(
-                                            textAlign: TextAlign.center,
-                                            text: TextSpan(
-                                              children: [
-                                                TextSpan(
-                                                  text: _isCaptionExpanded
-                                                      ? status.caption
-                                                      : (status.caption.length > 100
-                                                          ? '${status.caption.substring(0, 100)}...'
-                                                          : status.caption),
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                                if (status.caption.length > 100)
-                                                  WidgetSpan(
-                                                    alignment: PlaceholderAlignment.middle,
-                                                    child: GestureDetector(
-                                                      onTap: () {
-                                                        setState(() {
-                                                          _isCaptionExpanded =
-                                                              !_isCaptionExpanded;
-                                                        });
-                                                        if(_isCaptionExpanded){
-                                                          pauseStory();
-                                                        }else{
-                                                          resumeStory();
-                                                        }
-                                                      },
-                                                      child: Text(
-                                                        _isCaptionExpanded
-                                                            ? '  Show less'
-                                                            : '  Read more',
-                                                        style: TextStyle(
-                                                          color: AppPallete
-                                                              .primaryOrange,
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: status.caption.isNotEmpty
+                                      ? AppPallete.darkBg.withValues(alpha: 0.75)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: status.caption.isNotEmpty
+                                      ? Border.all(
+                                          color: AppPallete.primaryOrange
+                                              .withValues(alpha: 0.3),
+                                          width: 1,
+                                        )
+                                      : null,
+                                ),
+                                child: status.caption.isNotEmpty
+                                    ? Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                              maxHeight:
+                                                  _isCaptionExpanded ? 200 : 75,
+                                            ),
+                                            child: SingleChildScrollView(
+                                              child: RichText(
+                                                textAlign: TextAlign.center,
+                                                text: TextSpan(
+                                                  children: [
+                                                    TextSpan(
+                                                      text: _isCaptionExpanded
+                                                          ? status.caption
+                                                          : (status.caption.length > 100
+                                                              ? '${status.caption.substring(0, 100)}...'
+                                                              : status.caption),
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 16,
                                                       ),
                                                     ),
-                                                  ),
-                                              ],
+                                                    if (status.caption.length > 100)
+                                                      WidgetSpan(
+                                                        alignment: PlaceholderAlignment.middle,
+                                                        child: GestureDetector(
+                                                          onTap: () {
+                                                            setState(() {
+                                                              _isCaptionExpanded =
+                                                                  !_isCaptionExpanded;
+                                                            });
+                                                            if(_isCaptionExpanded){
+                                                              pauseStory();
+                                                            }else{
+                                                              resumeStory();
+                                                            }
+                                                          },
+                                                          child: Text(
+                                                            _isCaptionExpanded
+                                                                ? '  Show less'
+                                                                : '  Read more',
+                                                            style: TextStyle(
+                                                              color: AppPallete
+                                                                  .primaryOrange,
+                                                              fontSize: 16,
+                                                              fontWeight:
+                                                                  FontWeight.w600,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                        ),
-                        if (!widget.isUserStatus)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: GestureDetector(
-                              onTap: () {
-                                context.read<StatusBloc>().add(
-                                  AddLikeEvent(
-                                    statusId: status.id,
-                                    userId: currentUserId,
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppPallete.cardBg
-                                      .withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                      color: AppPallete.divider),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      liveStatus.likedBy.contains(currentUserId)
-                                          ? Icons.favorite
-                                          : Icons.favorite_border,
-                                      size: 18,
-                                      color: liveStatus.likedBy.contains(currentUserId)
-                                          ? Colors.red
-                                          : AppPallete.primaryOrange,
-                                    ),
-                                  ],
-                                ),
+                                        ],
+                                      )
+                                    : const SizedBox.shrink(),
                               ),
                             ),
-                          ),
-                        if (widget.isUserStatus && widget.hasInternet)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: GestureDetector(
-                              onTap: () {
-                                context.read<StatusviewBloc>().add(
-                                      GetViewEvent(statusId: status.id),
+                            if (!widget.isUserStatus)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    context.read<StatusBloc>().add(
+                                      AddLikeEvent(
+                                        statusId: status.id,
+                                        userId: currentUserId,
+                                      ),
                                     );
-                              },
-                              child:  Container(
+                                  },
+                                  child: Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: AppPallete.cardBg
@@ -541,25 +584,67 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                       border: Border.all(
                                           color: AppPallete.divider),
                                     ),
-                                    child: const Icon(
-                                      Icons.remove_red_eye_outlined,
-                                      size: 18,
-                                      color: AppPallete.primaryOrange,
-                                    )
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          liveStatus.likedBy.contains(currentUserId)
+                                              ? Icons.favorite
+                                              : Icons.favorite_border,
+                                          size: 18,
+                                          color: liveStatus.likedBy.contains(currentUserId)
+                                              ? Colors.red
+                                              : AppPallete.primaryOrange,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (widget.isUserStatus && widget.hasInternet)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    context.read<StatusviewBloc>().add(
+                                          GetViewEvent(statusId: status.id),
+                                        );
+                                  },
+                                  child:  Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: AppPallete.cardBg
+                                              .withValues(alpha: 0.6),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                              color: AppPallete.divider),
+                                        ),
+                                        child: const Icon(
+                                          Icons.remove_red_eye_outlined,
+                                          size: 18,
+                                          color: AppPallete.primaryOrange,
+                                        )
+                                  )
+                                )
                               )
-                            )
-                          )
+                          ],
+                        ),
+                        if (!widget.fromChat) ...[
+                          const SizedBox(height: 8),
+                          _buildReplyInput(),
+                        ],
                       ],
                     ),
                   ),
                 ),
               ],
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        );
+      },
+    ),
+  );
+}
 
   Widget _buildProgressBars() {
     return Row(
@@ -739,6 +824,53 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
             ],
           ),
       ],
+    );
+  }
+
+  Widget _buildReplyInput() {
+    if (widget.fromChat) return const SizedBox();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppPallete.cardBg.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppPallete.divider),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _replyController,
+              focusNode: _replyFocusNode,
+              style: const TextStyle(color: AppPallete.whiteColor, fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: "Reply to status...",
+                hintStyle: TextStyle(color: AppPallete.greyText),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              maxLines: 2,
+              minLines: 1,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _sendReply(),
+            ),
+          ),
+          GestureDetector(
+            onTap: _sendReply,
+            child: Container(
+              margin: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.send, size: 16, color: AppPallete.whiteColor),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

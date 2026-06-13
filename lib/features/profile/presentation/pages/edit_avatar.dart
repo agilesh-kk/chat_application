@@ -44,11 +44,13 @@ class EditAvatar extends StatelessWidget {
 class EditAvatarContent extends StatefulWidget {
   final String userId;
   final VoidCallback onClose;
+  final String pfpUrl;
 
   const EditAvatarContent({
     super.key,
     required this.userId,
     required this.onClose,
+    this.pfpUrl = '',
   });
 
   @override
@@ -229,6 +231,7 @@ class _EditAvatarContentState extends State<EditAvatarContent> {
             ProfilePicCustomUpload(
               userId: widget.userId,
               image: image,
+              oldPfpImage: widget.pfpUrl,
             ),
           );
     }
