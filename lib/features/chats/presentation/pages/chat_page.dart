@@ -38,7 +38,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:chat_application/features/chats/presentation/cubit/sticky_header_cubit.dart';
 import 'package:chat_application/notification_storage.dart';
 import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
+import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit.dart';
 import 'package:chat_application/features/chats/presentation/widgets/typing_indicator.dart';
+import 'package:chat_application/features/chats/data/datasources/draft_data_source.dart';
 
 class ChatPage extends StatefulWidget {
   static String? activeConvoId;
@@ -65,7 +67,7 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final TextEditingController controller = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   late final ChatBloc cb;
@@ -93,6 +95,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ChatPage.activeConvoId = widget.convoId;
     if (widget.convoId != null) {
       removeChatMessages(widget.convoId!);
@@ -104,15 +107,52 @@ class _ChatPageState extends State<ChatPage> {
       ..add(LoadMessagesEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
     typingCubit = context.read<ConvoTypingCubit>();
     typingCubit.subscribeToTyping(_conversationId, widget.receiverId);
+
+    _restoreDraft();
+    context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
+    context.read<InChatCubit>().subscribeToInChat(_conversationId, widget.receiverId);
+  }
+
+  Future<void> _restoreDraft() async {
+    final draft = await context.read<DraftService>().getDraft(_conversationId);
+    if (draft != null && mounted) {
+      controller.text = draft;
+    }
+  }
+
+  Future<void> _saveDraft() async {
+    final text = controller.text.trim();
+    if (text.isNotEmpty) {
+      await context.read<DraftService>().saveDraft(_conversationId, text);
+    }
+  }
+
+  Future<void> _clearDraft() async {
+    await context.read<DraftService>().clearDraft(_conversationId);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _saveDraft();
+    controller.dispose();
+    _messageFocusNode.dispose();
     ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
+    context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
+    context.read<InChatCubit>().unsubscribeFromInChat(_conversationId);
     cb.add(Closechat());
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
+    } else if (state == AppLifecycleState.resumed) {
+      context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
+    }
   }
 
   void _onScrollPositionChanged() {
@@ -206,6 +246,7 @@ class _ChatPageState extends State<ChatPage> {
       );
 
       if (mounted) {
+        _saveDraft();
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => ViewStatusPage(
             userStatusBatches: [
@@ -263,6 +304,7 @@ class _ChatPageState extends State<ChatPage> {
           replyToType: _replyToMessage?.type,
         ));
     controller.clear();
+    _clearDraft();
     _clearReply();
   }
 
@@ -308,6 +350,7 @@ class _ChatPageState extends State<ChatPage> {
           replyToType: _replyToMessage?.type,
         ));
     controller.clear();
+    _clearDraft();
     _clearReply();
   }
 
@@ -372,34 +415,43 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        _messageFocusNode.unfocus();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          _saveDraft();
+          if (context.mounted) Navigator.of(context).pop();
+        }
       },
-      child: Scaffold(
-        backgroundColor: AppPallete.darkBg,
-        body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppPallete.darkBg, AppPallete.darkSecondary, AppPallete.darkBg],
-            stops: const [0.0, 0.5, 1.0],
+      child: GestureDetector(
+        onTap: () {
+          _messageFocusNode.unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: AppPallete.darkBg,
+          body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppPallete.darkBg, AppPallete.darkSecondary, AppPallete.darkBg],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(context),
+                _buildMessages(),
+                if (_isEditing) _buildEditBar()
+                else if (_replyToMessage != null) _buildReplyBar(),
+                _buildInput(),
+              ],
+            ),
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              _buildMessages(),
-              if (_isEditing) _buildEditBar()
-              else if (_replyToMessage != null) _buildReplyBar(),
-              _buildInput(),
-            ],
-          ),
-        ),
+        )
       ),
-      )
     );
   }
 
@@ -417,6 +469,7 @@ class _ChatPageState extends State<ChatPage> {
           GestureDetector(
             onTap: () {
               _messageFocusNode.unfocus();
+              _saveDraft();
               Navigator.pop(context);
             },
             child: Container(
@@ -493,6 +546,14 @@ class _ChatPageState extends State<ChatPage> {
                               if (typingMap[_conversationId] == true) {
                                 return const TypingIndicator();
                               }
+                              final inChatCubit = context.watch<InChatCubit>();
+                              if (inChatCubit.state[_conversationId] == true) {
+                                return const Text(
+                                  "In chat",
+                                  style: TextStyle(color: AppPallete.statusGreen, fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              }
                               return Text(
                                 f.isEffectivelyOnline
                                     ? "Online"
@@ -516,6 +577,7 @@ class _ChatPageState extends State<ChatPage> {
             color: AppPallete.primaryOrange,
             onTap: () async {
               _messageFocusNode.unfocus();
+              _saveDraft();
               String? messageId = await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -540,6 +602,7 @@ class _ChatPageState extends State<ChatPage> {
             color: AppPallete.primaryOrange,
             onTap: () {
               _messageFocusNode.unfocus();
+              _saveDraft();
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -575,6 +638,7 @@ class _ChatPageState extends State<ChatPage> {
   void _showFriendProfile(BuildContext context, FriendModel? friend) {
     if (friend == null) return;
     _messageFocusNode.unfocus();
+    _saveDraft();
     Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(isUser: false, user: friend)));
   }
 

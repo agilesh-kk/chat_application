@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chat_application/features/chats/data/datasources/draft_data_source.dart';
 import 'package:chat_application/features/chats/data/repository/chat_repository_impl.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
@@ -17,6 +18,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   final FriendsCubit friendsCubit;
   final Set<String> friends = {};
   final ChatRepository chatRepositoryImpl;
+  final DraftService draftService;
   String? userId;
 
   StreamSubscription<List<Conversation>>? _convoSub;
@@ -25,7 +27,8 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   ConversationBloc({
     required this.getConversations,
     required this.friendsCubit,
-    required this.chatRepositoryImpl
+    required this.chatRepositoryImpl,
+    required this.draftService,
   }) : super(ConversationInitial()) {
 
     // =========================================================
@@ -91,10 +94,11 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                       lastSender: c.lastSender,
                       receiverIsOnline: sub[c.receiverId]?.isEffectivelyOnline ?? false)
                     );
-                  
+                  }
 
-                  add(_ConversationUpdated(updated));
-                }
+                  _enrichWithDrafts(updated).then((withDrafts) {
+                    add(_ConversationUpdated(withDrafts));
+                  });
                 
               },
               onError: (error) {
@@ -126,7 +130,9 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                       receiverIsOnline: d.friends[c.receiverId]?.isEffectivelyOnline ?? false)
                     );
                   }
-                  add(_ConversationUpdated(updated));
+                  _enrichWithDrafts(updated).then((withDrafts) {
+                    add(_ConversationUpdated(withDrafts));
+                  });
                 }
                 },);
           },
@@ -197,6 +203,26 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         ));
       }
     });
+  }
+
+  Future<List<Conversation>> _enrichWithDrafts(List<Conversation> conversations) async {
+    final result = <Conversation>[];
+    for (final c in conversations) {
+      final draft = await draftService.getDraft(c.convoId);
+      result.add(Conversation(
+        convoId: c.convoId,
+        receiverId: c.receiverId,
+        lastMessage: c.lastMessage,
+        lastupdateTime: c.lastupdateTime,
+        profilepicLink: c.profilepicLink,
+        receiverName: c.receiverName,
+        unread: c.unread,
+        lastSender: c.lastSender,
+        receiverIsOnline: c.receiverIsOnline,
+        draft: draft,
+      ));
+    }
+    return result;
   }
 
   void manageListeners(List<FriendModel> f){

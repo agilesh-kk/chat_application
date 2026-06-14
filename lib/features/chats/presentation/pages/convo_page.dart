@@ -210,6 +210,7 @@ class _ConversationPageState extends State<ConversationPage> {
               lastSender: convo.lastSender == widget.userId ? "you" : "",
               isOnline: convo.receiverIsOnline,
               isTyping: typingMap[convoId] == true,
+              draft: convo.draft,
               onTap: () {
                 _searchFocusNode.unfocus();
                 Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
