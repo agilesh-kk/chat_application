@@ -2,6 +2,7 @@ import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -284,6 +285,10 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildUserTile(User user) {
+    final friendsState = context.watch<FriendsCubit>().state;
+    final isFriend = friendsState is FriendsLoaded &&
+        friendsState.friends.containsKey(user.id);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       child: Container(
@@ -375,18 +380,46 @@ class _SearchPageState extends State<SearchPage> {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppPallete.primaryOrange.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                  if (isFriend)
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppPallete.primaryOrange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.chat_bubble_outline,
+                        color: AppPallete.primaryOrange,
+                        size: 20,
+                      ),
+                    )
+                  else
+                    GestureDetector(
+                      onTap: () {
+                        context.read<FriendsCubit>().sendFriendRequest(
+                              userId: widget.currentUserId,
+                              friendId: user.id,
+                            );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Friend request sent to ${user.name}"),
+                            backgroundColor: AppPallete.primaryOrange,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppPallete.primaryOrange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.person_add_outlined,
+                          color: AppPallete.primaryOrange,
+                          size: 20,
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.chat_bubble_outline,
-                      color: AppPallete.primaryOrange,
-                      size: 20,
-                    ),
-                  ),
                 ],
               ),
             ),

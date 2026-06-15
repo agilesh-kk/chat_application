@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:chat_application/core/common/entities/user.dart';
+import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/achievement/services/achievement_details_mapper.dart';
 import 'package:chat_application/features/chats/data/datasources/timeline_service.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
@@ -395,6 +396,14 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       //skip operation for scheduled messages and when opCollection is not provided
       final shouldWriteOp = opCollection != null && !isScheduled;
 
+      if (!isScheduled) {
+        final senderDoc = await firestore.collection('users').doc(userId).get();
+        final senderFriends = List<String>.from(senderDoc.data()?['friends'] ?? []);
+        if (!senderFriends.contains(receiverId)) {
+          throw ServerExceptions("You must be friends with this user to send messages");
+        }
+      }
+
       final message = MessageModel(
         id: msgId,
         type: type,
@@ -490,17 +499,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }, SetOptions(merge: true));
       }
 
-      final userRef = firestore.collection("users").doc(userId);
-      final receiverRef = firestore.collection("users").doc(receiverId);
-
-      batch.set(userRef, {
-        "friends": FieldValue.arrayUnion([receiverId]),
-      }, SetOptions(merge: true));
-
-      batch.set(receiverRef, {
-        "friends": FieldValue.arrayUnion([userId]),
-      }, SetOptions(merge: true));
-
       await batch.commit();
 
       if (!isScheduled) {
@@ -546,7 +544,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       //   );
       // }
     } catch (e) {
-      //print("Send message error: $e");
+      rethrow;
     }
   }
 

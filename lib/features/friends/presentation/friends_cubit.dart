@@ -10,25 +10,25 @@ part 'friends_state.dart';
 class FriendsCubit extends Cubit<FriendsState> {
   final FriendsRemoteDataSource repository;
   final ProfilePicLocalDataSource _profilePicLocalDataSource;
-  StreamSubscription<Map<String,FriendModel>>? _friendsub;
+  StreamSubscription<Map<String, FriendModel>>? _friendsub;
+  StreamSubscription<Map<String, FriendModel>>? _requestSub;
   Timer? _onlineTimer;
 
   FriendsCubit(this.repository, this._profilePicLocalDataSource) : super(FriendsInitial());
 
-  Future<void> clear()async{
+  Future<void> clear() async {
     _friendsub?.cancel();
+    _requestSub?.cancel();
     emit(FriendsInitial());
   }
 
-  /// 🔹 Fetch friends using IDs from user doc
   Future<void> loadFriends({
     required String userId,
   }) async {
-
     emit(FriendsLoading());
+    _requestSub?.cancel();
 
     try {
-
       final friendSub = (await repository.getFriends(userId));
       _friendsub?.cancel();
 
@@ -37,10 +37,83 @@ class FriendsCubit extends Cubit<FriendsState> {
           emit(FriendsLoaded(event));
           _cacheFriendProfilePics(event);
           _startOnlineTimer();
-      },);
-
+        },
+      );
     } catch (e) {
       emit(FriendsError(e.toString()));
+    }
+  }
+
+  Future<void> loadFriendRequests({
+    required String userId,
+  }) async {
+    emit(FriendRequestsLoaded({}));
+    _friendsub?.cancel();
+
+    try {
+      final requestSub = (await repository.getFriendRequests(userId));
+      _requestSub?.cancel();
+
+      _requestSub = requestSub.listen(
+        (event) {
+          emit(FriendRequestsLoaded(event));
+        },
+      );
+    } catch (e) {
+      emit(FriendRequestActionError(e.toString()));
+    }
+  }
+
+  Future<void> sendFriendRequest({
+    required String userId,
+    required String friendId,
+  }) async {
+    try {
+      await repository.sendFriendReq(userId: userId, friendId: friendId);
+      emit(FriendRequestSent(friendId));
+    } catch (e) {
+      emit(FriendRequestActionError(e.toString()));
+    }
+  }
+
+  Future<void> acceptFriendRequest({
+    required String userId,
+    required String requesterId,
+  }) async {
+    try {
+      await repository.acceptFriendReq(
+        userId: userId,
+        requesterId: requesterId,
+      );
+      emit(FriendRequestActionSuccess());
+    } catch (e) {
+      emit(FriendRequestActionError(e.toString()));
+    }
+  }
+
+  Future<void> rejectFriendRequest({
+    required String userId,
+    required String requesterId,
+  }) async {
+    try {
+      await repository.rejectFriendReq(
+        userId: userId,
+        requesterId: requesterId,
+      );
+      emit(FriendRequestActionSuccess());
+    } catch (e) {
+      emit(FriendRequestActionError(e.toString()));
+    }
+  }
+
+  Future<void> removeFriend({
+    required String userId,
+    required String friendId,
+  }) async {
+    try {
+      await repository.removeFriend(userId, friendId);
+    } catch (e) {
+      emit(FriendRequestActionError(e.toString()));
     }
   }
 
@@ -67,6 +140,7 @@ class FriendsCubit extends Cubit<FriendsState> {
   Future<void> close() {
     _onlineTimer?.cancel();
     _friendsub?.cancel();
+    _requestSub?.cancel();
     return super.close();
   }
 }
