@@ -2,7 +2,7 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
-import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -21,7 +21,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
       final appUserState = context.read<AppUserCubit>().state;
       if (appUserState is AppUserIsSignedin) {
         context
-            .read<FriendsCubit>()
+            .read<FriendRequestsCubit>()
             .loadFriendRequests(userId: appUserState.user.id);
       }
     });
@@ -45,7 +45,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
           ),
         ),
         child: SafeArea(
-          child: BlocBuilder<FriendsCubit, FriendsState>(
+          child: BlocBuilder<FriendRequestsCubit, FriendRequestsState>(
             builder: (context, state) {
               if (state is FriendRequestsLoaded) {
                 final requests = state.requests.values.toList();
@@ -303,7 +303,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
                 icon: Icons.check,
                 color: AppPallete.statusGreen,
                 onTap: () {
-                  context.read<FriendsCubit>().acceptFriendRequest(
+                  context.read<FriendRequestsCubit>().acceptFriendRequest(
                         userId: currentUserId,
                         requesterId: requester.id,
                       );
@@ -314,7 +314,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
                 icon: Icons.close,
                 color: AppPallete.errorColor,
                 onTap: () {
-                  context.read<FriendsCubit>().rejectFriendRequest(
+                  context.read<FriendRequestsCubit>().rejectFriendRequest(
                         userId: currentUserId,
                         requesterId: requester.id,
                       );

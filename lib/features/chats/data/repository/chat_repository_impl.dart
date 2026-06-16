@@ -8,14 +8,12 @@ import 'package:chat_application/features/chats/data/datasources/chat_remote_dat
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
-import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
   final ChatLocalDataSource chatLocalDataSource;
-  final FriendsCubit fb;
   bool isRecentlyDownloaded = false;
 
   final Map<String,StreamSubscription<Map<String, dynamic>>> _opSub = {};
@@ -23,7 +21,6 @@ class ChatRepositoryImpl implements ChatRepository {
   ChatRepositoryImpl({
     required this.chatRemoteDataSources,
     required this.chatLocalDataSource,
-    required this.fb
   });
 
   @override

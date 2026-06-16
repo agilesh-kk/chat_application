@@ -6,6 +6,11 @@ abstract class FriendsRemoteDataSource {
 
   Future<Stream<Map<String, FriendModel>>> getFriendRequests(String userId);
 
+  Future<bool> isUserInRequests({
+    required String userId,
+    required String targetUserId,
+  });
+
   Future<void> addFriend(String userId, String friendId);
 
   Future<void> removeFriend(String userId, String friendId);
@@ -61,6 +66,17 @@ class FriendsRemoteDataSourceImpl implements FriendsRemoteDataSource {
           if (doc.exists) doc.id: FriendModel.fromJson(doc.data()!)
       };
     });
+  }
+
+  @override
+  Future<bool> isUserInRequests({
+    required String userId,
+    required String targetUserId,
+  }) async {
+    final doc = await firestore.collection('users').doc(targetUserId).get();
+    if (!doc.exists) return false;
+    final requests = List<String>.from(doc.data()?['Requests'] ?? []);
+    return requests.contains(userId);
   }
 
   @override

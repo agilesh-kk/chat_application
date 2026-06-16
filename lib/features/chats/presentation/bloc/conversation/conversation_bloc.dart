@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:chat_application/features/chats/data/repository/chat_repository_impl.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
@@ -50,7 +49,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                   (d) {
                   if(d is FriendsLoaded){
                     final ids = d.friends.values.map((e)=>e.id).toList();
-                    add(ConversationDownloadEvent(event.userId, ids, (100/ids.length.toInt()).toInt()));
+                    add(ConversationDownloadEvent(event.userId, ids, ids.isNotEmpty ? (100 ~/ ids.length) : 0));
                   }
                 });
             }else{
@@ -109,18 +108,19 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                   if(d is FriendsLoaded){
 
                   manageListeners(d.friends.values.toList());
-                  print((state as ConversationLoaded).conversations.length);
+                  final loadedState = state;
+                  if (loadedState is! ConversationLoaded) return;
 
                   final List<Conversation> updated = <Conversation>[];
-                  for(final c in (state as ConversationLoaded).conversations){
+                  for(final c in loadedState.conversations){
                     updated.add(
                       Conversation(
                       convoId: c.convoId,
                       receiverId: c.receiverId,
                       lastMessage: c.lastMessage,
                       lastupdateTime: c.lastupdateTime,
-                      profilepicLink: d.friends[c.receiverId]!.profilePic,
-                      receiverName: d.friends[c.receiverId]!.name,
+                  profilepicLink: d.friends[c.receiverId]?.profilePic ?? "loading",
+                  receiverName: d.friends[c.receiverId]?.name ?? "loading",
                       unread: c.unread,
                       lastSender: c.lastSender,
                       receiverIsOnline: d.friends[c.receiverId]?.isEffectivelyOnline ?? false)
@@ -129,6 +129,28 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                   add(_ConversationUpdated(updated));
                 }
                 },);
+
+                  if (friendsCubit.state is FriendsLoaded && state is ConversationLoaded) {
+                    final f = friendsCubit.state as FriendsLoaded;
+                    final loadedState = state as ConversationLoaded;
+                    manageListeners(f.friends.values.toList());
+                    final List<Conversation> updated = <Conversation>[];
+                    for(final c in loadedState.conversations){
+                      updated.add(
+                        Conversation(
+                        convoId: c.convoId,
+                        receiverId: c.receiverId,
+                        lastMessage: c.lastMessage,
+                        lastupdateTime: c.lastupdateTime,
+                        profilepicLink: f.friends[c.receiverId]?.profilePic ?? "loading",
+                        receiverName: f.friends[c.receiverId]?.name ?? "loading",
+                        unread: c.unread,
+                        lastSender: c.lastSender,
+                        receiverIsOnline: f.friends[c.receiverId]?.isEffectivelyOnline ?? false)
+                      );
+                    }
+                    add(_ConversationUpdated(updated));
+                  }
           },
         );
 
