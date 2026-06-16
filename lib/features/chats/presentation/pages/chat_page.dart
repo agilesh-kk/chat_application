@@ -78,6 +78,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   String? _editingMessageId;
   String? lastMessageId;
   late final typingCubit;
+  late final inChat;
 
   String get _conversationId {
     if (widget.convoId != null) return widget.convoId!;
@@ -105,12 +106,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     widget.cacheService = CacheService();
     cb = context.read<ChatBloc>()
       ..add(LoadMessagesEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
+    inChat = context.read<InChatCubit>();
     typingCubit = context.read<ConvoTypingCubit>();
     typingCubit.subscribeToTyping(_conversationId, widget.receiverId);
 
     _restoreDraft();
-    context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
-    context.read<InChatCubit>().subscribeToInChat(_conversationId, widget.receiverId);
+    inChat.setInChat(_conversationId, widget.currentUserId, true);
+    inChat.subscribeToInChat(_conversationId, widget.receiverId);
   }
 
   Future<void> _restoreDraft() async {
@@ -140,8 +142,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
-    context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
-    context.read<InChatCubit>().unsubscribeFromInChat(_conversationId);
+    inChat.setInChat(_conversationId, widget.currentUserId, false);
+    inChat.unsubscribeFromInChat(_conversationId);
     cb.add(Closechat());
     super.dispose();
   }
@@ -149,9 +151,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
+      inChat.setInChat(_conversationId, widget.currentUserId, false);
     } else if (state == AppLifecycleState.resumed) {
-      context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
+      inChat.setInChat(_conversationId, widget.currentUserId, true);
     }
   }
 

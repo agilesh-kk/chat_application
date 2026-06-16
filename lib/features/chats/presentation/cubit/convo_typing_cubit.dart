@@ -23,7 +23,7 @@ class ConvoTypingCubit extends Cubit<Map<String, bool>> {
       if (isTyping) {
         updated[convoId] = true;
       } else {
-        updated.remove(convoId);
+        updated[convoId] = false;
       }
       if (!isClosed) emit(updated);
     });
@@ -33,7 +33,7 @@ class ConvoTypingCubit extends Cubit<Map<String, bool>> {
     _subscriptions[convoId]?.cancel();
     _subscriptions.remove(convoId);
     final updated = Map<String, bool>.from(state);
-    updated.remove(convoId);
+    updated[convoId] = false;
     if (!isClosed) emit(updated);
   }
 

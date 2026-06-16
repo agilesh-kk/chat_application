@@ -211,9 +211,12 @@ class _ConversationPageState extends State<ConversationPage> {
               isOnline: convo.receiverIsOnline,
               isTyping: typingMap[convoId] == true,
               draft: convo.draft,
-              onTap: () {
+              onTap: () async {
                 _searchFocusNode.unfocus();
-                Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
+                await Navigator.push(context, MaterialPageRoute(builder: (c)=>ChatPage(currentUserId: widget.userId, receiverId: convo.receiverId, receiverName: convo.receiverName, convoId: convo.convoId,)));
+                if (context.mounted) {
+                  context.read<ConversationBloc>().add(RefreshDraftsEvent());
+                }
               },
             );
           },

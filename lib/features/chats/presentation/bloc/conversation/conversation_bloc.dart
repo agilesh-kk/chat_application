@@ -183,6 +183,15 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
       
     });
 
+    on<RefreshDraftsEvent>((event, emit) {
+      final currentState = state;
+      if (currentState is ConversationLoaded) {
+        _enrichWithDrafts(currentState.conversations).then((withDrafts) {
+          add(_ConversationUpdated(withDrafts));
+        });
+      }
+    });
+
     // =========================================================
     // 🔥 HANDLE STREAM ERROR
     // =========================================================

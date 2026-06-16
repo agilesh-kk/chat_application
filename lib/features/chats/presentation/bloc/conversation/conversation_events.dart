@@ -38,3 +38,5 @@ class _ConversationErrorEvent extends ConversationEvent {
 class ConversationCloseEvent extends ConversationEvent {
   ConversationCloseEvent();
 }
+
+class RefreshDraftsEvent extends ConversationEvent {}
