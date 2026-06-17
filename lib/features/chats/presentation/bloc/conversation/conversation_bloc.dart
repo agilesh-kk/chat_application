@@ -110,13 +110,13 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
 
             _friendsub = (friendsCubit).stream.listen(
                   (d) {
-                  if(d is FriendsLoaded){
+                  if(d is FriendsLoaded && state is ConversationLoaded){
 
                   manageListeners(d.friends.values.toList());
-                  print((state as ConversationLoaded).conversations.length);
 
+                  final loadedState = state as ConversationLoaded;
                   final List<Conversation> updated = <Conversation>[];
-                  for(final c in (state as ConversationLoaded).conversations){
+                  for(final c in loadedState.conversations){
                     updated.add(
                       Conversation(
                       convoId: c.convoId,

@@ -79,6 +79,18 @@ import 'package:chat_application/features/timeline/domain/usecases/remove_person
 import 'package:chat_application/features/timeline/domain/usecases/remove_timeline_event.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/personal_time_line/personal_timeline_bloc.dart';
 import 'package:chat_application/features/timeline/presentation/bloc/time_line/timeline_bloc.dart';
+import 'package:chat_application/features/watch2gether/data/datasources/w2g_remote_data_source.dart';
+import 'package:chat_application/features/watch2gether/data/repository/w2g_repository_impl.dart';
+import 'package:chat_application/features/watch2gether/domain/repository/w2g_repository.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/add_to_queue.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/create_room.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/get_room_stream.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/join_room.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/leave_room.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/remove_from_queue.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/send_chat_message.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/update_player_state.dart';
+import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -114,6 +126,7 @@ Future<void> initDependencies() async {
   await _initProfile();
   _initTimeline();
   _initAchievement();
+  _initW2G();
 
   //supabase initialization
   final supabase = await Supabase.initialize(
@@ -472,8 +485,46 @@ Future<void> _initProfile() async{
     () => BioBloc(
       updateBio: serviceLocator<UpdateBio>(),
     ));
-  
 }
+
+void _initW2G() {
+  serviceLocator
+    //data source
+    ..registerFactory<W2GRemoteDataSource>(
+      () => W2GRemoteDataSourceImpl(serviceLocator<FirebaseDatabase>()),
+    )
+
+    //repository
+    ..registerFactory<W2GRepository>(
+      () => W2GRepositoryImpl(serviceLocator<W2GRemoteDataSource>()),
+    )
+
+    //usecases
+    ..registerFactory(() => CreateRoom(serviceLocator<W2GRepository>()))
+    ..registerFactory(() => GetRoomStream(serviceLocator<W2GRepository>()))
+    ..registerFactory(() => JoinRoom(serviceLocator<W2GRepository>()))
+    ..registerFactory(() => LeaveRoom(serviceLocator<W2GRepository>()))
+    ..registerFactory(() => UpdatePlayerState(serviceLocator<W2GRepository>()))
+    ..registerFactory(() => AddToQueue(serviceLocator<W2GRepository>()))
+    ..registerFactory(() => RemoveFromQueue(serviceLocator<W2GRepository>()))
+    ..registerFactory(() => SendChatMessage(serviceLocator<W2GRepository>()))
+
+    //bloc
+    ..registerLazySingleton(
+      () => W2GBloc(
+        createRoom: serviceLocator<CreateRoom>(),
+        getRoomStream: serviceLocator<GetRoomStream>(),
+        joinRoom: serviceLocator<JoinRoom>(),
+        leaveRoom: serviceLocator<LeaveRoom>(),
+        updatePlayerState: serviceLocator<UpdatePlayerState>(),
+        addToQueue: serviceLocator<AddToQueue>(),
+        removeFromQueue: serviceLocator<RemoveFromQueue>(),
+        sendChatMessage: serviceLocator<SendChatMessage>(),
+        repository: serviceLocator<W2GRepository>(),
+      ),
+    );
+}
+
 
 void _initTimeline(){
   serviceLocator

@@ -5,6 +5,7 @@ import 'package:chat_application/features/chats/presentation/bloc/conversation/c
 import 'package:chat_application/features/chats/presentation/pages/convo_page.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:chat_application/features/status/presentation/pages/status_page.dart';
+import 'package:chat_application/features/watch2gether/presentation/pages/w2g_home_page.dart';
 import 'package:chat_application/init_dependencies.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -28,6 +29,7 @@ class AuthGate extends StatelessWidget {
               pages: [
                 ConversationPage(userId: state.user.id),
                 StatusPage(),
+                const W2GHomePage(),
                 ProfilePage(
                   isUser: true,
                   //user: state.user,

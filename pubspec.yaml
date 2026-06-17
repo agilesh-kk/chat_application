@@ -41,6 +41,8 @@ dependencies:
   emoji_regex: ^0.0.5
   lottie: ^3.3.1
   internet_connection_checker_plus: ^3.0.1
+  video_player: ^2.9.2
+  youtube_explode_dart: ^3.1.0
 
 dev_dependencies:
   flutter_test:
