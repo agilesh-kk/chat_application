@@ -5,6 +5,7 @@ class W2GRoom {
   final String id;
   final String name;
   final String createdBy;
+  final String hostId;
   final DateTime createdAt;
   final W2GVideoItem? currentVideo;
   final List<W2GVideoItem> queue;
@@ -15,6 +16,7 @@ class W2GRoom {
     required this.id,
     required this.name,
     required this.createdBy,
+    required this.hostId,
     required this.createdAt,
     this.currentVideo,
     this.queue = const [],
@@ -26,6 +28,7 @@ class W2GRoom {
     String? id,
     String? name,
     String? createdBy,
+    String? hostId,
     DateTime? createdAt,
     W2GVideoItem? currentVideo,
     List<W2GVideoItem>? queue,
@@ -36,6 +39,7 @@ class W2GRoom {
       id: id ?? this.id,
       name: name ?? this.name,
       createdBy: createdBy ?? this.createdBy,
+      hostId: hostId ?? this.hostId,
       createdAt: createdAt ?? this.createdAt,
       currentVideo: currentVideo ?? this.currentVideo,
       queue: queue ?? this.queue,

@@ -1,9 +1,9 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/init_dependencies.dart';
+import 'package:chat_application/features/watch2gether/domain/entity/w2g_room.dart';
 import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 import 'package:chat_application/features/watch2gether/presentation/pages/w2g_room_page.dart';
-import 'package:chat_application/features/watch2gether/presentation/widgets/create_room_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -16,12 +16,17 @@ class W2GHomePage extends StatefulWidget {
 
 class _W2GHomePageState extends State<W2GHomePage> {
   late final W2GBloc _bloc;
+  String _currentUserId = '';
 
   @override
   void initState() {
     super.initState();
     _bloc = serviceLocator<W2GBloc>();
-    _bloc.add(W2GLoadRooms());
+    final userState = serviceLocator<AppUserCubit>().state;
+    if (userState is AppUserIsSignedin) {
+      _currentUserId = userState.user.id;
+    }
+    _bloc.add(W2GLoadRooms(userId: _currentUserId));
   }
 
   @override
@@ -32,15 +37,12 @@ class _W2GHomePageState extends State<W2GHomePage> {
         backgroundColor: AppPallete.darkBg,
         title: const Text(
           'Watch Together',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppPallete.primaryOrange),
-            onPressed: () => _bloc.add(W2GLoadRooms()),
+            onPressed: () => _bloc.add(W2GLoadRooms(userId: _currentUserId)),
           ),
         ],
       ),
@@ -57,7 +59,12 @@ class _W2GHomePageState extends State<W2GHomePage> {
               );
             }
             if (state is W2GRoomCreated) {
-              _navigateToRoom(state.roomId);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => W2GRoomPage(roomId: state.roomId),
+                ),
+              );
             }
           },
           builder: (context, state) {
@@ -67,102 +74,123 @@ class _W2GHomePageState extends State<W2GHomePage> {
               );
             }
 
-            if (state is W2GRoomsLoaded) {
-              if (state.rooms.isEmpty) {
-                return _buildEmptyState();
+            if (state is W2GHomeLoaded) {
+              if (state.activeRoom != null) {
+                return _buildActiveRoom(state.activeRoom!);
               }
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: state.rooms.length,
-                itemBuilder: (context, index) {
-                  final room = state.rooms[index];
-                  return Card(
-                    color: AppPallete.cardBg,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: AppPallete.divider, width: 0.5),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      title: Text(
-                        room.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${room.participants.length} watching',
-                        style: TextStyle(
-                          color: AppPallete.greyText,
-                          fontSize: 13,
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        color: AppPallete.primaryOrange,
-                        size: 16,
-                      ),
-                      onTap: () => _navigateToRoom(room.id),
-                    ),
-                  );
-                },
-              );
+              return _buildCreateJoinUi();
             }
 
-            return _buildEmptyState();
+            return _buildCreateJoinUi();
           },
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppPallete.primaryOrange,
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.transparent,
-            isScrollControlled: true,
-            builder: (_) => CreateRoomBottomSheet(
-              onCreated: (name) {
-                final userState = serviceLocator<AppUserCubit>().state;
-                if (userState is AppUserIsSignedin) {
-                  _bloc.add(W2GCreateRoom(
-                    name: name,
-                    createdBy: userState.user.id,
-                  ));
-                }
-              },
-            ),
-          );
-        },
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
+  Widget _buildActiveRoom(W2GRoom room) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.video_library_outlined,
-              size: 80, color: AppPallete.greyText.withValues(alpha: 0.4)),
-          const SizedBox(height: 16),
-          Text(
-            'No watch rooms yet',
-            style: TextStyle(
-              color: AppPallete.greyText.withValues(alpha: 0.6),
-              fontSize: 18,
+          Icon(Icons.video_library_outlined, size: 100, color: AppPallete.primaryOrange.withValues(alpha: 0.3)),
+          const SizedBox(height: 24),
+          Text(room.name, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('${room.participants.length} watching', style: TextStyle(color: AppPallete.greyText, fontSize: 16)),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () => _navigateToRoom(room.id),
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Enter Room', style: TextStyle(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppPallete.primaryOrange,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Create a room and invite friends to watch together!',
-            style: TextStyle(
-              color: AppPallete.greyText.withValues(alpha: 0.4),
-              fontSize: 14,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCreateJoinUi() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.video_library_outlined, size: 80, color: AppPallete.greyText.withValues(alpha: 0.4)),
+            const SizedBox(height: 16),
+            Text(
+              'Watch Together',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 22, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Create a room and invite friends to watch together',
+              style: TextStyle(color: AppPallete.greyText.withValues(alpha: 0.6), fontSize: 14),
+            ),
+            const SizedBox(height: 40),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _createRoom,
+                icon: const Icon(Icons.add),
+                label: const Text('Create Room', style: TextStyle(fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppPallete.primaryOrange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _createRoom() {
+    _showCreateDialog();
+  }
+
+  void _showCreateDialog() {
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppPallete.cardBg,
+        title: const Text('Create Room', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Room name',
+            hintStyle: TextStyle(color: AppPallete.greyText.withValues(alpha: 0.5)),
+            filled: true,
+            fillColor: AppPallete.inputBg,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppPallete.greyText))),
+          TextButton(
+            onPressed: () {
+              final name = nameCtrl.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(ctx);
+              _bloc.add(W2GCreateRoom(name: name, createdBy: _currentUserId));
+            },
+            child: const Text('Create', style: TextStyle(color: AppPallete.primaryOrange)),
           ),
         ],
       ),

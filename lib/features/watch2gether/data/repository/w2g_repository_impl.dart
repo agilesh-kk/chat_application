@@ -90,6 +90,14 @@ class W2GRepositoryImpl implements W2GRepository {
       senderName: message.senderName,
       text: message.text,
       timestamp: message.timestamp,
+      type: message.type,
+      imageUrl: message.imageUrl,
+      localPath: message.localPath,
+      reactions: message.reactions,
+      replyToId: message.replyToId,
+      replyToContent: message.replyToContent,
+      replyToSenderId: message.replyToSenderId,
+      replyToType: message.replyToType,
     );
     await _remoteDataSource.sendMessage(roomId, model);
   }
@@ -111,5 +119,50 @@ class W2GRepositoryImpl implements W2GRepository {
   @override
   Future<List<W2GRoom>> getActiveRooms() {
     return _remoteDataSource.getActiveRooms();
+  }
+
+  @override
+  Future<void> deleteRoom(String roomId) {
+    return _remoteDataSource.deleteRoom(roomId);
+  }
+
+  @override
+  Future<void> sendInvite(String roomId, String roomName, String hostId, String hostName, String invitedUserId) {
+    return _remoteDataSource.sendInvite(roomId, roomName, hostId, hostName, invitedUserId);
+  }
+
+  @override
+  Future<void> deleteInvite(String invitedUserId, String roomId) {
+    return _remoteDataSource.deleteInvite(invitedUserId, roomId);
+  }
+
+  @override
+  Stream<Map<String, dynamic>> getInvitesStream(String userId) {
+    return _remoteDataSource.getInvitesStream(userId);
+  }
+
+  @override
+  Future<void> toggleReaction(String roomId, String messageId, String userId, String emoji) {
+    return _remoteDataSource.toggleReaction(roomId, messageId, userId, emoji);
+  }
+
+  @override
+  Future<String> uploadImage(String imagePath, String msgId) {
+    return _remoteDataSource.uploadImage(imagePath, msgId);
+  }
+
+  @override
+  Future<String?> getUserActiveRoom(String userId) {
+    return _remoteDataSource.getUserActiveRoom(userId);
+  }
+
+  @override
+  Future<void> setUserActiveRoom(String userId, String roomId) {
+    return _remoteDataSource.setUserActiveRoom(userId, roomId);
+  }
+
+  @override
+  Future<void> removeUserActiveRoom(String userId) {
+    return _remoteDataSource.removeUserActiveRoom(userId);
   }
 }

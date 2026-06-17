@@ -7,7 +7,8 @@ import 'package:chat_application/features/watch2gether/domain/entity/w2g_video_i
 class _StreamOption {
   final String label;
   final Uri url;
-  const _StreamOption({required this.label, required this.url});
+  final bool isVideoOnly;
+  const _StreamOption({required this.label, required this.url, this.isVideoOnly = false});
 }
 
 class VideoPlayerWidget extends StatefulWidget {
@@ -119,15 +120,26 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       final manifest =
           await _ytExplode!.videos.streams.getManifest(videoId);
 
-      final streams = manifest.muxed;
-      if (streams.isEmpty) throw Exception('No muxed streams available');
+      final streams = <_StreamOption>[];
 
-      _availableStreams = streams
-          .map((s) => _StreamOption(
-                label: _qualityLabel(s),
-                url: Uri.parse(s.url.toString()),
-              ))
-          .toList();
+      for (final s in manifest.muxed) {
+        streams.add(_StreamOption(
+          label: _qualityLabel(s.videoQuality),
+          url: Uri.parse(s.url.toString()),
+        ));
+      }
+
+      for (final s in manifest.videoOnly) {
+        streams.add(_StreamOption(
+          label: '${_qualityLabel(s.videoQuality)} (video only)',
+          url: Uri.parse(s.url.toString()),
+          isVideoOnly: true,
+        ));
+      }
+
+      streams.sort((a, b) => _parseHeight(a.label).compareTo(_parseHeight(b.label)));
+
+      _availableStreams = streams;
 
       final selected = preferred ??
           _availableStreams.firstWhere(
@@ -147,8 +159,13 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     }
   }
 
-  String _qualityLabel(yt.MuxedStreamInfo stream) {
-    final q = stream.videoQuality;
+  int _parseHeight(String label) {
+    final match = RegExp(r'(\d+)p').firstMatch(label);
+    if (match != null) return int.parse(match.group(1)!);
+    return 0;
+  }
+
+  String _qualityLabel(yt.VideoQuality q) {
     if (q == yt.VideoQuality.low144) return '144p';
     if (q == yt.VideoQuality.low240) return '240p';
     if (q == yt.VideoQuality.medium360) return '360p';
@@ -304,6 +321,33 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     }
   }
 
+  void _enterFullscreen() {
+    final ctrl = _controller;
+    if (ctrl == null || !ctrl.value.isInitialized) return;
+    final pos = ctrl.value.position.inMilliseconds / 1000.0;
+    final isPlaying = ctrl.value.isPlaying;
+
+    ctrl.pause();
+    widget.onPlayPause?.call(false);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FullscreenVideoPage(
+          url: _selectedStream?.url ?? Uri.parse(widget.video!.url),
+          position: pos,
+          isPlaying: isPlaying,
+          onExited: (newPos, wasPlaying) {
+            widget.onSeek?.call(newPos);
+            if (wasPlaying) {
+              widget.onPlayPause?.call(true);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   String _formatDuration(Duration d) {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -378,29 +422,50 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                             onPressed: _onPlayPauseTap,
                           ),
                         ),
-                        if (_selectedStream != null)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: GestureDetector(
-                              onTap: _showQualitySelector,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.black54,
-                                  borderRadius: BorderRadius.circular(4),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_selectedStream != null)
+                                GestureDetector(
+                                  onTap: _showQualitySelector,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      _selectedStream!.label,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                child: Text(
-                                  _selectedStream!.label,
-                                  style: const TextStyle(
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: _enterFullscreen,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Icon(
+                                    Icons.fullscreen,
                                     color: Colors.white,
-                                    fontSize: 12,
+                                    size: 20,
                                   ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
+                        ),
                         Positioned(
                           left: 0,
                           right: 0,
@@ -479,6 +544,212 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FullscreenVideoPage extends StatefulWidget {
+  final Uri url;
+  final double position;
+  final bool isPlaying;
+  final void Function(double position, bool wasPlaying) onExited;
+
+  const _FullscreenVideoPage({
+    required this.url,
+    required this.position,
+    required this.isPlaying,
+    required this.onExited,
+  });
+
+  @override
+  State<_FullscreenVideoPage> createState() => _FullscreenVideoPageState();
+}
+
+class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
+  VideoPlayerController? _controller;
+  bool _isPlaying = false;
+  bool _controlsVisible = true;
+  Timer? _hideTimer;
+  bool _disposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isPlaying = widget.isPlaying;
+    _initPlayer();
+  }
+
+  void _initPlayer() {
+    _controller = VideoPlayerController.networkUrl(widget.url);
+    _controller!.initialize().then((_) {
+      if (!mounted || _disposed) return;
+      setState(() {});
+      if (widget.position > 0) {
+        _controller!.seekTo(
+          Duration(milliseconds: (widget.position * 1000).toInt()),
+        );
+      }
+      if (_isPlaying) {
+        _controller!.play();
+      }
+      _showControls();
+    });
+  }
+
+  void _showControls() {
+    _controlsVisible = true;
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && !_disposed) {
+        setState(() => _controlsVisible = false);
+      }
+    });
+    if (mounted) setState(() {});
+  }
+
+  void _toggleControls() {
+    if (_controlsVisible) {
+      _hideTimer?.cancel();
+      _controlsVisible = false;
+      if (mounted) setState(() {});
+    } else {
+      _showControls();
+    }
+  }
+
+  void _onBackPressed() {
+    _hideTimer?.cancel();
+    final pos = _controller != null && _controller!.value.isInitialized
+        ? _controller!.value.position.inMilliseconds / 1000.0
+        : widget.position;
+    final wasPlaying = _isPlaying;
+    _disposed = true;
+    _controller?.dispose();
+    widget.onExited(pos, wasPlaying);
+    Navigator.pop(context);
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    _disposed = true;
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  String _formatDuration(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final h = d.inHours;
+    if (h > 0) return '$h:$m:$s';
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = _controller;
+    final isInit = ctrl != null && ctrl.value.isInitialized;
+    final pos = isInit ? ctrl.value.position : Duration.zero;
+    final duration = isInit ? ctrl.value.duration : Duration.zero;
+    final sliderMax = duration.inMilliseconds > 0
+        ? duration.inMilliseconds / 1000.0
+        : 1.0;
+    final currentSeconds = pos.inMilliseconds / 1000.0;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onTap: _toggleControls,
+        child: Stack(
+          children: [
+            Center(
+              child: isInit
+                  ? VideoPlayer(ctrl)
+                  : const CircularProgressIndicator(color: Colors.white),
+            ),
+            if (_controlsVisible)
+              GestureDetector(
+                onTap: () {},
+                child: Container(
+                  color: Colors.black38,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 8,
+                        left: 8,
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                          onPressed: _onBackPressed,
+                        ),
+                      ),
+                      Center(
+                        child: IconButton(
+                          icon: Icon(
+                            _isPlaying
+                                ? Icons.pause_circle_filled
+                                : Icons.play_circle_filled,
+                            size: 64,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            if (ctrl == null || !ctrl.value.isInitialized) return;
+                            setState(() => _isPlaying = !ctrl.value.isPlaying);
+                            _isPlaying ? ctrl.play() : ctrl.pause();
+                            _showControls();
+                          },
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: MediaQuery.of(context).padding.bottom + 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            children: [
+                              Text(
+                                _formatDuration(pos),
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                              Expanded(
+                                child: SliderTheme(
+                                  data: SliderTheme.of(context).copyWith(
+                                    trackHeight: 3,
+                                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                                    activeTrackColor: const Color(0xFFFF4444),
+                                    inactiveTrackColor: Colors.white24,
+                                    thumbColor: Colors.white,
+                                    overlayColor: Colors.white24,
+                                  ),
+                                  child: Slider(
+                                    value: currentSeconds.clamp(0.0, sliderMax),
+                                    min: 0,
+                                    max: sliderMax,
+                                    onChanged: (v) => _showControls(),
+                                    onChangeEnd: (v) {
+                                      if (ctrl == null) return;
+                                      ctrl.seekTo(Duration(milliseconds: (v * 1000).toInt()));
+                                      _showControls();
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                _formatDuration(duration),
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

@@ -10,6 +10,7 @@ import 'package:chat_application/core/keys/app_keys.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:chat_application/features/achievement/presentation/bloc/achievement_bloc.dart';
 import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
+import 'package:chat_application/features/watch2gether/presentation/widgets/invite_overlay.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart';
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
@@ -765,7 +766,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           brightness: Brightness.dark,
         ),
       ),
-      home: AuthGate(),
+      home: BlocBuilder<AppUserCubit, AppUserState>(
+        builder: (context, userState) {
+          final userId = userState is AppUserIsSignedin ? userState.user.id : null;
+          return InviteOverlay(
+            currentUserId: userId,
+            child: const AuthGate(),
+          );
+        },
+      ),
     );
   }
 }

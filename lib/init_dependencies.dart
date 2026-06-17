@@ -491,7 +491,7 @@ void _initW2G() {
   serviceLocator
     //data source
     ..registerFactory<W2GRemoteDataSource>(
-      () => W2GRemoteDataSourceImpl(serviceLocator<FirebaseDatabase>()),
+      () => W2GRemoteDataSourceImpl(serviceLocator<FirebaseDatabase>(), serviceLocator<SupabaseClient>()),
     )
 
     //repository
@@ -521,6 +521,7 @@ void _initW2G() {
         removeFromQueue: serviceLocator<RemoveFromQueue>(),
         sendChatMessage: serviceLocator<SendChatMessage>(),
         repository: serviceLocator<W2GRepository>(),
+        database: serviceLocator<FirebaseDatabase>(),
       ),
     );
 }

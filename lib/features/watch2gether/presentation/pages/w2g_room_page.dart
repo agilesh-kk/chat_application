@@ -2,6 +2,9 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/init_dependencies.dart';
+import 'package:chat_application/features/friends/data/friend_model.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/watch2gether/domain/entity/w2g_chat_message.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_room.dart';
 import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 import 'package:chat_application/features/watch2gether/presentation/widgets/participant_avatars.dart';
@@ -10,6 +13,7 @@ import 'package:chat_application/features/watch2gether/presentation/widgets/room
 import 'package:chat_application/features/watch2gether/presentation/widgets/video_player_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 
 class W2GRoomPage extends StatefulWidget {
   final String roomId;
@@ -25,6 +29,8 @@ class _W2GRoomPageState extends State<W2GRoomPage>
   late final W2GBloc _bloc;
   String _currentUserId = '';
   String _currentUserName = '';
+  String _currentUserProfilePic = '';
+  W2GChatMessage? _replyToMessage;
 
   @override
   void initState() {
@@ -36,22 +42,31 @@ class _W2GRoomPageState extends State<W2GRoomPage>
     if (userState is AppUserIsSignedin) {
       _currentUserId = userState.user.id;
       _currentUserName = userState.user.name;
+      _currentUserProfilePic = userState.user.profilePic ?? '';
     }
 
     _bloc.add(W2GLoadRoom(
       roomId: widget.roomId,
       currentUserId: _currentUserId,
+      currentUserName: _currentUserName,
+      currentUserProfilePic: _currentUserProfilePic,
     ));
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  void _leaveRoom() {
+    final state = _bloc.state;
+    final isHost = state is W2GRoomLoaded && state.room.hostId == _currentUserId;
     _bloc.add(W2GLeaveRoom(
       roomId: widget.roomId,
       userId: _currentUserId,
+      isHost: isHost,
     ));
-    super.dispose();
   }
 
   @override
@@ -65,6 +80,32 @@ class _W2GRoomPageState extends State<W2GRoomPage>
     }
   }
 
+  void _setTyping(bool isTyping) {
+    _bloc.add(W2GSetTyping(
+      roomId: widget.roomId,
+      userId: _currentUserId,
+      isTyping: isTyping,
+    ));
+  }
+
+  void _pickAndSendImage() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    _bloc.add(W2GSendImage(
+      roomId: widget.roomId,
+      senderId: _currentUserId,
+      senderName: _currentUserName,
+      imagePath: image.path,
+      replyToId: _replyToMessage?.id,
+      replyToContent: _replyToMessage?.text,
+      replyToSenderId: _replyToMessage?.senderId,
+      replyToType: _replyToMessage?.type,
+    ));
+    setState(() => _replyToMessage = null);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,7 +114,10 @@ class _W2GRoomPageState extends State<W2GRoomPage>
         backgroundColor: AppPallete.darkBg,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            _leaveRoom();
+            Navigator.pop(context);
+          },
         ),
         title: BlocBuilder<W2GBloc, W2GState>(
           builder: (context, state) {
@@ -93,7 +137,17 @@ class _W2GRoomPageState extends State<W2GRoomPage>
               if (state is W2GRoomLoaded) {
                 final participants =
                     state.room.participants.values.toList();
-                return ParticipantAvatars(participants: participants);
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (state.room.hostId == _currentUserId)
+                      IconButton(
+                        icon: const Icon(Icons.person_add_alt, color: AppPallete.primaryOrange),
+                        onPressed: () => _showInviteFriends(widget.roomId, state.room.name),
+                      ),
+                    ParticipantAvatars(participants: participants),
+                  ],
+                );
               }
               return const SizedBox.shrink();
             },
@@ -109,6 +163,10 @@ class _W2GRoomPageState extends State<W2GRoomPage>
         listener: (context, state) {
           if (state is W2GError) {
             showSnackbar(context, state.message);
+            if (state.message.contains('permission_denied') ||
+                state.message.contains('does not exist')) {
+              Navigator.pop(context);
+            }
           }
         },
         builder: (context, state) {
@@ -120,21 +178,46 @@ class _W2GRoomPageState extends State<W2GRoomPage>
 
           if (state is W2GRoomLoaded) {
             final room = state.room;
+            final isHost = room.hostId == _currentUserId;
             return Column(
               children: [
-                _buildPlayerSection(room),
+                _buildPlayerSection(room, isHost),
                 Expanded(
                   child: RoomChatOverlay(
                     messages: state.messages,
+                    typingUserIds: state.typingUserIds,
+                    currentUserId: _currentUserId,
+                    currentUserName: _currentUserName,
+                    replyToMessage: _replyToMessage,
                     onSend: (text) {
                       _bloc.add(W2GSendMessage(
                         roomId: widget.roomId,
                         senderId: _currentUserId,
                         senderName: _currentUserName,
                         text: text,
+                        replyToId: _replyToMessage?.id,
+                        replyToContent: _replyToMessage?.text,
+                        replyToSenderId: _replyToMessage?.senderId,
+                        replyToType: _replyToMessage?.type,
+                      ));
+                      setState(() => _replyToMessage = null);
+                    },
+                    onSendImage: _pickAndSendImage,
+                    onReply: (message) {
+                      setState(() => _replyToMessage = message);
+                    },
+                    onCancelReply: () {
+                      setState(() => _replyToMessage = null);
+                    },
+                    onReact: (messageId, emoji) {
+                      _bloc.add(W2GToggleReaction(
+                        roomId: widget.roomId,
+                        messageId: messageId,
+                        userId: _currentUserId,
+                        emoji: emoji,
                       ));
                     },
-                    currentUserId: _currentUserId,
+                    onTyping: _setTyping,
                   ),
                 ),
               ],
@@ -147,7 +230,7 @@ class _W2GRoomPageState extends State<W2GRoomPage>
     );
   }
 
-  Widget _buildPlayerSection(W2GRoom room) {
+  Widget _buildPlayerSection(W2GRoom room, bool isHost) {
     return Column(
       children: [
         VideoPlayerWidget(
@@ -225,6 +308,34 @@ class _W2GRoomPageState extends State<W2GRoomPage>
     );
   }
 
+  void _showInviteFriends(String roomId, String roomName) {
+    final friendsCubit = serviceLocator<FriendsCubit>();
+    final friendsState = friendsCubit.state;
+    final friends = friendsState is FriendsLoaded ? friendsState.friends.values.toList() : <FriendModel>[];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _InviteFriendsSheet(
+        friends: friends,
+        roomId: roomId,
+        roomName: roomName,
+        hostId: _currentUserId,
+        hostName: _currentUserName,
+        onInvite: (friendId) {
+          _bloc.add(W2GInviteFriend(
+            roomId: roomId,
+            roomName: roomName,
+            hostId: _currentUserId,
+            hostName: _currentUserName,
+            invitedUserId: friendId,
+          ));
+        },
+      ),
+    );
+  }
+
   void _showQueue() {
     final state = _bloc.state;
     if (state is! W2GRoomLoaded) return;
@@ -248,6 +359,112 @@ class _W2GRoomPageState extends State<W2GRoomPage>
             itemId: itemId,
           ));
         },
+      ),
+    );
+  }
+}
+
+class _InviteFriendsSheet extends StatelessWidget {
+  final List<FriendModel> friends;
+  final String roomId;
+  final String roomName;
+  final String hostId;
+  final String hostName;
+  final void Function(String friendId) onInvite;
+
+  const _InviteFriendsSheet({
+    required this.friends,
+    required this.roomId,
+    required this.roomName,
+    required this.hostId,
+    required this.hostName,
+    required this.onInvite,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: AppPallete.cardBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppPallete.greyText,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Invite Friends',
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Invite friends to join "$roomName"',
+            style: TextStyle(color: AppPallete.greyText, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          if (friends.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'No friends to invite',
+                  style: TextStyle(color: AppPallete.greyText.withValues(alpha: 0.5)),
+                ),
+              ),
+            )
+          else
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: friends.length,
+                separatorBuilder: (_, _) => const Divider(color: AppPallete.divider, height: 1),
+                itemBuilder: (context, index) {
+                  final friend = friends[index];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: friend.profilePic.isNotEmpty
+                          ? NetworkImage(friend.profilePic)
+                          : null,
+                      backgroundColor: AppPallete.darkTertiary,
+                      child: friend.profilePic.isEmpty
+                          ? Text(friend.name.isNotEmpty ? friend.name[0].toUpperCase() : '?',
+                              style: const TextStyle(color: Colors.white))
+                          : null,
+                    ),
+                    title: Text(friend.name, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                    subtitle: Text(friend.email, style: TextStyle(color: AppPallete.greyText, fontSize: 12)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.send, color: AppPallete.primaryOrange, size: 20),
+                      onPressed: () {
+                        onInvite(friend.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Invite sent to ${friend.name}'),
+                            backgroundColor: AppPallete.primaryOrange,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
       ),
     );
   }

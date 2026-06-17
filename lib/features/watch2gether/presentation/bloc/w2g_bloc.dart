@@ -14,6 +14,7 @@ import 'package:chat_application/features/watch2gether/domain/repository/w2g_rep
 import 'package:chat_application/features/watch2gether/domain/usecase/update_player_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 part 'w2g_event.dart';
 part 'w2g_state.dart';
@@ -28,10 +29,12 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
   final RemoveFromQueue removeFromQueue;
   final SendChatMessage sendChatMessage;
   final W2GRepository repository;
+  final FirebaseDatabase _database;
 
   StreamSubscription<W2GRoom>? _roomSub;
   StreamSubscription<List<W2GChatMessage>>? _messagesSub;
   StreamSubscription<Map<String, W2GParticipant>>? _participantsSub;
+  StreamSubscription<DatabaseEvent>? _typingSub;
 
   W2GBloc({
     required this.createRoom,
@@ -43,10 +46,13 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     required this.removeFromQueue,
     required this.sendChatMessage,
     required this.repository,
-  }) : super(W2GInitial()) {
+    required FirebaseDatabase database,
+  }) : _database = database,
+       super(W2GInitial()) {
     on<W2GLoadRoom>(_onLoadRoom);
     on<W2GJoinRoom>(_onJoinRoom);
     on<W2GLeaveRoom>(_onLeaveRoom);
+    on<W2GDeleteRoom>(_onDeleteRoom);
     on<W2GPlay>(_onPlay);
     on<W2GPause>(_onPause);
     on<W2GSeek>(_onSeek);
@@ -55,11 +61,17 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     on<W2GAddToQueue>(_onAddToQueue);
     on<W2GRemoveFromQueue>(_onRemoveFromQueue);
     on<W2GSendMessage>(_onSendMessage);
+    on<W2GSendImage>(_onSendImage);
     on<W2GCreateRoom>(_onCreateRoom);
     on<W2GLoadRooms>(_onLoadRooms);
+    on<W2GJoinRoomByCode>(_onJoinRoomByCode);
+    on<W2GInviteFriend>(_onInviteFriend);
+    on<W2GToggleReaction>(_onToggleReaction);
+    on<W2GSetTyping>(_onSetTyping);
     on<_W2GRoomStreamError>(_onRoomStreamError);
     on<_W2GRoomUpdated>(_onRoomUpdated);
     on<_W2GMessagesUpdated>(_onMessagesUpdated);
+    on<_W2GTypingUpdated>(_onTypingUpdated);
   }
 
   Future<void> _onLoadRoom(W2GLoadRoom event, Emitter<W2GState> emit) async {
@@ -67,6 +79,7 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     _roomSub?.cancel();
     _messagesSub?.cancel();
     _participantsSub?.cancel();
+    _typingSub?.cancel();
 
     final result = await getRoomStream(event.roomId);
     result.fold(
@@ -88,13 +101,15 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
       }
     });
 
+    _setupTypingListener(event.roomId);
+
     final joinResult = await joinRoom(
       JoinRoomParams(
         roomId: event.roomId,
         participant: W2GParticipant(
           userId: event.currentUserId,
-          name: '',
-          profilePic: '',
+          name: event.currentUserName,
+          profilePic: event.currentUserProfilePic,
           joinedAt: DateTime.now(),
         ),
       ),
@@ -103,6 +118,23 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
       (failure) => emit(W2GError(failure.message)),
       (_) {},
     );
+  }
+
+  void _setupTypingListener(String roomId) {
+    _typingSub = _database
+        .ref('watch2gether/rooms/$roomId/typing')
+        .onValue
+        .listen((event) {
+      if (isClosed) return;
+      final map = (event.snapshot.value as Map?)?.cast<String, dynamic>() ?? {};
+      final typingIds = <String>{};
+      map.forEach((key, value) {
+        if (value is Map && value['isTyping'] == true) {
+          typingIds.add(key);
+        }
+      });
+      add(_W2GTypingUpdated(typingIds));
+    });
   }
 
   Future<void> _onJoinRoom(W2GJoinRoom event, Emitter<W2GState> emit) async {
@@ -124,7 +156,21 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     _roomSub?.cancel();
     _messagesSub?.cancel();
     _participantsSub?.cancel();
-    await leaveRoom(LeaveRoomParams(roomId: event.roomId, userId: event.userId));
+    _typingSub?.cancel();
+    if (event.isHost) {
+      await repository.deleteRoom(event.roomId);
+    } else {
+      await leaveRoom(LeaveRoomParams(roomId: event.roomId, userId: event.userId));
+    }
+    await repository.removeUserActiveRoom(event.userId);
+  }
+
+  Future<void> _onDeleteRoom(W2GDeleteRoom event, Emitter<W2GState> emit) async {
+    _roomSub?.cancel();
+    _messagesSub?.cancel();
+    _participantsSub?.cancel();
+    _typingSub?.cancel();
+    await repository.deleteRoom(event.roomId);
   }
 
   Future<void> _onPlay(W2GPlay event, Emitter<W2GState> emit) async {
@@ -269,6 +315,40 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
           senderName: event.senderName,
           text: event.text,
           timestamp: DateTime.now(),
+          type: 'text',
+          replyToId: event.replyToId,
+          replyToContent: event.replyToContent,
+          replyToSenderId: event.replyToSenderId,
+          replyToType: event.replyToType,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onSendImage(
+      W2GSendImage event, Emitter<W2GState> emit) async {
+    final msgId = const Uuid().v4();
+    String? imageUrl;
+    try {
+      imageUrl = await repository.uploadImage(event.imagePath, msgId);
+    } catch (_) {}
+
+    await sendChatMessage(
+      SendChatMessageParams(
+        roomId: event.roomId,
+        message: W2GChatMessage(
+          id: msgId,
+          senderId: event.senderId,
+          senderName: event.senderName,
+          text: '',
+          timestamp: DateTime.now(),
+          type: 'image',
+          imageUrl: imageUrl,
+          localPath: event.imagePath,
+          replyToId: event.replyToId,
+          replyToContent: event.replyToContent,
+          replyToSenderId: event.replyToSenderId,
+          replyToType: event.replyToType,
         ),
       ),
     );
@@ -277,19 +357,31 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
   Future<void> _onCreateRoom(
       W2GCreateRoom event, Emitter<W2GState> emit) async {
     emit(W2GLoading());
+    final existing = await repository.getUserActiveRoom(event.createdBy);
+    if (existing != null) {
+      emit(W2GError('You already have an active room'));
+      return;
+    }
     final result = await createRoom(
       CreateRoomParams(name: event.name, createdBy: event.createdBy),
     );
-    result.fold(
-      (failure) => emit(W2GError(failure.message)),
-      (roomId) => emit(W2GRoomCreated(roomId)),
+    await result.fold(
+      (failure) async => emit(W2GError(failure.message)),
+      (roomId) async {
+        await repository.setUserActiveRoom(event.createdBy, roomId);
+        emit(W2GRoomCreated(roomId: roomId, roomName: event.name, createdBy: event.createdBy));
+      },
     );
   }
 
   void _onRoomUpdated(_W2GRoomUpdated event, Emitter<W2GState> emit) {
     final current = state;
     if (current is W2GRoomLoaded) {
-      emit(W2GRoomLoaded(room: event.room, messages: current.messages));
+      emit(W2GRoomLoaded(
+        room: event.room,
+        messages: current.messages,
+        typingUserIds: current.typingUserIds,
+      ));
     } else {
       emit(W2GRoomLoaded(room: event.room));
     }
@@ -298,7 +390,11 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
   void _onMessagesUpdated(_W2GMessagesUpdated event, Emitter<W2GState> emit) {
     final current = state;
     if (current is W2GRoomLoaded) {
-      emit(W2GRoomLoaded(room: current.room, messages: event.messages));
+      emit(W2GRoomLoaded(
+        room: current.room,
+        messages: event.messages,
+        typingUserIds: current.typingUserIds,
+      ));
     }
   }
 
@@ -309,10 +405,87 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
   Future<void> _onLoadRooms(W2GLoadRooms event, Emitter<W2GState> emit) async {
     emit(W2GLoading());
     try {
-      final rooms = await repository.getActiveRooms();
-      emit(W2GRoomsLoaded(rooms));
+      final activeRoomId = await repository.getUserActiveRoom(event.userId);
+      W2GRoom? activeRoom;
+      if (activeRoomId != null) {
+        final rooms = await repository.getActiveRooms();
+        activeRoom = rooms.where((r) => r.id == activeRoomId).firstOrNull;
+      }
+      emit(W2GHomeLoaded(activeRoom: activeRoom));
     } catch (e) {
       emit(W2GError(e.toString()));
+    }
+  }
+
+  Future<void> _onJoinRoomByCode(W2GJoinRoomByCode event, Emitter<W2GState> emit) async {
+    final existing = await repository.getUserActiveRoom(event.userId);
+    if (existing != null) {
+      emit(W2GError('You are already in a room. Leave it first to join another.'));
+      return;
+    }
+    final rooms = await repository.getActiveRooms();
+    final room = rooms.where((r) => r.id == event.roomId).firstOrNull;
+    if (room == null) {
+      emit(W2GError('Room not found'));
+      return;
+    }
+    await repository.setUserActiveRoom(event.userId, event.roomId);
+    await joinRoom(
+      JoinRoomParams(
+        roomId: event.roomId,
+        participant: W2GParticipant(
+          userId: event.userId,
+          name: event.userName,
+          profilePic: event.userProfilePic,
+          joinedAt: DateTime.now(),
+        ),
+      ),
+    );
+    emit(W2GRoomCreated(roomId: event.roomId, roomName: room.name, createdBy: event.userId));
+  }
+
+  Future<void> _onInviteFriend(W2GInviteFriend event, Emitter<W2GState> emit) async {
+    await repository.sendInvite(
+      event.roomId,
+      event.roomName,
+      event.hostId,
+      event.hostName,
+      event.invitedUserId,
+    );
+  }
+
+  Future<void> _onToggleReaction(W2GToggleReaction event, Emitter<W2GState> emit) async {
+    await repository.toggleReaction(
+      event.roomId,
+      event.messageId,
+      event.userId,
+      event.emoji,
+    );
+  }
+
+  Future<void> _onSetTyping(W2GSetTyping event, Emitter<W2GState> emit) async {
+    await _database
+        .ref('watch2gether/rooms/${event.roomId}/typing/${event.userId}')
+        .set({
+      'isTyping': event.isTyping,
+      'timestamp': ServerValue.timestamp,
+    });
+    if (!event.isTyping) {
+      await _database
+          .ref('watch2gether/rooms/${event.roomId}/typing/${event.userId}')
+          .onDisconnect()
+          .remove();
+    }
+  }
+
+  void _onTypingUpdated(_W2GTypingUpdated event, Emitter<W2GState> emit) {
+    final current = state;
+    if (current is W2GRoomLoaded) {
+      emit(W2GRoomLoaded(
+        room: current.room,
+        messages: current.messages,
+        typingUserIds: event.typingUserIds,
+      ));
     }
   }
 
@@ -321,6 +494,7 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     _roomSub?.cancel();
     _messagesSub?.cancel();
     _participantsSub?.cancel();
+    _typingSub?.cancel();
     return super.close();
   }
 }

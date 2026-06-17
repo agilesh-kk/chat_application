@@ -7,6 +7,7 @@ class W2GRoomModel extends W2GRoom {
     required super.id,
     required super.name,
     required super.createdBy,
+    required super.hostId,
     required super.createdAt,
     super.currentVideo,
     super.queue,
@@ -29,6 +30,7 @@ class W2GRoomModel extends W2GRoom {
       id: id,
       name: map['name'] as String? ?? '',
       createdBy: map['createdBy'] as String? ?? '',
+      hostId: map['hostId'] as String? ?? map['createdBy'] as String? ?? '',
       createdAt: map['createdAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch(
               (map['createdAt'] as num).toInt())

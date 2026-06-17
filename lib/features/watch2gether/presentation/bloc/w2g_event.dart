@@ -5,7 +5,14 @@ sealed class W2GEvent {}
 final class W2GLoadRoom extends W2GEvent {
   final String roomId;
   final String currentUserId;
-  W2GLoadRoom({required this.roomId, required this.currentUserId});
+  final String currentUserName;
+  final String currentUserProfilePic;
+  W2GLoadRoom({
+    required this.roomId,
+    required this.currentUserId,
+    this.currentUserName = '',
+    this.currentUserProfilePic = '',
+  });
 }
 
 final class W2GJoinRoom extends W2GEvent {
@@ -24,7 +31,13 @@ final class W2GJoinRoom extends W2GEvent {
 final class W2GLeaveRoom extends W2GEvent {
   final String roomId;
   final String userId;
-  W2GLeaveRoom({required this.roomId, required this.userId});
+  final bool isHost;
+  W2GLeaveRoom({required this.roomId, required this.userId, this.isHost = false});
+}
+
+final class W2GDeleteRoom extends W2GEvent {
+  final String roomId;
+  W2GDeleteRoom({required this.roomId});
 }
 
 final class W2GPlay extends W2GEvent {
@@ -95,11 +108,40 @@ final class W2GSendMessage extends W2GEvent {
   final String senderId;
   final String senderName;
   final String text;
+  final String? replyToId;
+  final String? replyToContent;
+  final String? replyToSenderId;
+  final String? replyToType;
   W2GSendMessage({
     required this.roomId,
     required this.senderId,
     required this.senderName,
     required this.text,
+    this.replyToId,
+    this.replyToContent,
+    this.replyToSenderId,
+    this.replyToType,
+  });
+}
+
+final class W2GSendImage extends W2GEvent {
+  final String roomId;
+  final String senderId;
+  final String senderName;
+  final String imagePath;
+  final String? replyToId;
+  final String? replyToContent;
+  final String? replyToSenderId;
+  final String? replyToType;
+  W2GSendImage({
+    required this.roomId,
+    required this.senderId,
+    required this.senderName,
+    required this.imagePath,
+    this.replyToId,
+    this.replyToContent,
+    this.replyToSenderId,
+    this.replyToType,
   });
 }
 
@@ -109,12 +151,63 @@ final class W2GCreateRoom extends W2GEvent {
   W2GCreateRoom({required this.name, required this.createdBy});
 }
 
-final class W2GLoadRooms extends W2GEvent {}
+final class W2GLoadRooms extends W2GEvent {
+  final String userId;
+  W2GLoadRooms({required this.userId});
+}
+
+final class W2GJoinRoomByCode extends W2GEvent {
+  final String roomId;
+  final String userId;
+  final String userName;
+  final String userProfilePic;
+  W2GJoinRoomByCode({
+    required this.roomId,
+    required this.userId,
+    required this.userName,
+    this.userProfilePic = '',
+  });
+}
 
 final class W2GNext extends W2GEvent {
   final String roomId;
   final String userId;
   W2GNext({required this.roomId, required this.userId});
+}
+
+final class W2GInviteFriend extends W2GEvent {
+  final String roomId;
+  final String roomName;
+  final String hostId;
+  final String hostName;
+  final String invitedUserId;
+  W2GInviteFriend({
+    required this.roomId,
+    required this.roomName,
+    required this.hostId,
+    required this.hostName,
+    required this.invitedUserId,
+  });
+}
+
+final class W2GToggleReaction extends W2GEvent {
+  final String roomId;
+  final String messageId;
+  final String userId;
+  final String emoji;
+  W2GToggleReaction({
+    required this.roomId,
+    required this.messageId,
+    required this.userId,
+    required this.emoji,
+  });
+}
+
+final class W2GSetTyping extends W2GEvent {
+  final String roomId;
+  final String userId;
+  final bool isTyping;
+  W2GSetTyping({required this.roomId, required this.userId, required this.isTyping});
 }
 
 class _W2GRoomStreamError extends W2GEvent {
@@ -130,4 +223,9 @@ class _W2GRoomUpdated extends W2GEvent {
 class _W2GMessagesUpdated extends W2GEvent {
   final List<W2GChatMessage> messages;
   _W2GMessagesUpdated(this.messages);
+}
+
+class _W2GTypingUpdated extends W2GEvent {
+  final Set<String> typingUserIds;
+  _W2GTypingUpdated(this.typingUserIds);
 }
