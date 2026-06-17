@@ -39,6 +39,10 @@ abstract interface class ChatLocalDataSource {
   Future<void> truncateDb();
   Future<void> populateMessages(List<Map<String,dynamic>> messages, String receiverId, String convoId);
 
+  Future<void> updateConversationFriendStatus(String convoId, bool isFriend);
+  Future<String?> getConvoIdByReceiverId(String receiverId);
+  Future<List<Conversation>> queryAllConversations();
+
   void dispose();
 }
 
@@ -63,19 +67,27 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
     _db = await openDatabase(
       dbPath,
-      version: 1,
+      version: 6,
       onCreate: _createTables,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
-          // Add the missing column to the existing table
           await db.execute('''
             ALTER TABLE messages 
             ADD COLUMN isEdited INTEGER DEFAULT 0
           ''');
         }
 
-        if(oldVersion < 4){
+        if (oldVersion < 4) {
           await convoUpgrade(db);
+        }
+
+        if (oldVersion < 6) {
+          try {
+            await db.execute('''
+              ALTER TABLE conversations 
+              ADD COLUMN isFriend INTEGER DEFAULT 1
+            ''');
+          } catch (_) {}
         }
       },
     );
@@ -153,7 +165,8 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
         unread Integer,
         receiverId TEXT,
         lastSender TEXT,
-        msgId TEXT
+        msgId TEXT,
+        isFriend INTEGER DEFAULT 1
       )
     ''');
     await db.execute(
@@ -313,7 +326,8 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       receiverId: row['receiverId'] as String,
       unread: (row['unread'] ?? 0) as int,
       profilepicLink: '',
-      receiverName:'' 
+      receiverName:'',
+      isFriend: (row['isFriend'] ?? 1) == 1,
     );
   }
 
@@ -594,7 +608,8 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
             "msgId" : msgId,
             "receiverId" : receiverId,
             "lastSender" : lastSender,
-             "unread" : 0
+            "unread" : 0,
+            "isFriend" : 1,
           });
         }
 
@@ -735,6 +750,39 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     );
     _notifyConvo();
   }
-  
+
+  @override
+  Future<void> updateConversationFriendStatus(String convoId, bool isFriend) async {
+    if (_db == null || kIsWeb) return;
+    await _db!.update(
+      'conversations',
+      {'isFriend': isFriend ? 1 : 0},
+      where: 'convoId = ?',
+      whereArgs: [convoId],
+    );
+    _notifyConvo();
+  }
+
+  @override
+  Future<String?> getConvoIdByReceiverId(String receiverId) async {
+    if (_db == null || kIsWeb) return null;
+    final rows = await _db!.query(
+      'conversations',
+      where: 'receiverId = ?',
+      whereArgs: [receiverId],
+      limit: 1,
+    );
+    return rows.isNotEmpty ? rows.first['convoId'] as String? : null;
+  }
+
+  @override
+  Future<List<Conversation>> queryAllConversations() async {
+    if (_db == null) return [];
+    final rows = await _db!.query(
+      'conversations',
+      orderBy: 'lastUpdateTime DESC',
+    );
+    return rows.map(_dbToConversation).toList();
+  }
 
 }

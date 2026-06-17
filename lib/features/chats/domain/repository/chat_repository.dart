@@ -104,4 +104,12 @@ abstract interface class ChatRepository{
   });
 
   Future<void> stopOperationListener();
+
+  Future<void> updateConversationFriendStatus(String convoId, bool isFriend);
+  Future<void> stopOperationListenerForReceiver(String userId, String receiverId);
+  Future<String?> getConvoIdByReceiverId(String receiverId);
+  Future<void> restoreFriendConversation(String userId, String friendId);
+  Future<void> markConversationNotFriend(String userId, String friendId);
+  Future<List<Conversation>> queryAllLocalConversations();
+  String generateConversationId(String user1, String user2);
 }

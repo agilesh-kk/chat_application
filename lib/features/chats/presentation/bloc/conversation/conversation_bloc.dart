@@ -14,7 +14,8 @@ part 'conversation_states.dart';
 class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   final GetConversations getConversations;
   final FriendsCubit friendsCubit;
-  final Set<String> friends = {};
+  final Set<String> _activeListenerFriends = {};
+  final Set<String> _prevFriendIds = {};
   final ChatRepository chatRepositoryImpl;
   String? userId;
 
@@ -88,12 +89,12 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                       receiverName: sub[c.receiverId]?.name ?? "loading",
                       unread: c.unread,
                       lastSender: c.lastSender,
-                      receiverIsOnline: sub[c.receiverId]?.isEffectivelyOnline ?? false)
+                      receiverIsOnline: sub[c.receiverId]?.isEffectivelyOnline ?? false,
+                      isFriend: c.isFriend,)
                     );
-                  
+                  }
 
                   add(_ConversationUpdated(updated));
-                }
                 
               },
               onError: (error) {
@@ -103,32 +104,74 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
 
             _friendsub?.cancel();
 
-            _friendsub = (friendsCubit).stream.listen(
-                  (d) {
-                  if(d is FriendsLoaded){
+            _friendsub = friendsCubit.stream.listen(
+              (d) async {
+                if (d is! FriendsLoaded) return;
 
-                  manageListeners(d.friends.values.toList());
-                  final loadedState = state;
-                  if (loadedState is! ConversationLoaded) return;
+                final currentFriendIds = d.friends.keys.toSet();
 
-                  final List<Conversation> updated = <Conversation>[];
-                  for(final c in loadedState.conversations){
-                    updated.add(
-                      Conversation(
+                // DETECT REMOVED FRIENDS
+                final removedIds = _prevFriendIds.difference(currentFriendIds);
+                for (final removedId in removedIds) {
+                  await chatRepositoryImpl.stopOperationListenerForReceiver(userId!, removedId);
+                  _activeListenerFriends.remove(removedId);
+                  final convoId = chatRepositoryImpl.generateConversationId(userId!, removedId);
+                  await chatRepositoryImpl.updateConversationFriendStatus(convoId, false);
+                  await chatRepositoryImpl.markConversationNotFriend(userId!, removedId);
+                }
+
+                // DETECT ADDED FRIENDS (re-add scenario)
+                final addedIds = currentFriendIds.difference(_prevFriendIds);
+                for (final addedId in addedIds) {
+                  if (!_activeListenerFriends.contains(addedId)) {
+                    chatRepositoryImpl.startOperationListener(userId: userId!, receiverId: addedId);
+                    _activeListenerFriends.add(addedId);
+                  }
+                  final localConvoId = await chatRepositoryImpl.getConvoIdByReceiverId(addedId);
+                  if (localConvoId != null) {
+                    await chatRepositoryImpl.updateConversationFriendStatus(localConvoId, true);
+                    await chatRepositoryImpl.restoreFriendConversation(userId!, addedId);
+                  }
+                }
+
+                // CROSS-REFERENCE: reconcile local conversations against friend list
+                final allConvos = await chatRepositoryImpl.queryAllLocalConversations();
+                for (final convo in allConvos) {
+                  final isInFriends = currentFriendIds.contains(convo.receiverId);
+                  if (isInFriends != convo.isFriend) {
+                    await chatRepositoryImpl.updateConversationFriendStatus(convo.convoId, isInFriends);
+                  }
+                }
+
+                _prevFriendIds
+                  ..clear()
+                  ..addAll(currentFriendIds);
+
+                manageListeners(d.friends.values.toList());
+
+                final loadedState = state;
+                if (loadedState is! ConversationLoaded) return;
+
+                final List<Conversation> updated = <Conversation>[];
+                for (final c in loadedState.conversations) {
+                  updated.add(
+                    Conversation(
                       convoId: c.convoId,
                       receiverId: c.receiverId,
                       lastMessage: c.lastMessage,
                       lastupdateTime: c.lastupdateTime,
-                  profilepicLink: d.friends[c.receiverId]?.profilePic ?? "loading",
-                  receiverName: d.friends[c.receiverId]?.name ?? "loading",
+                      profilepicLink: d.friends[c.receiverId]?.profilePic ?? "loading",
+                      receiverName: d.friends[c.receiverId]?.name ?? "loading",
                       unread: c.unread,
                       lastSender: c.lastSender,
-                      receiverIsOnline: d.friends[c.receiverId]?.isEffectivelyOnline ?? false)
-                    );
-                  }
-                  add(_ConversationUpdated(updated));
+                      receiverIsOnline: d.friends[c.receiverId]?.isEffectivelyOnline ?? false,
+                      isFriend: c.isFriend,
+                    ),
+                  );
                 }
-                },);
+                add(_ConversationUpdated(updated));
+              },
+            );
 
                   if (friendsCubit.state is FriendsLoaded && state is ConversationLoaded) {
                     final f = friendsCubit.state as FriendsLoaded;
@@ -146,7 +189,8 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                         receiverName: f.friends[c.receiverId]?.name ?? "loading",
                         unread: c.unread,
                         lastSender: c.lastSender,
-                        receiverIsOnline: f.friends[c.receiverId]?.isEffectivelyOnline ?? false)
+                        receiverIsOnline: f.friends[c.receiverId]?.isEffectivelyOnline ?? false,
+                        isFriend: c.isFriend,)
                       );
                     }
                     add(_ConversationUpdated(updated));
@@ -183,13 +227,10 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     // 🔥 HANDLE STREAM DATA
     // =========================================================
     on<_ConversationUpdated>((event, emit) {
-      //print("🚀 EMITTING STATE");
-      print(event.convos.length);
-      
+      final filtered = event.convos.where((c) => c.isFriend).toList();
 
       emit(ConversationLoaded(
-        
-        conversations: List.from(event.convos), // 🔥 IMPORTANT
+        conversations: List.from(filtered),
       ));
     });
 
@@ -223,9 +264,9 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
 
   void manageListeners(List<FriendModel> f){
       for(final i in f){
-        if(!friends.contains(i.id)){
+        if(!_activeListenerFriends.contains(i.id)){
           chatRepositoryImpl.startOperationListener(userId: userId!, receiverId: i.id);
-          friends.add(i.id);
+          _activeListenerFriends.add(i.id);
         }
       }
     }
@@ -238,6 +279,8 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     _convoSub?.cancel();
     await chatRepositoryImpl.stopOperationListener();
     _friendsub!.cancel();
+    _activeListenerFriends.clear();
+    _prevFriendIds.clear();
     
     return super.close();
   }

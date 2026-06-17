@@ -115,6 +115,19 @@ class FriendsRemoteDataSourceImpl implements FriendsRemoteDataSource {
     });
 
     await batch.commit();
+
+    try {
+      final convoId = _generateConvoId(userId, friendId);
+      await firestore.collection('Conversations').doc(convoId).update({
+        '$userId.isFriend': false,
+        '$friendId.isFriend': false,
+      });
+    } catch (_) {}
+  }
+
+  String _generateConvoId(String user1, String user2) {
+    final sorted = [user1, user2]..sort();
+    return "${sorted[0]}_${sorted[1]}";
   }
 
   @override

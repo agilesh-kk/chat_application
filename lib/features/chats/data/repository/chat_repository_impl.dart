@@ -130,6 +130,50 @@ class ChatRepositoryImpl implements ChatRepository {
     }
   }
 
+  @override
+  Future<void> stopOperationListenerForReceiver(String userId, String receiverId) async {
+    final opCollection = _getOtherOpCollection(userId, receiverId);
+    await _opSub[opCollection]?.cancel();
+    _opSub.remove(opCollection);
+  }
+
+  @override
+  Future<void> updateConversationFriendStatus(String convoId, bool isFriend) async {
+    await chatLocalDataSource.updateConversationFriendStatus(convoId, isFriend);
+  }
+
+  @override
+  Future<String?> getConvoIdByReceiverId(String receiverId) async {
+    return chatLocalDataSource.getConvoIdByReceiverId(receiverId);
+  }
+
+  @override
+  Future<void> restoreFriendConversation(String userId, String friendId) async {
+    final convoId = generateConversationId(userId, friendId);
+    await chatRemoteDataSources.updateConversationFriendStatus(
+      convoId: convoId,
+      userId: userId,
+      friendId: friendId,
+      isFriend: true,
+    );
+  }
+
+  @override
+  Future<void> markConversationNotFriend(String userId, String friendId) async {
+    final convoId = generateConversationId(userId, friendId);
+    await chatRemoteDataSources.updateConversationFriendStatus(
+      convoId: convoId,
+      userId: userId,
+      friendId: friendId,
+      isFriend: false,
+    );
+  }
+
+  @override
+  Future<List<Conversation>> queryAllLocalConversations() async {
+    return chatLocalDataSource.queryAllConversations();
+  }
+
   Future<void> _processOperation(
     Map<String, dynamic> opData,
     String convoId,
@@ -466,6 +510,7 @@ class ChatRepositoryImpl implements ChatRepository {
   }
   // ===================== Helpers =====================
 
+  @override
   String generateConversationId(String user1, String user2) {
     final sorted = [user1, user2]..sort();
     return "${sorted[0]}_${sorted[1]}";

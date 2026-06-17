@@ -99,6 +99,13 @@ abstract interface class ChatRemoteDataSources {
     required String newContent,
     required String opCollection
   });
+
+  Future<void> updateConversationFriendStatus({
+    required String convoId,
+    required String userId,
+    required String friendId,
+    required bool isFriend,
+  });
 }
 
 class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
@@ -474,27 +481,24 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           //per-user conversation model
           userId: {
             "receiverId": receiverId,
-            //"receiverName": receiverData["name"],
-            //"receiverProfile": receiverData["profilePic"],
             "unread": 0,
 
-            // ✅ per-user last message
             "lastMessage": type == "text" ? content : "📷 Image",
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),
+            "isFriend": true,
           },
 
           receiverId: {
             "receiverId": userId,
-            //"receiverName": userName,
-            //"receiverProfile": userProfile,
             "unread": FieldValue.increment(1),
 
             "lastMessage": type == "text" ? content : "📷 Image",
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),
+            "isFriend": true,
           },
         }, SetOptions(merge: true));
       }
@@ -1029,5 +1033,20 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     } catch (e) {
       //print("Delete operation error: $e");
     }
+  }
+
+  @override
+  Future<void> updateConversationFriendStatus({
+    required String convoId,
+    required String userId,
+    required String friendId,
+    required bool isFriend,
+  }) async {
+    try {
+      await firestore.collection("Conversations").doc(convoId).update({
+        '$userId.isFriend': isFriend,
+        '$friendId.isFriend': isFriend,
+      });
+    } catch (_) {}
   }
 }
