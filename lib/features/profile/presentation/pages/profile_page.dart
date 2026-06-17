@@ -68,7 +68,15 @@ class ProfilePage extends StatelessWidget {
                     ],
                   ),
                 )
-              : BlocListener<BioBloc, BioState>(
+              : BlocListener<FriendRequestsCubit, FriendRequestsState>(
+                  listener: (context, state) {
+                    if (state is FriendRequestAccepted) {
+                      showSnackbar(context, "Friend request accepted!");
+                    } else if (state is FriendRequestRejected) {
+                      showSnackbar(context, "Friend request declined");
+                    }
+                  },
+                  child: BlocListener<BioBloc, BioState>(
                   listener: (context, state) {
                     if (state is BioUpdateSuccess) {
                       final appUserState = context.read<AppUserCubit>().state;
@@ -99,6 +107,7 @@ class ProfilePage extends StatelessWidget {
                         child: SizedBox(height: 100),
                       ),
                     ],
+                  ),
                   ),
                 ),
         ),
@@ -704,7 +713,6 @@ class ProfilePage extends StatelessWidget {
                     userId: currentUser.id,
                     requesterId: profileUser.id,
                   );
-              showSnackbar(context, "Friend request accepted!");
             },
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 20),
@@ -750,7 +758,6 @@ class ProfilePage extends StatelessWidget {
                     userId: currentUser.id,
                     requesterId: profileUser.id,
                   );
-              showSnackbar(context, "Friend request declined");
             },
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 20),

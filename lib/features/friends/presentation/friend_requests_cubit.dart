@@ -78,7 +78,7 @@ class FriendRequestsCubit extends Cubit<FriendRequestsState> {
         userId: userId,
         requesterId: requesterId,
       );
-      emit(FriendRequestActionSuccess());
+      emit(FriendRequestAccepted(requesterId));
     } catch (e) {
       emit(FriendRequestActionError(e.toString()));
     }
@@ -93,7 +93,7 @@ class FriendRequestsCubit extends Cubit<FriendRequestsState> {
         userId: userId,
         requesterId: requesterId,
       );
-      emit(FriendRequestActionSuccess());
+      emit(FriendRequestRejected(requesterId));
     } catch (e) {
       emit(FriendRequestActionError(e.toString()));
     }

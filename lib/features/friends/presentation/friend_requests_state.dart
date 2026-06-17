@@ -21,7 +21,15 @@ class FriendRequestCancelled extends FriendRequestsState {
   FriendRequestCancelled(this.friendId);
 }
 
-class FriendRequestActionSuccess extends FriendRequestsState {}
+class FriendRequestAccepted extends FriendRequestsState {
+  final String requesterId;
+  FriendRequestAccepted(this.requesterId);
+}
+
+class FriendRequestRejected extends FriendRequestsState {
+  final String requesterId;
+  FriendRequestRejected(this.requesterId);
+}
 
 class FriendRequestActionError extends FriendRequestsState {
   final String message;

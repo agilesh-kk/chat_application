@@ -1,6 +1,7 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/profile_pic_provider.dart';
+import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:flutter/material.dart';
@@ -45,7 +46,15 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
           ),
         ),
         child: SafeArea(
-          child: BlocBuilder<FriendRequestsCubit, FriendRequestsState>(
+          child: BlocListener<FriendRequestsCubit, FriendRequestsState>(
+            listener: (context, state) {
+              if (state is FriendRequestAccepted) {
+                showSnackbar(context, "Friend request accepted!");
+              } else if (state is FriendRequestRejected) {
+                showSnackbar(context, "Friend request declined");
+              }
+            },
+            child: BlocBuilder<FriendRequestsCubit, FriendRequestsState>(
             builder: (context, state) {
               if (state is FriendRequestsLoaded) {
                 final requests = state.requests.values.toList();
@@ -96,6 +105,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
             },
           ),
         ),
+      ),
       ),
     );
   }
