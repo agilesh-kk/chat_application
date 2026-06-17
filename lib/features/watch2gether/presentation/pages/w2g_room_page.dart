@@ -59,14 +59,50 @@ class _W2GRoomPageState extends State<W2GRoomPage>
     super.dispose();
   }
 
-  void _leaveRoom() {
-    final state = _bloc.state;
-    final isHost = state is W2GRoomLoaded && state.room.hostId == _currentUserId;
+  // Just pop back — room keeps running in the background
+  void _goBack() {
+    Navigator.pop(context);
+  }
+
+  // Actually leave the room (remove from participants), room stays for others
+  void _exitRoom() {
     _bloc.add(W2GLeaveRoom(
       roomId: widget.roomId,
       userId: _currentUserId,
-      isHost: isHost,
     ));
+    Navigator.pop(context);
+  }
+
+  // Host only: permanently delete the room for everyone
+  void _closeRoom() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppPallete.cardBg,
+        title: const Text('Close Room', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'This will permanently delete the room for everyone. Continue?',
+          style: TextStyle(color: AppPallete.greyText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppPallete.greyText)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _bloc.add(W2GDeleteRoom(
+                roomId: widget.roomId,
+                userId: _currentUserId,
+              ));
+              Navigator.pop(context);
+            },
+            child: const Text('Close Room', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -109,15 +145,12 @@ class _W2GRoomPageState extends State<W2GRoomPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppPallete.darkBg,
       appBar: AppBar(
         backgroundColor: AppPallete.darkBg,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            _leaveRoom();
-            Navigator.pop(context);
-          },
+          onPressed: _goBack,
         ),
         title: BlocBuilder<W2GBloc, W2GState>(
           builder: (context, state) {
@@ -137,10 +170,22 @@ class _W2GRoomPageState extends State<W2GRoomPage>
               if (state is W2GRoomLoaded) {
                 final participants =
                     state.room.participants.values.toList();
+                final isHost = state.room.hostId == _currentUserId;
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (state.room.hostId == _currentUserId)
+                    IconButton(
+                      icon: const Icon(Icons.exit_to_app, color: AppPallete.greyText),
+                      tooltip: 'Exit Room',
+                      onPressed: _exitRoom,
+                    ),
+                    if (isHost)
+                      IconButton(
+                        icon: const Icon(Icons.delete_forever, color: Colors.red),
+                        tooltip: 'Close Room',
+                        onPressed: _closeRoom,
+                      ),
+                    if (isHost)
                       IconButton(
                         icon: const Icon(Icons.person_add_alt, color: AppPallete.primaryOrange),
                         onPressed: () => _showInviteFriends(widget.roomId, state.room.name),
@@ -150,8 +195,8 @@ class _W2GRoomPageState extends State<W2GRoomPage>
                 );
               }
               return const SizedBox.shrink();
-            },
-          ),
+          },
+        ),
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.queue_music, color: AppPallete.primaryOrange),
@@ -238,6 +283,7 @@ class _W2GRoomPageState extends State<W2GRoomPage>
           isPlaying: room.playerState.isPlaying,
           position: room.playerState.position,
           currentUserId: _currentUserId,
+          canControl: isHost,
           onPlayPause: (isPlaying) {
             if (isPlaying) {
               _bloc.add(W2GPlay(
@@ -261,8 +307,7 @@ class _W2GRoomPageState extends State<W2GRoomPage>
             ));
           },
           onPositionUpdate: (position) {
-            if (room.playerState.isPlaying &&
-                room.playerState.updatedBy == _currentUserId) {
+            if (room.playerState.isPlaying && isHost) {
               _bloc.add(W2GSyncPosition(
                 roomId: widget.roomId,
                 userId: _currentUserId,
@@ -285,19 +330,19 @@ class _W2GRoomPageState extends State<W2GRoomPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.movie_creation_outlined,
-                      size: 64, color: Colors.grey),
+                      size: 64, color: AppPallete.greyText),
                   const SizedBox(height: 16),
                   Text(
                     'No video playing',
                     style: TextStyle(
-                        color: Colors.grey.withValues(alpha: 0.7),
+                        color: AppPallete.greyText.withValues(alpha: 0.7),
                         fontSize: 16),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Add a video from the queue',
                     style: TextStyle(
-                        color: Colors.grey.withValues(alpha: 0.5),
+                        color: AppPallete.greyText.withValues(alpha: 0.5),
                         fontSize: 13),
                   ),
                 ],

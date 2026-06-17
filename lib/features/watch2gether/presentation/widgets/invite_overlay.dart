@@ -29,6 +29,14 @@ class _InviteOverlayState extends State<InviteOverlay> {
     _startListening();
   }
 
+  @override
+  void didUpdateWidget(InviteOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.currentUserId != oldWidget.currentUserId) {
+      _startListening();
+    }
+  }
+
   void _startListening() {
     _inviteSub?.cancel();
     if (widget.currentUserId == null || widget.currentUserId!.isEmpty) return;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:chat_application/features/watch2gether/data/services/video_controller_service.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_chat_message.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_participant.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_room.dart';
@@ -30,6 +31,8 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
   final SendChatMessage sendChatMessage;
   final W2GRepository repository;
   final FirebaseDatabase _database;
+  final VideoControllerService videoService;
+  String? _currentUserId;
 
   StreamSubscription<W2GRoom>? _roomSub;
   StreamSubscription<List<W2GChatMessage>>? _messagesSub;
@@ -47,7 +50,8 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     required this.sendChatMessage,
     required this.repository,
     required FirebaseDatabase database,
-  }) : _database = database,
+    required this.videoService,
+  })  : _database = database,
        super(W2GInitial()) {
     on<W2GLoadRoom>(_onLoadRoom);
     on<W2GJoinRoom>(_onJoinRoom);
@@ -75,6 +79,7 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
   }
 
   Future<void> _onLoadRoom(W2GLoadRoom event, Emitter<W2GState> emit) async {
+    _currentUserId = event.currentUserId;
     emit(W2GLoading());
     _roomSub?.cancel();
     _messagesSub?.cancel();
@@ -102,6 +107,8 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     });
 
     _setupTypingListener(event.roomId);
+
+    await repository.setUserActiveRoom(event.currentUserId, event.roomId);
 
     final joinResult = await joinRoom(
       JoinRoomParams(
@@ -157,12 +164,26 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     _messagesSub?.cancel();
     _participantsSub?.cancel();
     _typingSub?.cancel();
+    videoService.dispose();
     if (event.isHost) {
       await repository.deleteRoom(event.roomId);
     } else {
       await leaveRoom(LeaveRoomParams(roomId: event.roomId, userId: event.userId));
     }
     await repository.removeUserActiveRoom(event.userId);
+
+    // Load fresh home data so home page shows correct state
+    try {
+      final activeRoomId = await repository.getUserActiveRoom(event.userId);
+      W2GRoom? activeRoom;
+      if (activeRoomId != null) {
+        final rooms = await repository.getActiveRooms();
+        activeRoom = rooms.where((r) => r.id == activeRoomId).firstOrNull;
+      }
+      emit(W2GHomeLoaded(activeRoom: activeRoom));
+    } catch (e) {
+      emit(W2GError(e.toString()));
+    }
   }
 
   Future<void> _onDeleteRoom(W2GDeleteRoom event, Emitter<W2GState> emit) async {
@@ -170,7 +191,9 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     _messagesSub?.cancel();
     _participantsSub?.cancel();
     _typingSub?.cancel();
+    videoService.dispose();
     await repository.deleteRoom(event.roomId);
+    await repository.removeUserActiveRoom(event.userId);
   }
 
   Future<void> _onPlay(W2GPlay event, Emitter<W2GState> emit) async {
@@ -261,7 +284,7 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
       W2GSyncPosition event, Emitter<W2GState> emit) async {
     if (state is W2GRoomLoaded) {
       final current = (state as W2GRoomLoaded).room.playerState;
-      if (current.isPlaying) {
+      if (current.isPlaying && current.updatedBy == event.userId) {
         await updatePlayerState(
           UpdatePlayerStateParams(
             roomId: event.roomId,
@@ -375,6 +398,7 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
   }
 
   void _onRoomUpdated(_W2GRoomUpdated event, Emitter<W2GState> emit) {
+    videoService.syncFromRoom(event.room, _currentUserId);
     final current = state;
     if (current is W2GRoomLoaded) {
       emit(W2GRoomLoaded(
@@ -403,6 +427,7 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
   }
 
   Future<void> _onLoadRooms(W2GLoadRooms event, Emitter<W2GState> emit) async {
+    final previousRoom = state is W2GRoomLoaded ? (state as W2GRoomLoaded).room : null;
     emit(W2GLoading());
     try {
       final activeRoomId = await repository.getUserActiveRoom(event.userId);
@@ -411,7 +436,7 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
         final rooms = await repository.getActiveRooms();
         activeRoom = rooms.where((r) => r.id == activeRoomId).firstOrNull;
       }
-      emit(W2GHomeLoaded(activeRoom: activeRoom));
+      emit(W2GHomeLoaded(activeRoom: activeRoom ?? (activeRoomId == null ? previousRoom : null)));
     } catch (e) {
       emit(W2GError(e.toString()));
     }

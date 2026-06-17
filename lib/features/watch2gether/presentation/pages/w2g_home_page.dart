@@ -64,7 +64,7 @@ class _W2GHomePageState extends State<W2GHomePage> {
                 MaterialPageRoute(
                   builder: (_) => W2GRoomPage(roomId: state.roomId),
                 ),
-              );
+              ).then((_) => _bloc.add(W2GLoadRooms(userId: _currentUserId)));
             }
           },
           builder: (context, state) {
@@ -79,6 +79,10 @@ class _W2GHomePageState extends State<W2GHomePage> {
                 return _buildActiveRoom(state.activeRoom!);
               }
               return _buildCreateJoinUi();
+            }
+
+            if (state is W2GRoomLoaded) {
+              return _buildActiveRoom(state.room);
             }
 
             return _buildCreateJoinUi();
@@ -203,6 +207,6 @@ class _W2GHomePageState extends State<W2GHomePage> {
       MaterialPageRoute(
         builder: (_) => W2GRoomPage(roomId: roomId),
       ),
-    );
+    ).then((_) => _bloc.add(W2GLoadRooms(userId: _currentUserId)));
   }
 }

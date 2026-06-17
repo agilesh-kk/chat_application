@@ -37,7 +37,8 @@ final class W2GLeaveRoom extends W2GEvent {
 
 final class W2GDeleteRoom extends W2GEvent {
   final String roomId;
-  W2GDeleteRoom({required this.roomId});
+  final String userId;
+  W2GDeleteRoom({required this.roomId, required this.userId});
 }
 
 final class W2GPlay extends W2GEvent {

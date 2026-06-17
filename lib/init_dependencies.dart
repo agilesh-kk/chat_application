@@ -90,6 +90,7 @@ import 'package:chat_application/features/watch2gether/domain/usecase/leave_room
 import 'package:chat_application/features/watch2gether/domain/usecase/remove_from_queue.dart';
 import 'package:chat_application/features/watch2gether/domain/usecase/send_chat_message.dart';
 import 'package:chat_application/features/watch2gether/domain/usecase/update_player_state.dart';
+import 'package:chat_application/features/watch2gether/data/services/video_controller_service.dart';
 import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -489,6 +490,9 @@ Future<void> _initProfile() async{
 
 void _initW2G() {
   serviceLocator
+    //services
+    ..registerLazySingleton(() => VideoControllerService())
+
     //data source
     ..registerFactory<W2GRemoteDataSource>(
       () => W2GRemoteDataSourceImpl(serviceLocator<FirebaseDatabase>(), serviceLocator<SupabaseClient>()),
@@ -522,6 +526,7 @@ void _initW2G() {
         sendChatMessage: serviceLocator<SendChatMessage>(),
         repository: serviceLocator<W2GRepository>(),
         database: serviceLocator<FirebaseDatabase>(),
+        videoService: serviceLocator<VideoControllerService>(),
       ),
     );
 }
