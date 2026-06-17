@@ -26,6 +26,7 @@ class _SearchPageState extends State<SearchPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
+      context.read<SearchBloc>().add(ResetSearch());
     });
   }
 

@@ -3,7 +3,6 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/search_page.dart';
-import 'package:chat_application/features/friends/presentation/pages/friend_requests_page.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_image_viewer.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
@@ -84,15 +83,15 @@ return Scaffold(
               if (state is FriendsLoaded) {
                 final friends = state.friends.values.toList();
 
-                return CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: _buildHeader(context, currentUser.id),
-                    ),
-                    SliverToBoxAdapter(
-                      child: _buildActionRow(context, currentUser.id),
-                    ),
-                    if (friends.isEmpty)
+                 return CustomScrollView(
+                   slivers: [
+                     SliverToBoxAdapter(
+                       child: _buildHeader(context, currentUser.id),
+                     ),
+                     SliverToBoxAdapter(
+                       child: _buildActionRow(context, currentUser.id),
+                     ),
+                     if (friends.isEmpty)
                       SliverToBoxAdapter(
                         child: _buildEmptyState(),
                       )
@@ -214,26 +213,6 @@ return Scaffold(
                     builder: (_) => SearchPage(currentUserId: currentUserId),
                   ),
                 );
-              },
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildActionCard(
-              icon: Icons.handshake_outlined,
-              title: "Friend Requests",
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const FriendRequestsPage(),
-                  ),
-                );
-                if (context.mounted) {
-                  context
-                      .read<FriendsCubit>()
-                      .loadFriends(userId: currentUserId);
-                }
               },
             ),
           ),

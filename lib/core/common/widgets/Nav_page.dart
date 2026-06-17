@@ -68,16 +68,14 @@ class _NavigationPageState extends State<NavigationPage> {
                 ],
               ),
               child: Center(
-                child: SafeArea(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
-                      _buildNavItem(1, Icons.remove_red_eye_outlined, Icons.remove_red_eye, 'Status'),
-                      _buildNavItem(2, Icons.person_outline, Icons.person, 'Profile'),
-                    ],
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _buildNavItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
+                    _buildNavItem(1, Icons.remove_red_eye_outlined, Icons.remove_red_eye, 'Status'),
+                    _buildNavItem(2, Icons.person_outline, Icons.person, 'Profile'),
+                  ],
                 ),
               ),
             ),

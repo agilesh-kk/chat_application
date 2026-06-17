@@ -8,6 +8,7 @@ import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart'
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/friends/presentation/pages/friend_requests_page.dart';
 import 'package:chat_application/features/profile/presentation/pages/friends_page.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
@@ -17,19 +18,39 @@ import 'package:chat_application/features/profile/presentation/pages/profile_ima
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_shortcut_plus/flutter_shortcut.dart';
-import 'package:path/path.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   final bool isUser;
   final dynamic user;
   const ProfilePage({super.key, required this.isUser, this.user});
 
   @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isUser) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final appUserState = context.read<AppUserCubit>().state;
+        if (appUserState is AppUserIsSignedin) {
+          context
+              .read<FriendRequestsCubit>()
+              .loadFriendRequests(userId: appUserState.user.id);
+        }
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final appUserState = context.watch<AppUserCubit>().state;
 
-    final profileUser =
-        user ?? (appUserState is AppUserIsSignedin ? appUserState.user : null);
+    final profileUser = widget.user ??
+        (appUserState is AppUserIsSignedin ? appUserState.user : null);
 
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
@@ -121,7 +142,7 @@ class ProfilePage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          if (!isUser)
+          if (!widget.isUser)
             GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Container(
@@ -180,24 +201,137 @@ class ProfilePage extends StatelessWidget {
                 ),
               ],
             ),
-          if (isUser)
-            _buildActionButton(
-              icon: Icons.logout_rounded,
-              onTap: () async {
-                final shouldLogout = await showConfirmationDialog(
-                  context,
-                  'Log out?',
-                  Icons.warning_amber_outlined,
-                );
-                if (shouldLogout == true && context.mounted) {
-                  context.read<AuthBloc>().add(AuthSignOut());
-                  await FlutterShortcut.clearShortcutItems();
-                }
-              },
-              color: AppPallete.errorColor,
+          if (widget.isUser)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildFriendRequestsBadgeButton(context),
+                const SizedBox(width: 8),
+                _buildActionButton(
+                  icon: Icons.logout_rounded,
+                  onTap: () async {
+                    final shouldLogout = await showConfirmationDialog(
+                      context,
+                      'Log out?',
+                      Icons.warning_amber_outlined,
+                    );
+                    if (shouldLogout == true && context.mounted) {
+                      context.read<AuthBloc>().add(AuthSignOut());
+                      await FlutterShortcut.clearShortcutItems();
+                    }
+                  },
+                  color: AppPallete.errorColor,
+                ),
+              ],
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFriendRequestsBadgeButton(BuildContext context) {
+    return BlocBuilder<FriendRequestsCubit, FriendRequestsState>(
+      builder: (context, state) {
+        final count = state is FriendRequestsLoaded ? state.requests.length : 0;
+        final hasBadge = count > 0;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FriendRequestsPage()),
+            );
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: hasBadge
+                  ? LinearGradient(
+                      colors: [
+                        AppPallete.primaryOrange,
+                        AppPallete.lightOrange,
+                      ],
+                    )
+                  : null,
+              color: hasBadge ? null : AppPallete.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: hasBadge
+                    ? AppPallete.primaryOrange.withValues(alpha: 0.5)
+                    : AppPallete.divider,
+              ),
+              boxShadow: hasBadge
+                  ? [
+                      BoxShadow(
+                        color:
+                            AppPallete.primaryOrange.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        Icons.person_add_alt_1,
+                        color: hasBadge
+                            ? AppPallete.whiteColor
+                            : AppPallete.whiteColor,
+                        size: 24,
+                      ),
+                      if (hasBadge)
+                        Positioned(
+                          top: -6,
+                          right: -6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppPallete.errorColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppPallete.cardBg,
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppPallete.errorColor
+                                      .withValues(alpha: 0.4),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              count > 9 ? '9+' : '$count',
+                              style: TextStyle(
+                                color: AppPallete.whiteColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -240,7 +374,7 @@ class ProfilePage extends StatelessWidget {
   Widget _buildHeader(BuildContext context, dynamic profileUser) {
     final friendsState = context.watch<FriendsCubit>().state;
     final bool isOnline;
-    if (!isUser && friendsState is FriendsLoaded) {
+    if (!widget.isUser && friendsState is FriendsLoaded) {
       isOnline = friendsState.friends[profileUser.id]?.isEffectivelyOnline ?? false;
     } else {
       isOnline = true;
@@ -320,7 +454,7 @@ class ProfilePage extends StatelessWidget {
                       : null,
                 ),
               ),
-              if (isUser)
+              if (widget.isUser)
                 Positioned(
                   bottom: 8,
                   right: 8,
@@ -471,13 +605,13 @@ class ProfilePage extends StatelessWidget {
           children: [
             Row(
               children: [
-                if (isUser) ...[
+                if (widget.isUser) ...[
                   _buildStatItem(
                     icon: Icons.people_outline,
                     value: friendsCount.toString(),
                     label: "Friends",
                     color: AppPallete.primaryOrange,
-                    isClickable: isUser,
+                    isClickable: widget.isUser,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -526,7 +660,7 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 20),
             UserDetailsCard(
               bio: profileUser.bio,
-              onEditBio: isUser ? () {} : null,
+              onEditBio: widget.isUser ? () {} : null,
               userId: profileUser.id,
             ),
           ],
@@ -621,7 +755,7 @@ class ProfilePage extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                isUser ? "Explore" : "Actions",
+                widget.isUser ? "Explore" : "Actions",
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -632,7 +766,7 @@ class ProfilePage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          if (isUser)
+          if (widget.isUser)
             Row(
               children: [
                 Expanded(

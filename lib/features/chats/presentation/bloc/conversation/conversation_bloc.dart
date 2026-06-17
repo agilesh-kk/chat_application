@@ -81,24 +81,24 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                 }
 
                 final List<Conversation> updated = <Conversation>[];
-                  for(final c in convos){
-                    updated.add(
-                      Conversation(
-                      convoId: c.convoId,
-                      receiverId: c.receiverId,
-                      lastMessage: c.lastMessage,
-                      lastupdateTime: c.lastupdateTime,
-                      profilepicLink: sub[c.receiverId]?.profilePic ?? "loading",
-                      receiverName: sub[c.receiverId]?.name ?? "loading",
-                      unread: c.unread,
-                      lastSender: c.lastSender,
-                      receiverIsOnline: sub[c.receiverId]?.isEffectivelyOnline ?? false,
-                      isFriend: c.isFriend,)
-                    );
-                  
-
-                  add(_ConversationUpdated(updated));
+                for(final c in convos){
+                  updated.add(
+                    Conversation(
+                    convoId: c.convoId,
+                    receiverId: c.receiverId,
+                    lastMessage: c.lastMessage,
+                    lastupdateTime: c.lastupdateTime,
+                    profilepicLink: sub[c.receiverId]?.profilePic ?? "loading",
+                    receiverName: sub[c.receiverId]?.name ?? "loading",
+                    unread: c.unread,
+                    lastSender: c.lastSender,
+                    receiverIsOnline: sub[c.receiverId]?.isEffectivelyOnline ?? false,
+                    isFriend: c.isFriend,)
+                  );
                 }
+                _enrichWithDrafts(updated).then((withDrafts) {
+                  add(_ConversationUpdated(withDrafts));
+                });
                 
               },
               onError: (error) {
@@ -168,10 +168,13 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                       receiverName: d.friends[c.receiverId]?.name ?? "loading",
                       unread: c.unread,
                       lastSender: c.lastSender,
-                      receiverIsOnline: d.friends[c.receiverId]?.isEffectivelyOnline ?? false)
+                      receiverIsOnline: d.friends[c.receiverId]?.isEffectivelyOnline ?? false,
+                      isFriend: c.isFriend)
                     );
                   }
-                  add(_ConversationUpdated(updated));
+                  _enrichWithDrafts(updated).then((withDrafts) {
+                    add(_ConversationUpdated(withDrafts));
+                  });
                 },
               );
           },
@@ -264,6 +267,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         unread: c.unread,
         lastSender: c.lastSender,
         receiverIsOnline: c.receiverIsOnline,
+        isFriend: c.isFriend,
         draft: draft,
       ));
     }

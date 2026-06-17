@@ -15,6 +15,8 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
       _onSearchStart,
       transformer: debounce(const Duration(milliseconds: 400)), // ✅ APPLY HERE
     );
+
+    on<ResetSearch>((event, emit) => emit(SearchInitial()));
   }
 
   // ✅ Debounce transformer
