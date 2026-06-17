@@ -20,6 +20,7 @@ import 'package:chat_application/features/chats/presentation/cubit/convo_typing_
 import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit.dart';
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
@@ -631,6 +632,11 @@ void main() async {
         //user friends cubit
         BlocProvider(
           create: (context) => serviceLocator<FriendsCubit>(),
+        ),
+
+        //user friend requests cubit
+        BlocProvider(
+          create: (context) => serviceLocator<FriendRequestsCubit>(),
         ),
 
         BlocProvider(

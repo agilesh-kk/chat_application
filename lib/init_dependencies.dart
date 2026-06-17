@@ -42,6 +42,7 @@ import 'package:chat_application/features/chats/presentation/cubit/convo_typing_
 import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit.dart';
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/friends/data/friends_remote_data_sources.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/data/datasources/profile_pic_local_data_source.dart';
 import 'package:chat_application/features/profile/data/datasources/profile_remote_data_source.dart';
@@ -137,6 +138,10 @@ Future<void> initDependencies() async {
   serviceLocator.registerLazySingleton(() => FriendsCubit(
     serviceLocator<FriendsRemoteDataSource>(),
     serviceLocator<ProfilePicLocalDataSource>(),
+  ));
+
+  serviceLocator.registerLazySingleton(() => FriendRequestsCubit(
+    serviceLocator<FriendsRemoteDataSource>(),
   ));
 
   serviceLocator.registerFactory<TypingRemoteDataSource>(
@@ -295,7 +300,8 @@ void _initAuth() {
       currentUser: serviceLocator<CurrentUser>(),
       userSignOut: serviceLocator<UserSignOut>(),
       appUserCubit: serviceLocator<AppUserCubit>(),
-      friendsCubit: serviceLocator<FriendsCubit>()
+      friendsCubit: serviceLocator<FriendsCubit>(),
+      friendRequestsCubit: serviceLocator<FriendRequestsCubit>(),
     ),
   );
 }
@@ -313,7 +319,6 @@ void _initChat()async {
 
   ..registerLazySingleton<ChatRepository>(
     () => ChatRepositoryImpl(
-      fb: serviceLocator(),
       chatRemoteDataSources:  serviceLocator<ChatRemoteDataSources>(),
       chatLocalDataSource: serviceLocator<ChatLocalDataSource>()
     ),

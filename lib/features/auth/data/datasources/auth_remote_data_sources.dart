@@ -81,6 +81,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'profilePic': getRandomProfileImage(),
         'birthDate': birthDate,
         'friends': [],
+        'Requests': [],
         'gender' : gender,
         'bio' : "",
       });
