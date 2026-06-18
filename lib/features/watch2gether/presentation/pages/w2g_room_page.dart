@@ -24,8 +24,7 @@ class W2GRoomPage extends StatefulWidget {
   State<W2GRoomPage> createState() => _W2GRoomPageState();
 }
 
-class _W2GRoomPageState extends State<W2GRoomPage>
-    with WidgetsBindingObserver {
+class _W2GRoomPageState extends State<W2GRoomPage> {
   late final W2GBloc _bloc;
   String _currentUserId = '';
   String _currentUserName = '';
@@ -35,7 +34,6 @@ class _W2GRoomPageState extends State<W2GRoomPage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _bloc = serviceLocator<W2GBloc>();
 
     final userState = serviceLocator<AppUserCubit>().state;
@@ -55,7 +53,6 @@ class _W2GRoomPageState extends State<W2GRoomPage>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -103,17 +100,6 @@ class _W2GRoomPageState extends State<W2GRoomPage>
         ],
       ),
     );
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      _bloc.add(W2GPause(
-        roomId: widget.roomId,
-        userId: _currentUserId,
-        position: 0,
-      ));
-    }
   }
 
   void _setTyping(bool isTyping) {

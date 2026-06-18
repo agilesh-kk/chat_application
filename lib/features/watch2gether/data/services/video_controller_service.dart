@@ -3,7 +3,6 @@ import 'package:chat_application/features/watch2gether/domain/entity/w2g_room.da
 
 class VideoControllerService {
   VideoPlayerController? _controller;
-  String? _streamUrl;
   String? _originalVideoUrl;
   bool isSyncing = false;
 
@@ -13,12 +12,12 @@ class VideoControllerService {
   /// The caller should await [initialize] on the returned controller.
   /// [originalUrl] is the user-facing video URL (not the stream URL).
   VideoPlayerController getOrCreate(String url, {String? originalUrl}) {
-    if (_controller != null && _streamUrl == url) {
+    final effectiveOriginal = originalUrl ?? url;
+    if (_controller != null && _originalVideoUrl == effectiveOriginal) {
       return _controller!;
     }
     _disposeCurrent();
-    _streamUrl = url;
-    _originalVideoUrl = originalUrl ?? url;
+    _originalVideoUrl = effectiveOriginal;
     _controller = VideoPlayerController.networkUrl(Uri.parse(url));
     return _controller!;
   }
@@ -57,7 +56,6 @@ class VideoControllerService {
 
   void dispose() {
     _disposeCurrent();
-    _streamUrl = null;
     _originalVideoUrl = null;
   }
 
