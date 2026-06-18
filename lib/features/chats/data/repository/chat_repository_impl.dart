@@ -69,6 +69,35 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<Either<Failure, bool>> downloadAllConversations(String userId) async {
+    try {
+      final convoIds = await chatRemoteDataSources.getUserConvoList(userId);
+      if (convoIds.isEmpty) return right(false);
+
+      for (final convoId in convoIds) {
+        final docs = await chatRemoteDataSources.fetchAllMessages(
+          conversationId: convoId,
+        );
+        if (docs.isNotEmpty) {
+          final docIds = docs.map((d) => d['_docId'] as String).toList();
+          final parts = convoId.split('_');
+          final receiverId = parts[0] == userId ? parts[1] : parts[0];
+          await chatLocalDataSource.bulkInsertMessages(docs, docIds, receiverId);
+        }
+      }
+      isRecentlyDownloaded = true;
+      return right(true);
+    } catch (e) {
+      return left(Failure(e.toString()));
+    }
+  }
+
+  @override
+  Future<List<String>> getUserConvoList(String userId) async {
+    return chatRemoteDataSources.getUserConvoList(userId);
+  }
+
+  @override
   Future<Either<Failure, Stream<List<Message>>>> getMessages({
     required String receiverId,
     required String userId,

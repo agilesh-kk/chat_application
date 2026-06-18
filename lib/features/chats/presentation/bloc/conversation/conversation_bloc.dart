@@ -46,20 +46,24 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         final result = await getConversations(event.userId);
         userId = event.userId;
 
-        result.fold(
-          (failure) {
+        await result.fold(
+          (failure) async {
             if(failure.message == "user-changed"){
-              _friendsub = (friendsCubit).stream.listen(
-                  (d) {
-                  if(d is FriendsLoaded){
-                    final ids = d.friends.values.map((e)=>e.id).toList();
-                    add(ConversationDownloadEvent(event.userId, ids, ids.isNotEmpty ? (100 ~/ ids.length) : 0));
-                  }
-                });
+              final convoIds = await chatRepositoryImpl.getUserConvoList(event.userId);
+              if (convoIds.isNotEmpty) {
+                add(ConvoListDownloadEvent(event.userId, convoIds, (100 ~/ convoIds.length)));
+              } else {
+                _friendsub = (friendsCubit).stream.listen(
+                    (d) {
+                    if(d is FriendsLoaded){
+                      final ids = d.friends.values.map((e)=>e.id).toList();
+                      add(ConversationDownloadEvent(event.userId, ids, ids.isNotEmpty ? (100 ~/ ids.length) : 0));
+                    }
+                  });
+              }
             }else{
               emit(ConversationError(failure.message));
             }
-            
           },
           (convoStream) {
             _convoSub = convoStream
@@ -204,6 +208,28 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
           }
       });
     },);
+
+    on<ConvoListDownloadEvent>((event, emit) async {
+      final convoId = event.convoIds.removeLast();
+      final parts = convoId.split('_');
+      final receiverId = parts[0] == event.userId ? parts[1] : parts[0];
+      final res = await chatRepositoryImpl.downloadConversation(userId: event.userId, friendId: receiverId);
+      res.fold(
+        (e) => emit(ConversationError(e.message)),
+        (r) {
+          if (state is ConversationLoading) {
+            emit(ConversationDownloading(event.val));
+          } else if (state is ConversationDownloading) {
+            emit(ConversationDownloading((state as ConversationDownloading).loaded + event.val));
+          }
+          if (event.convoIds.isNotEmpty) {
+            add(ConvoListDownloadEvent(event.userId, event.convoIds, event.val));
+          } else {
+            add(LoadConversationsEvent(event.userId));
+          }
+        },
+      );
+    });
 
     // =========================================================
     // 🔥 HANDLE STREAM DATA

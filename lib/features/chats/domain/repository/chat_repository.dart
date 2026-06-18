@@ -20,6 +20,10 @@ abstract interface class ChatRepository{
     required String friendId
   });
 
+  Future<Either<Failure, bool>> downloadAllConversations(String userId);
+
+  Future<List<String>> getUserConvoList(String userId);
+
   //contract to send Message
   Future<Either<Failure,void>> sendMessage({
     required String receiverId,

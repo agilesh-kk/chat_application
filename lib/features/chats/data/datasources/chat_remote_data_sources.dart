@@ -106,6 +106,8 @@ abstract interface class ChatRemoteDataSources {
     required String friendId,
     required bool isFriend,
   });
+
+  Future<List<String>> getUserConvoList(String userId);
 }
 
 class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
@@ -500,6 +502,13 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             "lastupdateTime": FieldValue.serverTimestamp(),
             "isFriend": true,
           },
+        }, SetOptions(merge: true));
+
+        batch.set(firestore.collection('users').doc(userId), {
+          'convoList': FieldValue.arrayUnion([convoId]),
+        }, SetOptions(merge: true));
+        batch.set(firestore.collection('users').doc(receiverId), {
+          'convoList': FieldValue.arrayUnion([convoId]),
         }, SetOptions(merge: true));
       }
 
@@ -1048,5 +1057,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         '$friendId.isFriend': isFriend,
       });
     } catch (_) {}
+  }
+
+  @override
+  Future<List<String>> getUserConvoList(String userId) async {
+    final doc = await firestore.collection('users').doc(userId).get();
+    final data = doc.data();
+    return List<String>.from(data?['convoList'] ?? []);
   }
 }
