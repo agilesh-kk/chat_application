@@ -90,6 +90,7 @@ class _ChatPageState extends State<ChatPage>
   int? highlightedIndex;
   String lastAnimated = "";
   bool firstTime = true;
+  String? lastMessageId;
   Message? _replyToMessage;
   String? _editingMessageId;
   bool _showTimelineCard = false;
@@ -828,11 +829,18 @@ class _ChatPageState extends State<ChatPage>
                         if ((index == messages.length - 1 &&
                                 message.id != lastAnimated) &&
                             !firstTime) {
-                          isAnimate = true;
-                        }
-                        if (index == messages.length - 1){
-                          lastAnimated = message.id;}
-                        firstTime = false;
+                                isAnimate = true;
+                              }
+                              if (index == messages.length - 1){
+                              lastAnimated = message.id;}
+                              firstTime = false;
+
+                              if(lastMessageId==null){
+                                lastMessageId = messages[0].id;
+                              }
+                              else if(lastMessageId != messages[0].id && _scrollController.isAttached){
+                                lastMessageId = messages[0].id;
+                              }
 
                         return Padding(
                           padding: EdgeInsets.only(
@@ -871,6 +879,7 @@ class _ChatPageState extends State<ChatPage>
                                       isMe,
                                       isAnimate,
                                       highlightedIndex == index,
+                                      lastMessageId == message.id,
                                     ),
                                     if (!message.deletedForEveryone &&
                                         message.reactions.isNotEmpty)
@@ -1362,7 +1371,7 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
-  Widget buildBubble(Message msg, bool isMe, bool isAnimate, bool flash) {
+  Widget buildBubble(Message msg, bool isMe, bool isAnimate, bool flash, bool newOne) {
     switch (msg.type) {
       case "text":
         return MessageBubble(
@@ -1374,6 +1383,7 @@ class _ChatPageState extends State<ChatPage>
           isMe: isMe,
           animate: isAnimate,
           highlight: flash,
+          newOne: newOne,
           onDelete: () {
             DeleteMessageConfirmationDialog.show(
               context,

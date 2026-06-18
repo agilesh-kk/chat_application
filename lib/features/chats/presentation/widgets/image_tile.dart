@@ -228,7 +228,9 @@ class _ImageMessageTileState extends State<ImageMessageTile>
           margin: widget.isMe
               ? const EdgeInsets.only(left: 64, right: 8, top: 6,bottom: 6)
               : const EdgeInsets.only(left: 8, right: 64, top: 6,bottom: 6),
-          padding: const EdgeInsets.all(4),
+          padding: widget.message.deletedForEveryone
+              ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+              : const EdgeInsets.all(4),
           constraints: const BoxConstraints(maxWidth: 250),
           decoration: BoxDecoration(
             color: widget.flash
@@ -556,24 +558,22 @@ class _ImageMessageTileState extends State<ImageMessageTile>
   }
   
   Widget _buildDeletedMessage() {
-    return Container(
-      height: 40,
-      width: 250,
-      alignment: Alignment.center,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.block, size: 14, color: AppPallete.greyText),
-          SizedBox(width: 4),
-          Text(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.block, size: 14, color: AppPallete.greyText),
+        SizedBox(width: 4),
+        Flexible(
+          child: Text(
             "This message was deleted",
             style: TextStyle(
+              fontSize: 15,
               fontStyle: FontStyle.italic,
               color: AppPallete.greyText,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

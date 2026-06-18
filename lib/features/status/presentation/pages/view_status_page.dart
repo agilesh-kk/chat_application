@@ -577,7 +577,10 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                           const SizedBox(height: 12),
                           _buildNavButton(
                             icon: _isPaused ? Icons.play_arrow : Icons.pause,
-                            onTap: togglePause,
+                            onTap: () {
+                              togglePause();
+                              toggleUIVisibility();
+                            },
                           ),
                           const SizedBox(height: 12),
                           _buildNavButton(
@@ -596,7 +599,10 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                   child: AnimatedOpacity(
                     opacity: _isUIVisible ? 1.0 : 0.0,
                     duration: const Duration(milliseconds: 300),
-                    child: Column(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 520),
+                        child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
@@ -759,10 +765,12 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
+            ],
           ),
-        );
+        ),
+      );
       },
     ),
   );

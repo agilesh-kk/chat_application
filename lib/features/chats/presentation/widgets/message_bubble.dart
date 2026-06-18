@@ -10,11 +10,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 
+import 'package:emoji_regex/emoji_regex.dart';
+import 'package:lottie/lottie.dart';
+import 'package:chat_application/features/chats/presentation/helper/emoji_lottie_map.dart';
+
 class MessageBubble extends StatefulWidget {
   final Message message;
   final bool isMe;
   final bool animate;
   final bool highlight;
+  final bool newOne;
   final VoidCallback? onDelete;
   final VoidCallback? onReply;
   final VoidCallback? onReplyTap;
@@ -30,6 +35,7 @@ class MessageBubble extends StatefulWidget {
     required this.isMe,
     required this.animate,
     this.highlight = false,
+    this.newOne = false,
     this.onDelete,
     this.onReply,
     this.onReplyTap,
@@ -47,6 +53,7 @@ class MessageBubble extends StatefulWidget {
 class _MessageBubbleState extends State<MessageBubble>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  int _playCount = 0;
 
   late final Animation<double> fade;
   late final Animation<Offset> slide;
@@ -213,21 +220,27 @@ class _MessageBubbleState extends State<MessageBubble>
   }
 
   Widget _buildMessageContainer(String time, bool normal) {
+    final isEmojiOnly = _isEmojiOnly;
+    final hasReactions = widget.message.reactions.isNotEmpty && !widget.message.deletedForEveryone;
 return Align(
       alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         margin: widget.isMe
-            ? const EdgeInsets.only(left: 64, right: 8, top: 4, bottom: 4)
-            : const EdgeInsets.only(left: 8, right: 64, top: 4, bottom: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ? EdgeInsets.only(left: 64, right: 8, top: 4, bottom: hasReactions ? isEmojiOnly ? 15 : 8 : 4)
+            : EdgeInsets.only(left: 8, right: 64, top: 4, bottom: hasReactions ? isEmojiOnly ? 15 : 8 : 4),
+        padding: isEmojiOnly
+            ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         constraints: const BoxConstraints(maxWidth: 500),
         decoration: BoxDecoration(
-          color: widget.highlight
-            ? Colors.amberAccent.withValues(alpha: 0.25)
-            : (widget.isMe ? const Color(0xFFB84A1A) : AppPallete.cardBg),
+          color: isEmojiOnly
+            ? Colors.transparent
+            : (widget.highlight
+              ? Colors.amberAccent.withValues(alpha: 0.25)
+              : (widget.isMe ? const Color(0xFFB84A1A) : AppPallete.cardBg)),
           borderRadius: BorderRadius.circular(16),
-          border: widget.isMe ? null : Border.all(color: AppPallete.divider),
+          border: isEmojiOnly ? null : (widget.isMe ? null : Border.all(color: AppPallete.divider)),
         ),
         child: widget.message.replyToId != null && !widget.message.deletedForEveryone
           ? Column(
@@ -239,20 +252,76 @@ return Align(
                 Align(alignment: Alignment.centerRight, child: _buildTimeRow(time)),
               ],
             )
-          : Wrap(
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.end,
-              spacing: 6,
-              children: [
-                _buildContentRow(),
-                _buildTimeRow(time),
-              ],
-            ),
+          : isEmojiOnly
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _buildContentRow(),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: _buildTimeRow(time),
+                  ),
+                ],
+              )
+            : Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 6,
+                children: [
+                  _buildContentRow(),
+                  _buildTimeRow(time),
+                ],
+              ),
       ),
     );
   }
 
+  bool get _isEmojiOnly {
+    if (widget.message.deletedForEveryone) return false;
+    final cleaned = widget.message.content.replaceAll(RegExp(r'[\uFE0F\u200D]'), '');
+    final regex = emojiRegex();
+    final emojiCount = regex.allMatches(cleaned).length;
+    final onlyEmojis = cleaned.replaceAll(regex, '').trim().isEmpty;
+    return onlyEmojis && emojiCount > 0;
+  }
+
+  Widget _buildLottieWidget() {
+    final cleaned = widget.message.content.replaceAll(RegExp(r'[\uFE0F\u200D]'), '');
+    final config = getLottieForEmoji(cleaned);
+    if (config == null) return _buildEmojiText();
+
+    if (widget.newOne) _playCount++;
+
+    return GestureDetector(
+      onTap: () => setState(() => _playCount++),
+      child: Lottie.network(
+        Uri.base.resolve(config.bundledAsset).toString(),
+        key: ValueKey(_playCount),
+        width: 120,
+        height: 120,
+        fit: BoxFit.contain,
+        repeat: false,
+        animate: _playCount > 0,
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('Lottie network error for ${config.bundledAsset}: $error');
+          return _buildEmojiText();
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmojiText() {
+    return Text(
+      widget.message.content,
+      style: TextStyle(fontSize: _emojiFontSize(widget.message.content)),
+    );
+  }
+
   Widget _buildContentRow() {
+    if (!widget.message.deletedForEveryone && _isEmojiOnly) {
+      return _buildLottieWidget();
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -266,7 +335,7 @@ return Align(
                 ? "This message was deleted "
                 : widget.message.content,
             style: TextStyle(
-              fontSize: 15,
+              fontSize: widget.message.deletedForEveryone ? 15 : _emojiFontSize(widget.message.content),
               fontStyle: widget.message.deletedForEveryone ? FontStyle.italic : FontStyle.normal,
               color: widget.message.deletedForEveryone
                   ? AppPallete.greyText
@@ -276,6 +345,17 @@ return Align(
         ),
       ],
     );
+  }
+
+  double _emojiFontSize(String text) {
+    final cleaned = text.replaceAll(RegExp(r'[\uFE0F\u200D]'), '');
+    final regex = emojiRegex();
+    final emojiCount = regex.allMatches(cleaned).length;
+    final onlyEmojis = cleaned.replaceAll(regex, '').trim().isEmpty;
+    if (!onlyEmojis || emojiCount == 0) return 15;
+    if (emojiCount == 1) return 60;
+    if (emojiCount == 2) return 44;
+    return 15;
   }
 
   Widget _buildTimeRow(String time) {
