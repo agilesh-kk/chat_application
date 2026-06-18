@@ -24,13 +24,6 @@ class ConversationDownloadEvent extends ConversationEvent {
   ConversationDownloadEvent(this.userId,this.receiverId,this.val);
 }
 
-class ConvoListDownloadEvent extends ConversationEvent {
-  final String userId;
-  final List<String> convoIds;
-  final int val;
-  ConvoListDownloadEvent(this.userId, this.convoIds, this.val);
-}
-
 // 🔥 INTERNAL EVENTS (VERY IMPORTANT)
 class _ConversationUpdated extends ConversationEvent {
   final List<Conversation> convos;
