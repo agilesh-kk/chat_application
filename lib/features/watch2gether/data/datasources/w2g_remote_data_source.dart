@@ -107,6 +107,7 @@ class W2GRemoteDataSourceImpl implements W2GRemoteDataSource {
   @override
   Future<void> updatePlayerState(
       String roomId, W2GPlayerState state) async {
+        print(state.isPlaying);
     await _roomRef(roomId).child('playerState').set({
       'isPlaying': state.isPlaying,
       'position': state.position,

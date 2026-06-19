@@ -1,8 +1,9 @@
-import 'package:video_player/video_player.dart';
+﻿import 'package:video_player/video_player.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_room.dart';
 
 class VideoControllerService {
   VideoPlayerController? _controller;
+  String? _streamUrl;
   String? _originalVideoUrl;
   bool isSyncing = false;
 
@@ -11,14 +12,17 @@ class VideoControllerService {
   /// Returns the existing controller if it matches [url], otherwise creates a new one.
   /// The caller should await [initialize] on the returned controller.
   /// [originalUrl] is the user-facing video URL (not the stream URL).
-  VideoPlayerController getOrCreate(String url, {String? originalUrl}) {
-    final effectiveOriginal = originalUrl ?? url;
-    if (_controller != null && _originalVideoUrl == effectiveOriginal) {
+  VideoPlayerController getOrCreate(String url, {String? originalUrl, bool backgroundPlayback = false}) {
+    if (_controller != null && _streamUrl == url) {
       return _controller!;
     }
     _disposeCurrent();
-    _originalVideoUrl = effectiveOriginal;
-    _controller = VideoPlayerController.networkUrl(Uri.parse(url));
+    _streamUrl = url;
+    _originalVideoUrl = originalUrl ?? url;
+    _controller = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: backgroundPlayback),
+    );
     return _controller!;
   }
 
@@ -30,7 +34,7 @@ class VideoControllerService {
     final player = room.playerState;
     if (player.updatedBy == myUserId) return; // self change, ignore
 
-    // Video URL changed — handled on re-entry (skip background sync)
+    // Video URL changed ΓÇö handled on re-entry (skip background sync)
     if (_originalVideoUrl == null) return;
     if (room.currentVideo != null && room.currentVideo!.url != _originalVideoUrl) {
       return;
@@ -56,6 +60,7 @@ class VideoControllerService {
 
   void dispose() {
     _disposeCurrent();
+    _streamUrl = null;
     _originalVideoUrl = null;
   }
 

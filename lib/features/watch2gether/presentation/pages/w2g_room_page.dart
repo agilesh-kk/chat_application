@@ -1,4 +1,4 @@
-import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+﻿import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/init_dependencies.dart';
@@ -24,7 +24,8 @@ class W2GRoomPage extends StatefulWidget {
   State<W2GRoomPage> createState() => _W2GRoomPageState();
 }
 
-class _W2GRoomPageState extends State<W2GRoomPage> {
+class _W2GRoomPageState extends State<W2GRoomPage>
+    with WidgetsBindingObserver {
   late final W2GBloc _bloc;
   String _currentUserId = '';
   String _currentUserName = '';
@@ -34,6 +35,7 @@ class _W2GRoomPageState extends State<W2GRoomPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _bloc = serviceLocator<W2GBloc>();
 
     final userState = serviceLocator<AppUserCubit>().state;
@@ -53,10 +55,11 @@ class _W2GRoomPageState extends State<W2GRoomPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  // Just pop back — room keeps running in the background
+  // Just pop back ΓÇö room keeps running in the background
   void _goBack() {
     Navigator.pop(context);
   }
@@ -100,6 +103,17 @@ class _W2GRoomPageState extends State<W2GRoomPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // if (state == AppLifecycleState.paused) {
+    //   _bloc.add(W2GPause(
+    //     roomId: widget.roomId,
+    //     userId: _currentUserId,
+    //     position: 0,
+    //   ));
+    // }
   }
 
   void _setTyping(bool isTyping) {
@@ -270,6 +284,7 @@ class _W2GRoomPageState extends State<W2GRoomPage> {
           position: room.playerState.position,
           currentUserId: _currentUserId,
           canControl: isHost,
+          backgroundPlayback: true,
           onPlayPause: (isPlaying) {
             if (isPlaying) {
               _bloc.add(W2GPlay(
@@ -302,6 +317,7 @@ class _W2GRoomPageState extends State<W2GRoomPage> {
             }
           },
           onVideoEnded: () {
+            print("endeddddddddddddddddddddddddddddddddddddddd");
             _bloc.add(W2GNext(
               roomId: widget.roomId,
               userId: _currentUserId,

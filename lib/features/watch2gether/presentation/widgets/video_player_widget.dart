@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
@@ -6,6 +6,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/watch2gether/data/services/video_controller_service.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_video_item.dart';
+import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 import 'package:chat_application/init_dependencies.dart';
 
 class _StreamOption {
@@ -24,6 +25,7 @@ class VideoPlayerWidget extends StatefulWidget {
   final VoidCallback? onVideoEnded;
   final String? currentUserId;
   final bool canControl;
+  final bool backgroundPlayback;
 
   const VideoPlayerWidget({
     super.key,
@@ -36,6 +38,7 @@ class VideoPlayerWidget extends StatefulWidget {
     this.onVideoEnded,
     this.currentUserId,
     this.canControl = true,
+    this.backgroundPlayback = false,
   });
 
   @override
@@ -55,6 +58,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   bool _endedNotified = false;
   double? _seekTarget;
 
+  String? _currentVideoUrl;
+  W2GVideoItem? _blocVideoItem;
+  StreamSubscription<W2GState>? _blocSub;
+
   bool _isLoadingYoutubeUrl = false;
   bool _controlsVisible = false;
   double? _dragPosition;
@@ -63,6 +70,18 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   @override
   void initState() {
     super.initState();
+    _currentVideoUrl = widget.video?.url;
+    _blocSub = serviceLocator<W2GBloc>().stream.listen((state) {
+      if (state is W2GRoomLoaded) {
+        final newItem = state.room.currentVideo;
+        final newUrl = newItem?.url;
+        if (_initialized && newUrl != null && newUrl != _currentVideoUrl) {
+          _currentVideoUrl = newUrl;
+          _blocVideoItem = newItem;
+          _onVideoChanged();
+        }
+      }
+    });
     _initPlayer();
   }
 
@@ -70,6 +89,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   void didUpdateWidget(VideoPlayerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.video?.url != oldWidget.video?.url) {
+      _currentVideoUrl = widget.video?.url;
+      _blocVideoItem = null;
       _onVideoChanged();
     } else if (_initialized) {
       _syncFromRemote();
@@ -78,14 +99,17 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
   @override
   void dispose() {
+    _blocSub?.cancel();
     _hideTimer?.cancel();
     _disposeController();
     _ytExplode?.close();
     super.dispose();
   }
 
-  bool get _isYoutube =>
-      widget.video != null && widget.video!.source == W2GVideoSource.youtube;
+  bool get _isYoutube {
+    final video = _blocVideoItem ?? widget.video;
+    return video != null && video.source == W2GVideoSource.youtube;
+  }
 
   void _onVideoChanged() {
     _hideTimer?.cancel();
@@ -93,7 +117,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     _availableStreams = [];
     _selectedStream = null;
     _resetState();
-    if (widget.video == null) return;
+
+    if (_currentVideoUrl == null) return;
     _initPlayer();
   }
 
@@ -108,12 +133,13 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   void _initPlayer() {
     _disposeController();
     _disposed = false;
-    if (widget.video == null) return;
+    if (_currentVideoUrl == null) return;
+
 
     if (_isYoutube) {
       _initYoutubePlayer();
     } else {
-      _initDirectPlayer(Uri.parse(widget.video!.url));
+      _initDirectPlayer(Uri.parse(_currentVideoUrl!));
     }
   }
 
@@ -124,7 +150,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     _ytExplode ??= yt.YoutubeExplode();
 
     try {
-      final videoId = yt.VideoId.parseVideoId(widget.video!.url);
+      final videoId = yt.VideoId.parseVideoId(_currentVideoUrl!);
       if (videoId == null) throw Exception('Invalid YouTube URL');
       final manifest =
           await _ytExplode!.videos.streams.getManifest(videoId);
@@ -144,7 +170,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
       _selectedStream = selected;
       _isLoadingYoutubeUrl = false;
-      _initDirectPlayer(selected.url, originalUrl: widget.video!.url);
+      _initDirectPlayer(selected.url, originalUrl: _currentVideoUrl!);
     } catch (e) {
       debugPrint('YoutubeExplode error: $e');
       _availableStreams = [];
@@ -171,7 +197,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
   void _initDirectPlayer(Uri uri, {String? originalUrl}) {
     _controller?.removeListener(_onPlayerUpdate);
-    final ctrl = _videoService.getOrCreate(uri.toString(), originalUrl: originalUrl);
+    final ctrl = _videoService.getOrCreate(uri.toString(), originalUrl: originalUrl, backgroundPlayback: widget.backgroundPlayback);
 
     if (ctrl.value.isInitialized) {
       ctrl.addListener(_onPlayerUpdate);
@@ -187,32 +213,52 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       setState(() {});
       ctrl.addListener(_onPlayerUpdate);
       _onControllerReady();
-    }).catchError((_) {});
+    }).catchError((e) {
+      debugPrint('VideoPlayerWidget init error: $e');
+    });
   }
 
   void _onControllerReady() {
     if (_disposed) return;
     _initialized = true;
-    if (widget.position > 0) {
+
+    final state = serviceLocator<W2GBloc>().state;
+    final double targetPos;
+    final bool targetPlaying;
+    if (state is W2GRoomLoaded) {
+      targetPos = state.room.playerState.position;
+      targetPlaying = state.room.playerState.isPlaying;
+    } else {
+      targetPos = widget.position;
+      targetPlaying = widget.isPlaying;
+    }
+
+    if (targetPos > 0) {
       _controller!.seekTo(
-        Duration(milliseconds: (widget.position * 1000).toInt()),
+        Duration(milliseconds: (targetPos * 1000).toInt()),
       );
     }
-    if (widget.isPlaying) {
+    if (targetPlaying) {
       _controller!.play();
       _isLocalPlaying = true;
     }
   }
 
   void _onPlayerUpdate() {
-    if (!mounted || _disposed) return;
     final ctrl = _controller;
     if (ctrl == null || !ctrl.value.isInitialized) return;
 
+    if (ctrl.value.isCompleted && !_endedNotified) {
+      _endedNotified = true;
+      widget.onVideoEnded?.call();
+      return;
+    }
+
+    if (!mounted || _disposed) return;
+    if (_endedNotified) return;
     if (_isSyncing || _videoService.isSyncing) return;
 
     final pos = ctrl.value.position.inMilliseconds / 1000.0;
-    final duration = ctrl.value.duration.inMilliseconds / 1000.0;
 
     if (_seekTarget != null) {
       if ((pos - _seekTarget!).abs() < 0.5) {
@@ -223,13 +269,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     }
 
     widget.onPositionUpdate?.call(pos);
-
-    if (duration > 0 && (pos - duration).abs() < 1.0 && !_endedNotified) {
-      _endedNotified = true;
-      widget.onVideoEnded?.call();
-    } else if (_endedNotified && duration > 0 && (pos - duration).abs() > 2.0) {
-      _endedNotified = false;
-    }
   }
 
   void _syncFromRemote() {

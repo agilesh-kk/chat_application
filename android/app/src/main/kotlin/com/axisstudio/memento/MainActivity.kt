@@ -1,4 +1,4 @@
-package com.axisstudio.memento
+﻿package com.axisstudio.memento
 
 import android.net.Uri
 import io.flutter.embedding.android.FlutterActivity

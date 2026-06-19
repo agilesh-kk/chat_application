@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:chat_application/features/watch2gether/data/services/video_controller_service.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_chat_message.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_participant.dart';
@@ -33,12 +33,8 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
   final FirebaseDatabase _database;
   final VideoControllerService videoService;
   String? _currentUserId;
-  String? _currentRoomId;
-  String _currentUserName = '';
-  String _currentUserProfilePic = '';
 
   StreamSubscription<W2GRoom>? _roomSub;
-  StreamSubscription<DatabaseEvent>? _connectionSub;
   StreamSubscription<List<W2GChatMessage>>? _messagesSub;
   StreamSubscription<Map<String, W2GParticipant>>? _participantsSub;
   StreamSubscription<DatabaseEvent>? _typingSub;
@@ -84,9 +80,6 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
 
   Future<void> _onLoadRoom(W2GLoadRoom event, Emitter<W2GState> emit) async {
     _currentUserId = event.currentUserId;
-    _currentRoomId = event.roomId;
-    _currentUserName = event.currentUserName;
-    _currentUserProfilePic = event.currentUserProfilePic;
     emit(W2GLoading());
     _roomSub?.cancel();
     _messagesSub?.cancel();
@@ -130,7 +123,7 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     );
     joinResult.fold(
       (failure) => emit(W2GError(failure.message)),
-      (_) => _setupConnectionListener(),
+      (_) {},
     );
   }
 
@@ -171,7 +164,6 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     _messagesSub?.cancel();
     _participantsSub?.cancel();
     _typingSub?.cancel();
-    _connectionSub?.cancel();
     videoService.dispose();
     if (event.isHost) {
       await repository.deleteRoom(event.roomId);
@@ -199,7 +191,6 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     _messagesSub?.cancel();
     _participantsSub?.cancel();
     _typingSub?.cancel();
-    _connectionSub?.cancel();
     videoService.dispose();
     await repository.deleteRoom(event.roomId);
     await repository.removeUserActiveRoom(event.userId);
@@ -420,30 +411,6 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     }
   }
 
-  void _setupConnectionListener() {
-    _connectionSub?.cancel();
-    _connectionSub = _database.ref('.info/connected').onValue.listen((event) {
-      if (event.snapshot.value == true && !isClosed) {
-        _rejoinAsParticipant();
-      }
-    });
-  }
-
-  Future<void> _rejoinAsParticipant() async {
-    if (_currentRoomId == null || _currentUserId == null) return;
-    await joinRoom(
-      JoinRoomParams(
-        roomId: _currentRoomId!,
-        participant: W2GParticipant(
-          userId: _currentUserId!,
-          name: _currentUserName,
-          profilePic: _currentUserProfilePic,
-          joinedAt: DateTime.now(),
-        ),
-      ),
-    );
-  }
-
   void _onMessagesUpdated(_W2GMessagesUpdated event, Emitter<W2GState> emit) {
     final current = state;
     if (current is W2GRoomLoaded) {
@@ -553,7 +520,6 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     _messagesSub?.cancel();
     _participantsSub?.cancel();
     _typingSub?.cancel();
-    _connectionSub?.cancel();
     return super.close();
   }
 }
