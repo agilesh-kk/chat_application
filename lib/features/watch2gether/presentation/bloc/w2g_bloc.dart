@@ -301,10 +301,20 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
 
   Future<void> _onAddToQueue(
       W2GAddToQueue event, Emitter<W2GState> emit) async {
+    String videoTitle = event.title;
+    String? videoThumbnail = event.thumbnailUrl;
+    if (W2GVideoItem.detectSource(event.url) == W2GVideoSource.youtube) {
+      final meta = await VideoControllerService.fetchYouTubeMeta(event.url);
+      if (meta != null) {
+        videoTitle = meta.title ?? videoTitle;
+        videoThumbnail = meta.thumbnailUrl ?? videoThumbnail;
+      }
+    }
     final item = W2GVideoItem(
       id: const Uuid().v4(),
       url: event.url,
-      title: event.title,
+      title: videoTitle,
+      thumbnailUrl: videoThumbnail,
       source: W2GVideoItem.detectSource(event.url),
       addedBy: event.addedBy,
       addedAt: DateTime.now(),

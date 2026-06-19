@@ -89,11 +89,13 @@ final class W2GAddToQueue extends W2GEvent {
   final String roomId;
   final String url;
   final String title;
+  final String? thumbnailUrl;
   final String addedBy;
   W2GAddToQueue({
     required this.roomId,
     required this.url,
     required this.title,
+    this.thumbnailUrl,
     required this.addedBy,
   });
 }

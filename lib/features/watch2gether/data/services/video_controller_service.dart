@@ -239,6 +239,29 @@ class VideoControllerService {
     isSyncing = false;
   }
 
+  static Future<({String? title, String? thumbnailUrl})?> fetchYouTubeMeta(
+      String url) async {
+    final lower = url.toLowerCase();
+    if (!lower.contains('youtube.com') && !lower.contains('youtu.be')) {
+      return null;
+    }
+    final videoId = yt.VideoId.parseVideoId(url);
+    if (videoId == null) return null;
+    final client = yt.YoutubeExplode();
+    try {
+      final video = await client.videos.get(videoId);
+      return (
+        title: video.title,
+        thumbnailUrl: video.thumbnails.mediumResUrl,
+      );
+    } catch (e) {
+      debugPrint('fetchYouTubeMeta error: $e');
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
   void dispose() {
     _disposeCurrent();
     _ytExplode?.close();

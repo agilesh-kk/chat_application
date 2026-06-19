@@ -5,6 +5,7 @@ class W2GVideoItemModel extends W2GVideoItem {
     required super.id,
     required super.url,
     required super.title,
+    super.thumbnailUrl,
     required super.source,
     required super.addedBy,
     required super.addedAt,
@@ -15,6 +16,7 @@ class W2GVideoItemModel extends W2GVideoItem {
       id: map['id'] as String? ?? id,
       url: map['url'] as String? ?? '',
       title: map['title'] as String? ?? '',
+      thumbnailUrl: map['thumbnailUrl'] as String?,
       source: map['type'] == 'youtube'
           ? W2GVideoSource.youtube
           : W2GVideoSource.direct,
@@ -31,6 +33,7 @@ class W2GVideoItemModel extends W2GVideoItem {
       'id': id,
       'url': url,
       'title': title,
+      'thumbnailUrl': thumbnailUrl,
       'type': source == W2GVideoSource.youtube ? 'youtube' : 'direct',
       'addedBy': addedBy,
       'addedAt': addedAt.millisecondsSinceEpoch,

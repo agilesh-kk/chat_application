@@ -4,6 +4,7 @@ class W2GVideoItem {
   final String id;
   final String url;
   final String title;
+  final String? thumbnailUrl;
   final W2GVideoSource source;
   final String addedBy;
   final DateTime addedAt;
@@ -12,6 +13,7 @@ class W2GVideoItem {
     required this.id,
     required this.url,
     required this.title,
+    this.thumbnailUrl,
     required this.source,
     required this.addedBy,
     required this.addedAt,

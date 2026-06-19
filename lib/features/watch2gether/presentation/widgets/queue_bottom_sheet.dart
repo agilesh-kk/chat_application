@@ -116,12 +116,28 @@ class _QueueBottomSheetState extends State<QueueBottomSheet> {
                   itemBuilder: (context, index) {
                     final item = queue[index];
                     return ListTile(
-                      leading: Icon(
-                        item.source == W2GVideoSource.youtube
-                            ? Icons.play_circle_fill
-                            : Icons.videocam,
-                        color: AppPallete.primaryOrange,
-                      ),
+                      leading: item.thumbnailUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.network(
+                                item.thumbnailUrl!,
+                                width: 64,
+                                height: 48,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  item.source == W2GVideoSource.youtube
+                                      ? Icons.play_circle_fill
+                                      : Icons.videocam,
+                                  color: AppPallete.primaryOrange,
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              item.source == W2GVideoSource.youtube
+                                  ? Icons.play_circle_fill
+                                  : Icons.videocam,
+                              color: AppPallete.primaryOrange,
+                            ),
                       title: Text(
                         item.title,
                         style: const TextStyle(
