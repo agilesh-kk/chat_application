@@ -317,7 +317,7 @@ class _W2GRoomPageState extends State<W2GRoomPage>
             }
           },
           onVideoEnded: () {
-            print("endeddddddddddddddddddddddddddddddddddddddd");
+            if (!isHost) return;
             _bloc.add(W2GNext(
               roomId: widget.roomId,
               userId: _currentUserId,

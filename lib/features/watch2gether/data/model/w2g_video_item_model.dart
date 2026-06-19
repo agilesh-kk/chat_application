@@ -12,7 +12,7 @@ class W2GVideoItemModel extends W2GVideoItem {
 
   factory W2GVideoItemModel.fromMap(String id, Map<String, dynamic> map) {
     return W2GVideoItemModel(
-      id: id,
+      id: map['id'] as String? ?? id,
       url: map['url'] as String? ?? '',
       title: map['title'] as String? ?? '',
       source: map['type'] == 'youtube'
@@ -28,6 +28,7 @@ class W2GVideoItemModel extends W2GVideoItem {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'url': url,
       'title': title,
       'type': source == W2GVideoSource.youtube ? 'youtube' : 'direct',

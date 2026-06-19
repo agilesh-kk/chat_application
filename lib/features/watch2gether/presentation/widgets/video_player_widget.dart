@@ -2,18 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/watch2gether/data/services/video_controller_service.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_video_item.dart';
-import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 import 'package:chat_application/init_dependencies.dart';
-
-class _StreamOption {
-  final String label;
-  final Uri url;
-  const _StreamOption({required this.label, required this.url});
-}
 
 class VideoPlayerWidget extends StatefulWidget {
   final W2GVideoItem? video;
@@ -46,23 +38,14 @@ class VideoPlayerWidget extends StatefulWidget {
 }
 
 class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
-  final VideoControllerService _videoService = serviceLocator<VideoControllerService>();
+  final VideoControllerService _videoService =
+      serviceLocator<VideoControllerService>();
   VideoPlayerController? get _controller => _videoService.controller;
-  yt.YoutubeExplode? _ytExplode;
-  List<_StreamOption> _availableStreams = [];
-  _StreamOption? _selectedStream;
+
+  StreamSubscription<void>? _videoChangedSub;
+  StreamSubscription<void>? _controllerReadySub;
+
   bool _isLocalPlaying = false;
-  bool _initialized = false;
-  bool _disposed = false;
-  bool _isSyncing = false;
-  bool _endedNotified = false;
-  double? _seekTarget;
-
-  String? _currentVideoUrl;
-  W2GVideoItem? _blocVideoItem;
-  StreamSubscription<W2GState>? _blocSub;
-
-  bool _isLoadingYoutubeUrl = false;
   bool _controlsVisible = false;
   double? _dragPosition;
   Timer? _hideTimer;
@@ -70,212 +53,41 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   @override
   void initState() {
     super.initState();
-    _currentVideoUrl = widget.video?.url;
-    _blocSub = serviceLocator<W2GBloc>().stream.listen((state) {
-      if (state is W2GRoomLoaded) {
-        final newItem = state.room.currentVideo;
-        final newUrl = newItem?.url;
-        if (_initialized && newUrl != null && newUrl != _currentVideoUrl) {
-          _currentVideoUrl = newUrl;
-          _blocVideoItem = newItem;
-          _onVideoChanged();
-        }
-      }
-    });
-    _initPlayer();
+    _videoService.backgroundPlayback = widget.backgroundPlayback;
+    _videoService.onVideoEnded = () => widget.onVideoEnded?.call();
+    _videoService.onPositionUpdate = (pos) {
+      widget.onPositionUpdate?.call(pos);
+    };
+    _videoService.startListening();
+
+    _videoChangedSub =
+        _videoService.onVideoChanged.listen((_) => setState(() {}));
+    _controllerReadySub =
+        _videoService.onControllerReady.listen((_) => setState(() {}));
+
+    if (_videoService.isReady) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _videoChangedSub?.cancel();
+    _controllerReadySub?.cancel();
+    _hideTimer?.cancel();
+    super.dispose();
   }
 
   @override
   void didUpdateWidget(VideoPlayerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.video?.url != oldWidget.video?.url) {
-      _currentVideoUrl = widget.video?.url;
-      _blocVideoItem = null;
-      _onVideoChanged();
-    } else if (_initialized) {
+    if (_videoService.isReady) {
       _syncFromRemote();
     }
-  }
-
-  @override
-  void dispose() {
-    _blocSub?.cancel();
-    _hideTimer?.cancel();
-    _disposeController();
-    _ytExplode?.close();
-    super.dispose();
-  }
-
-  bool get _isYoutube {
-    final video = _blocVideoItem ?? widget.video;
-    return video != null && video.source == W2GVideoSource.youtube;
-  }
-
-  void _onVideoChanged() {
-    _hideTimer?.cancel();
-    _controlsVisible = false;
-    _availableStreams = [];
-    _selectedStream = null;
-    _resetState();
-
-    if (_currentVideoUrl == null) return;
-    _initPlayer();
-  }
-
-  void _resetState() {
-    _initialized = false;
-    _isSyncing = false;
-    _endedNotified = false;
-    _seekTarget = null;
-    _isLoadingYoutubeUrl = false;
-  }
-
-  void _initPlayer() {
-    _disposeController();
-    _disposed = false;
-    if (_currentVideoUrl == null) return;
-
-
-    if (_isYoutube) {
-      _initYoutubePlayer();
-    } else {
-      _initDirectPlayer(Uri.parse(_currentVideoUrl!));
-    }
-  }
-
-  Future<void> _initYoutubePlayer({_StreamOption? preferred}) async {
-    _isLoadingYoutubeUrl = true;
-    if (mounted) setState(() {});
-
-    _ytExplode ??= yt.YoutubeExplode();
-
-    try {
-      final videoId = yt.VideoId.parseVideoId(_currentVideoUrl!);
-      if (videoId == null) throw Exception('Invalid YouTube URL');
-      final manifest =
-          await _ytExplode!.videos.streams.getManifest(videoId);
-
-      _availableStreams = manifest.muxed
-          .map((s) => _StreamOption(
-                label: _qualityLabel(s.videoQuality),
-                url: Uri.parse(s.url.toString()),
-              ))
-          .toList();
-
-      final selected = preferred ??
-          _availableStreams.firstWhere(
-            (s) => s.url == _selectedStream?.url,
-            orElse: () => _availableStreams.last,
-          );
-
-      _selectedStream = selected;
-      _isLoadingYoutubeUrl = false;
-      _initDirectPlayer(selected.url, originalUrl: _currentVideoUrl!);
-    } catch (e) {
-      debugPrint('YoutubeExplode error: $e');
-      _availableStreams = [];
-      _selectedStream = null;
-      _isLoadingYoutubeUrl = false;
-      if (mounted) setState(() {});
-    }
-  }
-
-  String _qualityLabel(yt.VideoQuality q) {
-    if (q == yt.VideoQuality.low144) return '144p';
-    if (q == yt.VideoQuality.low240) return '240p';
-    if (q == yt.VideoQuality.medium360) return '360p';
-    if (q == yt.VideoQuality.medium480) return '480p';
-    if (q == yt.VideoQuality.high720) return '720p';
-    if (q == yt.VideoQuality.high1080) return '1080p';
-    if (q == yt.VideoQuality.high1440) return '1440p';
-    if (q == yt.VideoQuality.high2160) return '2160p';
-    if (q == yt.VideoQuality.high2880) return '2880p';
-    if (q == yt.VideoQuality.high3072) return '3072p';
-    if (q == yt.VideoQuality.high4320) return '4320p';
-    return 'Auto';
-  }
-
-  void _initDirectPlayer(Uri uri, {String? originalUrl}) {
-    _controller?.removeListener(_onPlayerUpdate);
-    final ctrl = _videoService.getOrCreate(uri.toString(), originalUrl: originalUrl, backgroundPlayback: widget.backgroundPlayback);
-
-    if (ctrl.value.isInitialized) {
-      ctrl.addListener(_onPlayerUpdate);
-      _initialized = true;
-      _endedNotified = false;
-      setState(() {});
-      _syncFromRemote();
-      return;
-    }
-
-    ctrl.initialize().then((_) {
-      if (!mounted || _disposed) return;
-      setState(() {});
-      ctrl.addListener(_onPlayerUpdate);
-      _onControllerReady();
-    }).catchError((e) {
-      debugPrint('VideoPlayerWidget init error: $e');
-    });
-  }
-
-  void _onControllerReady() {
-    if (_disposed) return;
-    _initialized = true;
-
-    final state = serviceLocator<W2GBloc>().state;
-    final double targetPos;
-    final bool targetPlaying;
-    if (state is W2GRoomLoaded) {
-      targetPos = state.room.playerState.position;
-      targetPlaying = state.room.playerState.isPlaying;
-    } else {
-      targetPos = widget.position;
-      targetPlaying = widget.isPlaying;
-    }
-
-    if (targetPos > 0) {
-      _controller!.seekTo(
-        Duration(milliseconds: (targetPos * 1000).toInt()),
-      );
-    }
-    if (targetPlaying) {
-      _controller!.play();
-      _isLocalPlaying = true;
-    }
-  }
-
-  void _onPlayerUpdate() {
-    final ctrl = _controller;
-    if (ctrl == null || !ctrl.value.isInitialized) return;
-
-    if (ctrl.value.isCompleted && !_endedNotified) {
-      _endedNotified = true;
-      widget.onVideoEnded?.call();
-      return;
-    }
-
-    if (!mounted || _disposed) return;
-    if (_endedNotified) return;
-    if (_isSyncing || _videoService.isSyncing) return;
-
-    final pos = ctrl.value.position.inMilliseconds / 1000.0;
-
-    if (_seekTarget != null) {
-      if ((pos - _seekTarget!).abs() < 0.5) {
-        _seekTarget = null;
-      } else {
-        return;
-      }
-    }
-
-    widget.onPositionUpdate?.call(pos);
   }
 
   void _syncFromRemote() {
     final ctrl = _controller;
     if (ctrl == null || !ctrl.value.isInitialized) return;
 
-    _isSyncing = true;
     _videoService.isSyncing = true;
 
     final remotePlaying = widget.isPlaying;
@@ -293,12 +105,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
     _isLocalPlaying = remotePlaying;
     _videoService.isSyncing = false;
-    _isSyncing = false;
-  }
-
-  void _disposeController() {
-    _disposed = true;
-    _controller?.removeListener(_onPlayerUpdate);
   }
 
   void _toggleControls() {
@@ -315,7 +121,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     _controlsVisible = true;
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted && !_disposed) {
+      if (mounted) {
         setState(() => _controlsVisible = false);
       }
     });
@@ -333,9 +139,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   }
 
   Future<void> _showQualitySelector() async {
-    if (_availableStreams.isEmpty) return;
+    if (_videoService.availableStreams.isEmpty) return;
 
-    final selected = await showModalBottomSheet<_StreamOption>(
+    final selected = await showModalBottomSheet<StreamOption>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
@@ -349,7 +155,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           children: [
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: AppPallete.greyText,
                   borderRadius: BorderRadius.circular(2),
@@ -360,12 +167,15 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text('Video Quality',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 8),
-            ..._availableStreams.map((s) => ListTile(
+            ..._videoService.availableStreams.map((s) => ListTile(
                   leading: Icon(
-                    s.url == _selectedStream?.url
+                    s.url == _videoService.selectedStream?.url
                         ? Icons.radio_button_checked
                         : Icons.radio_button_unchecked,
                     color: AppPallete.primaryOrange,
@@ -379,9 +189,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       ),
     );
 
-    if (selected != null && selected.url != _selectedStream?.url) {
-      _selectedStream = selected;
-      _initYoutubePlayer(preferred: selected);
+    if (selected != null &&
+        selected.url != _videoService.selectedStream?.url) {
+      _videoService.changeQuality(selected);
     }
   }
 
@@ -412,19 +222,25 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.movie_outlined, size: 64, color: AppPallete.greyText.withValues(alpha: 0.5)),
+            Icon(Icons.movie_outlined,
+                size: 64,
+                color: AppPallete.greyText.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text('No video selected',
-                style: TextStyle(color: AppPallete.greyText.withValues(alpha: 0.7), fontSize: 16)),
+                style: TextStyle(
+                    color: AppPallete.greyText.withValues(alpha: 0.7),
+                    fontSize: 16)),
           ],
         ),
       );
     }
 
-    if (_isLoadingYoutubeUrl) {
+    if (_videoService.isLoading) {
       return const AspectRatio(
         aspectRatio: 16 / 9,
-        child: Center(child: CircularProgressIndicator(color: AppPallete.primaryOrange)),
+        child: Center(
+            child:
+                CircularProgressIndicator(color: AppPallete.primaryOrange)),
       );
     }
 
@@ -436,7 +252,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         ? duration.inMilliseconds / 1000.0
         : 1.0;
     final currentSeconds = pos.inMilliseconds / 1000.0;
-    final sliderValue = (_dragPosition ?? currentSeconds).clamp(0.0, sliderMax);
+    final sliderValue =
+        (_dragPosition ?? currentSeconds).clamp(0.0, sliderMax);
 
     return GestureDetector(
       onTap: _toggleControls,
@@ -447,7 +264,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           child: Stack(
             children: [
               if (isInitialized) VideoPlayer(ctrl)
-              else const Center(child: CircularProgressIndicator(color: AppPallete.primaryOrange)),
+              else
+                const Center(
+                    child: CircularProgressIndicator(
+                        color: AppPallete.primaryOrange)),
               AnimatedOpacity(
                 opacity: _controlsVisible ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 300),
@@ -458,10 +278,14 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                       Center(
                         child: IconButton(
                           icon: Icon(
-                            ctrl?.value.isPlaying ?? _isLocalPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                            size: 56, color: Colors.white,
+                            ctrl?.value.isPlaying ?? _isLocalPlaying
+                                ? Icons.pause_circle_filled
+                                : Icons.play_circle_filled,
+                            size: 56,
+                            color: Colors.white,
                           ),
-                          onPressed: widget.canControl ? _onPlayPauseTap : null,
+                          onPressed:
+                              widget.canControl ? _onPlayPauseTap : null,
                         ),
                       ),
                       Positioned(
@@ -470,18 +294,21 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (_selectedStream != null)
+                            if (_videoService.selectedStream != null)
                               GestureDetector(
                                 onTap: _showQualitySelector,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: AppPallete.darkTertiary,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    _selectedStream!.label,
-                                    style: const TextStyle(color: AppPallete.primaryOrange, fontSize: 12),
+                                    _videoService.selectedStream!.label,
+                                    style: const TextStyle(
+                                        color: AppPallete.primaryOrange,
+                                        fontSize: 12),
                                   ),
                                 ),
                               ),
@@ -494,49 +321,77 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                                   color: AppPallete.darkTertiary,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Icon(Icons.fullscreen, color: AppPallete.primaryOrange, size: 20),
+                                child: const Icon(Icons.fullscreen,
+                                    color: AppPallete.primaryOrange,
+                                    size: 20),
                               ),
                             ),
                           ],
                         ),
                       ),
                       Positioned(
-                        left: 0, right: 0, bottom: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
                         child: Container(
-                          padding: const EdgeInsets.only(left: 12, right: 12, bottom: 4),
+                          padding: const EdgeInsets.only(
+                              left: 12, right: 12, bottom: 4),
                           child: Row(
                             children: [
-                              Text(_formatDuration(Duration(milliseconds: (sliderValue * 1000).toInt())),
-                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                              Text(
+                                  _formatDuration(Duration(
+                                      milliseconds:
+                                          (sliderValue * 1000).toInt())),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500)),
                               Expanded(
                                 child: SliderTheme(
                                   data: SliderTheme.of(context).copyWith(
                                     trackHeight: 3,
-                                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-                                    activeTrackColor: AppPallete.primaryOrange,
+                                    thumbShape:
+                                        const RoundSliderThumbShape(
+                                            enabledThumbRadius: 6),
+                                    overlayShape:
+                                        const RoundSliderOverlayShape(
+                                            overlayRadius: 14),
+                                    activeTrackColor:
+                                        AppPallete.primaryOrange,
                                     inactiveTrackColor: Colors.white24,
                                     thumbColor: AppPallete.primaryOrange,
-                                    overlayColor: AppPallete.primaryOrange.withValues(alpha: 0.2),
+                                    overlayColor:
+                                        AppPallete.primaryOrange
+                                            .withValues(alpha: 0.2),
                                   ),
                                   child: Slider(
-                                    value: sliderValue, min: 0, max: sliderMax,
-                                    onChanged: widget.canControl ? (v) { _dragPosition = v; _showControls(); } : null,
-                                    onChangeEnd: widget.canControl ? (v) {
-                                      _dragPosition = null;
-                                      _seekTarget = v;
-                                      ctrl?.seekTo(Duration(milliseconds: (v * 1000).toInt()));
-                                      widget.onSeek?.call(v);
-                                      _showControls();
-                                      Future.delayed(const Duration(seconds: 2), () {
-                                        _seekTarget = null;
-                                      });
-                                    } : null,
+                                    value: sliderValue,
+                                    min: 0,
+                                    max: sliderMax,
+                                    onChanged: widget.canControl
+                                        ? (v) {
+                                            _dragPosition = v;
+                                            _showControls();
+                                          }
+                                        : null,
+                                    onChangeEnd: widget.canControl
+                                        ? (v) {
+                                            _dragPosition = null;
+                                            _videoService.seekTo(Duration(
+                                                milliseconds:
+                                                    (v * 1000).toInt()));
+                                            widget.onSeek?.call(v);
+                                            _showControls();
+                                          }
+                                        : null,
                                   ),
                                 ),
                               ),
                               Text(_formatDuration(duration),
-                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500)),
                             ],
                           ),
                         ),
@@ -634,7 +489,8 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
     final isInit = ctrl.value.isInitialized;
     final pos = isInit ? ctrl.value.position : Duration.zero;
     final duration = isInit ? ctrl.value.duration : Duration.zero;
-    final sliderMax = duration.inMilliseconds > 0 ? duration.inMilliseconds / 1000.0 : 1.0;
+    final sliderMax =
+        duration.inMilliseconds > 0 ? duration.inMilliseconds / 1000.0 : 1.0;
     final currentSeconds = pos.inMilliseconds / 1000.0;
 
     return Scaffold(
@@ -646,7 +502,8 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
             Center(
               child: isInit
                   ? VideoPlayer(ctrl)
-                  : const CircularProgressIndicator(color: AppPallete.primaryOrange),
+                  : const CircularProgressIndicator(
+                      color: AppPallete.primaryOrange),
             ),
             AnimatedOpacity(
               opacity: _controlsVisible ? 1.0 : 0.0,
@@ -659,15 +516,19 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
                       top: MediaQuery.of(context).padding.top + 8,
                       left: 8,
                       child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                        icon: const Icon(Icons.arrow_back,
+                            color: Colors.white, size: 28),
                         onPressed: _onBackPressed,
                       ),
                     ),
                     Center(
                       child: IconButton(
                         icon: Icon(
-                          _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                          size: 64, color: Colors.white,
+                          _isPlaying
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_filled,
+                          size: 64,
+                          color: Colors.white,
                         ),
                         onPressed: () {
                           if (!ctrl.value.isInitialized) return;
@@ -678,37 +539,54 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
                       ),
                     ),
                     Positioned(
-                      left: 0, right: 0,
+                      left: 0,
+                      right: 0,
                       bottom: MediaQuery.of(context).padding.bottom + 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Row(
                           children: [
                             Text(_formatDuration(pos),
-                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500)),
                             Expanded(
                               child: SliderTheme(
                                 data: SliderTheme.of(context).copyWith(
                                   trackHeight: 3,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-                                  activeTrackColor: AppPallete.primaryOrange,
+                                  thumbShape: const RoundSliderThumbShape(
+                                      enabledThumbRadius: 6),
+                                  overlayShape:
+                                      const RoundSliderOverlayShape(
+                                          overlayRadius: 14),
+                                  activeTrackColor:
+                                      AppPallete.primaryOrange,
                                   inactiveTrackColor: Colors.white24,
                                   thumbColor: AppPallete.primaryOrange,
-                                  overlayColor: AppPallete.primaryOrange.withValues(alpha: 0.2),
+                                  overlayColor: AppPallete.primaryOrange
+                                      .withValues(alpha: 0.2),
                                 ),
                                 child: Slider(
-                                  value: currentSeconds.clamp(0.0, sliderMax), min: 0, max: sliderMax,
+                                  value:
+                                      currentSeconds.clamp(0.0, sliderMax),
+                                  min: 0,
+                                  max: sliderMax,
                                   onChanged: (v) => _showControls(),
                                   onChangeEnd: (v) {
-                                    ctrl.seekTo(Duration(milliseconds: (v * 1000).toInt()));
+                                    ctrl.seekTo(Duration(
+                                        milliseconds:
+                                            (v * 1000).toInt()));
                                     _showControls();
                                   },
                                 ),
                               ),
                             ),
                             Text(_formatDuration(duration),
-                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
