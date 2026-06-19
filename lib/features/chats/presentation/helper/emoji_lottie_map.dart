@@ -40,7 +40,7 @@ const Map<String, EmojiLottieConfig> emojiLottieMap = {
   // === New: Face emojis — positive ===
   '😀': EmojiLottieConfig('assets/animations/grinning.json'),
   '😁': EmojiLottieConfig('assets/animations/beam.json'),
-  '🤣': EmojiLottieConfig('assets/animations/chuckle.json'),
+  '🤣': EmojiLottieConfig('assets/animations/roll.json'),
   '😄': EmojiLottieConfig('assets/animations/smiling-eyes.json'),
   '😅': EmojiLottieConfig('assets/animations/sweat.json'),
   '😆': EmojiLottieConfig('assets/animations/squint.json'),
@@ -53,7 +53,7 @@ const Map<String, EmojiLottieConfig> emojiLottieMap = {
   '🤩': EmojiLottieConfig('assets/animations/star-eye.json'),
   '🤪': EmojiLottieConfig('assets/animations/zany.json'),
   '🤠': EmojiLottieConfig('assets/animations/cowboy.json'),
-  '🥲': EmojiLottieConfig('assets/animations/smiling-tear.json'),
+  '🥲': EmojiLottieConfig('assets/animations/gratitude.json'),
 
   // === New: Face emojis — neutral / negative ===
   '🙁': EmojiLottieConfig('assets/animations/frown.json'),
@@ -87,7 +87,7 @@ const Map<String, EmojiLottieConfig> emojiLottieMap = {
   '😯': EmojiLottieConfig('assets/animations/hushed.json'),
   '🤐': EmojiLottieConfig('assets/animations/zipper.json'),
   '🥱': EmojiLottieConfig('assets/animations/yawning.json'),
-  '🤭': EmojiLottieConfig('assets/animations/hide.json'),
+  '🤭': EmojiLottieConfig('assets/animations/omg.json'),
   '🤫': EmojiLottieConfig('assets/animations/shushing.json'),
   '🙄': EmojiLottieConfig('assets/animations/rolling-eyes.json'),
   '🤨': EmojiLottieConfig('assets/animations/raised-eyebrow.json'),

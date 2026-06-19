@@ -11,6 +11,7 @@ import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc
 import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
 import 'package:chat_application/features/profile/presentation/widgets/user_details_card.dart';
 import 'package:chat_application/features/timeline/presentation/pages/personal_timeline_page.dart';
+import 'package:chat_application/features/profile/presentation/pages/profile_image_viewer.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -654,13 +655,29 @@ class _ProfilePageState extends State<ProfilePage>
                 ),
               ],
             ),
-            child: CircleAvatar(
-              radius: 55,
-              backgroundImage: profileImageProvider(profileUser.profilePic),
-              backgroundColor: AppPallete.cardBg,
-              child: profileUser.profilePic == null
-                  ? Icon(Icons.person, size: 50, color: AppPallete.greyText)
-                  : null,
+            child: GestureDetector(
+              onTap: () {
+                if (profileUser.profilePic != null) {
+                  final provider = profileImageProvider(profileUser.profilePic)!;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProfileImageViewer(
+                        imageProvider: provider,
+                        heroTag: 'profile_${profileUser.id}',
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: CircleAvatar(
+                radius: 55,
+                backgroundImage: profileImageProvider(profileUser.profilePic),
+                backgroundColor: AppPallete.cardBg,
+                child: profileUser.profilePic == null
+                    ? Icon(Icons.person, size: 50, color: AppPallete.greyText)
+                    : null,
+              ),
             ),
           ),
           if (widget.isUser)

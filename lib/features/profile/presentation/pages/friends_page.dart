@@ -3,6 +3,7 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/profile/presentation/pages/profile_image_viewer.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -343,12 +344,26 @@ class _FriendsPageState extends State<FriendsPage>
                           ),
                           child:
                               friend.profilePic.isNotEmpty
-                                  ? CircleAvatar(
-                                    radius: 24,
-                                    backgroundImage: profileImageProvider(
-                                      friend.profilePic,
+                                  ? GestureDetector(
+                                    onTap: () {
+                                      final provider = profileImageProvider(friend.profilePic)!;
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ProfileImageViewer(
+                                            imageProvider: provider,
+                                            heroTag: 'profile_${friend.id}',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: CircleAvatar(
+                                      radius: 24,
+                                      backgroundImage: profileImageProvider(
+                                        friend.profilePic,
+                                      ),
+                                      backgroundColor: AppPallete.cardBg,
                                     ),
-                                    backgroundColor: AppPallete.cardBg,
                                   )
                                   : Icon(
                                     Icons.person,
