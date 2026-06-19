@@ -10,6 +10,7 @@ class UserModel extends User {
     required super.gender,
     super.profilePic,
     super.friends,
+    super.requests,
     super.bio,
     super.isOnline,
     super.lastSeen,
@@ -27,6 +28,9 @@ class UserModel extends User {
       profilePic: map['profilePic'],
       friends: map['friends'] != null
           ? List<String>.from(map['friends'])
+          : [],
+      requests: map['Requests'] != null
+          ? List<String>.from(map['Requests'])
           : [],
       birthDate: map['birthDate'] is Timestamp
         ? (map['birthDate'] as Timestamp).toDate()
@@ -48,6 +52,7 @@ class UserModel extends User {
       'email': email,
       'profilePic': profilePic,
       'friends':friends,
+      'Requests':requests,
       'birthDate': Timestamp.fromDate(birthDate),
       'bio' : bio,
       'isOnline': isOnline,
@@ -61,6 +66,7 @@ class UserModel extends User {
     String? email,
     String? profilePic,
     List<String>? friends,
+    List<String>? requests,
     DateTime? birthDate,
     String? bio,
     String? gender,
@@ -73,6 +79,7 @@ class UserModel extends User {
       email: email ?? this.email,
       profilePic: profilePic ?? this.profilePic,
       friends: friends ?? this.friends,
+      requests: requests ?? this.requests,
       birthDate: birthDate ?? this.birthDate,
       bio: bio ?? this.bio,
       gender: gender ?? this.gender,

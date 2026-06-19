@@ -8,14 +8,12 @@ import 'package:chat_application/features/chats/data/datasources/chat_remote_dat
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
-import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
   final ChatLocalDataSource chatLocalDataSource;
-  final FriendsCubit fb;
   bool isRecentlyDownloaded = false;
 
   final Map<String,StreamSubscription<Map<String, dynamic>>> _opSub = {};
@@ -23,7 +21,6 @@ class ChatRepositoryImpl implements ChatRepository {
   ChatRepositoryImpl({
     required this.chatRemoteDataSources,
     required this.chatLocalDataSource,
-    required this.fb
   });
 
   @override
@@ -69,6 +66,35 @@ class ChatRepositoryImpl implements ChatRepository {
         catch(e){
           return left(Failure(e.toString()));
         }
+  }
+
+  @override
+  Future<Either<Failure, bool>> downloadAllConversations(String userId) async {
+    try {
+      final convoIds = await chatRemoteDataSources.getUserConvoList(userId);
+      if (convoIds.isEmpty) return right(false);
+
+      for (final convoId in convoIds) {
+        final docs = await chatRemoteDataSources.fetchAllMessages(
+          conversationId: convoId,
+        );
+        if (docs.isNotEmpty) {
+          final docIds = docs.map((d) => d['_docId'] as String).toList();
+          final parts = convoId.split('_');
+          final receiverId = parts[0] == userId ? parts[1] : parts[0];
+          await chatLocalDataSource.bulkInsertMessages(docs, docIds, receiverId);
+        }
+      }
+      isRecentlyDownloaded = true;
+      return right(true);
+    } catch (e) {
+      return left(Failure(e.toString()));
+    }
+  }
+
+  @override
+  Future<List<String>> getUserConvoList(String userId) async {
+    return chatRemoteDataSources.getUserConvoList(userId);
   }
 
   @override
@@ -131,6 +157,50 @@ class ChatRepositoryImpl implements ChatRepository {
     for(final e in _opSub.values){
       e.cancel();
     }
+  }
+
+  @override
+  Future<void> stopOperationListenerForReceiver(String userId, String receiverId) async {
+    final opCollection = _getOtherOpCollection(userId, receiverId);
+    await _opSub[opCollection]?.cancel();
+    _opSub.remove(opCollection);
+  }
+
+  @override
+  Future<void> updateConversationFriendStatus(String convoId, bool isFriend) async {
+    await chatLocalDataSource.updateConversationFriendStatus(convoId, isFriend);
+  }
+
+  @override
+  Future<String?> getConvoIdByReceiverId(String receiverId) async {
+    return chatLocalDataSource.getConvoIdByReceiverId(receiverId);
+  }
+
+  @override
+  Future<void> restoreFriendConversation(String userId, String friendId) async {
+    final convoId = generateConversationId(userId, friendId);
+    await chatRemoteDataSources.updateConversationFriendStatus(
+      convoId: convoId,
+      userId: userId,
+      friendId: friendId,
+      isFriend: true,
+    );
+  }
+
+  @override
+  Future<void> markConversationNotFriend(String userId, String friendId) async {
+    final convoId = generateConversationId(userId, friendId);
+    await chatRemoteDataSources.updateConversationFriendStatus(
+      convoId: convoId,
+      userId: userId,
+      friendId: friendId,
+      isFriend: false,
+    );
+  }
+
+  @override
+  Future<List<Conversation>> queryAllLocalConversations() async {
+    return chatLocalDataSource.queryAllConversations();
   }
 
   Future<void> _processOperation(
@@ -469,6 +539,7 @@ class ChatRepositoryImpl implements ChatRepository {
   }
   // ===================== Helpers =====================
 
+  @override
   String generateConversationId(String user1, String user2) {
     final sorted = [user1, user2]..sort();
     return "${sorted[0]}_${sorted[1]}";

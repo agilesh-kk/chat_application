@@ -2,7 +2,6 @@ import 'package:chat_application/features/chats/domain/entities/conversation.dar
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ConversationModel extends Conversation {
-  
 
   ConversationModel({
     required super.unread,
@@ -13,6 +12,7 @@ class ConversationModel extends Conversation {
     required super.receiverName,
     required super.profilepicLink,
     required super.lastSender,
+    super.isFriend,
   });
 
   factory ConversationModel.fromJson(
@@ -32,6 +32,7 @@ class ConversationModel extends Conversation {
       profilepicLink: userData["receiverProfile"] ?? "",
       unread: userData["unread"] ?? 0,
       lastSender: userData["lastSender"] ?? "",
+      isFriend: userData["isFriend"] ?? true,
     );
   }
 
@@ -61,7 +62,8 @@ class ConversationModel extends Conversation {
         "receiverId" : receiverId,
         "receiverName" : receiverName,
         "receiverProfile" : profilepicLink,
-        "unread" : unread
+        "unread" : unread,
+        "isFriend" : isFriend,
       },
       "lastMessage": lastMessage,
       "lastupdateTime": lastupdateTime,

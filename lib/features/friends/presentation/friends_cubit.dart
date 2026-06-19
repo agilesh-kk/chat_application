@@ -1,44 +1,52 @@
+export 'friends_state.dart';
+
 import 'dart:async';
 
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/data/friends_remote_data_sources.dart';
+import 'package:chat_application/features/friends/presentation/friends_state.dart';
 import 'package:chat_application/features/profile/data/datasources/profile_pic_local_data_source.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-part 'friends_state.dart';
 
 class FriendsCubit extends Cubit<FriendsState> {
   final FriendsRemoteDataSource repository;
   final ProfilePicLocalDataSource _profilePicLocalDataSource;
-  StreamSubscription<Map<String,FriendModel>>? _friendsub;
+  StreamSubscription<Map<String, FriendModel>>? _friendsub;
   Timer? _onlineTimer;
 
   FriendsCubit(this.repository, this._profilePicLocalDataSource) : super(FriendsInitial());
 
-  Future<void> clear()async{
+  Future<void> clear() async {
     _friendsub?.cancel();
+    _onlineTimer?.cancel();
     emit(FriendsInitial());
   }
 
-  /// 🔹 Fetch friends using IDs from user doc
   Future<void> loadFriends({
     required String userId,
   }) async {
-
     emit(FriendsLoading());
-
     try {
-
       final friendSub = (await repository.getFriends(userId));
       _friendsub?.cancel();
-
       _friendsub = friendSub.listen(
         (event) {
           emit(FriendsLoaded(event));
           _cacheFriendProfilePics(event);
           _startOnlineTimer();
-      },);
+        },
+      );
+    } catch (e) {
+      emit(FriendsError(e.toString()));
+    }
+  }
 
+  Future<void> removeFriend({
+    required String userId,
+    required String friendId,
+  }) async {
+    try {
+      await repository.removeFriend(userId, friendId);
     } catch (e) {
       emit(FriendsError(e.toString()));
     }

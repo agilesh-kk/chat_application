@@ -81,8 +81,10 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'profilePic': getRandomProfileImage(),
         'birthDate': birthDate,
         'friends': [],
+        'Requests': [],
         'gender' : gender,
         'bio' : "",
+        'convoList': [],
       });
 
       final timelineRef = firebaseFirestore

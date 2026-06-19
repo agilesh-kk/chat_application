@@ -2,6 +2,8 @@ import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,6 +26,7 @@ class _SearchPageState extends State<SearchPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
+      context.read<SearchBloc>().add(ResetSearch());
     });
   }
 
@@ -283,7 +286,100 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
+  void _showCancelRequestDialog(User user) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppPallete.cardBg,
+        title: Text(
+          "Cancel Request",
+          style: TextStyle(color: AppPallete.whiteColor),
+        ),
+        content: Text(
+          "Cancel friend request to ${user.name}?",
+          style: TextStyle(color: AppPallete.greyText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              "No",
+              style: TextStyle(color: AppPallete.greyText),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<FriendRequestsCubit>().cancelFriendRequest(
+                    userId: widget.currentUserId,
+                    friendId: user.id,
+                  );
+            },
+            child: Text(
+              "Yes, Cancel",
+              style: TextStyle(color: AppPallete.primaryOrange),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequestSentIcon(User user) {
+    return GestureDetector(
+      onTap: () => _showCancelRequestDialog(user),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppPallete.greyText.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          Icons.person_add_disabled_outlined,
+          color: AppPallete.greyText,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddFriendButton(User user) {
+    return GestureDetector(
+      onTap: () {
+        context.read<FriendRequestsCubit>().sendFriendRequest(
+              userId: widget.currentUserId,
+              friendId: user.id,
+            );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Friend request sent to ${user.name}"),
+            backgroundColor: AppPallete.primaryOrange,
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppPallete.primaryOrange.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          Icons.person_add_outlined,
+          color: AppPallete.primaryOrange,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
   Widget _buildUserTile(User user) {
+    final friendsState = context.watch<FriendsCubit>().state;
+    final isFriend = friendsState is FriendsLoaded &&
+        friendsState.friends.containsKey(user.id);
+
+    final requestsCubit = context.watch<FriendRequestsCubit>();
+    final hasSentRequest = requestsCubit.hasSentRequestTo(user.id);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       child: Container(
@@ -375,18 +471,35 @@ class _SearchPageState extends State<SearchPage> {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppPallete.primaryOrange.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                  if (isFriend)
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppPallete.primaryOrange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.chat_bubble_outline,
+                        color: AppPallete.primaryOrange,
+                        size: 20,
+                      ),
+                    )
+                  else if (hasSentRequest)
+                    _buildRequestSentIcon(user)
+                  else
+                    FutureBuilder<bool>(
+                      future: requestsCubit.checkSentRequestStatus(
+                        widget.currentUserId,
+                        user.id,
+                      ),
+                      initialData: false,
+                      builder: (context, snapshot) {
+                        if (snapshot.data == true) {
+                          return _buildRequestSentIcon(user);
+                        }
+                        return _buildAddFriendButton(user);
+                      },
                     ),
-                    child: Icon(
-                      Icons.chat_bubble_outline,
-                      color: AppPallete.primaryOrange,
-                      size: 20,
-                    ),
-                  ),
                 ],
               ),
             ),

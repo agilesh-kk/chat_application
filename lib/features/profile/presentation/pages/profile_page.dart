@@ -6,7 +6,9 @@ import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/achievement/presentation/pages/achievement_page.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/friends/presentation/pages/friend_requests_page.dart';
 import 'package:chat_application/features/profile/presentation/pages/friends_page.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
@@ -17,17 +19,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_shortcut_plus/flutter_shortcut.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   final bool isUser;
   final dynamic user;
   const ProfilePage({super.key, required this.isUser, this.user});
 
   @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isUser) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final appUserState = context.read<AppUserCubit>().state;
+        if (appUserState is AppUserIsSignedin) {
+          context
+              .read<FriendRequestsCubit>()
+              .loadFriendRequests(userId: appUserState.user.id);
+        }
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final appUserState = context.watch<AppUserCubit>().state;
 
-    final profileUser =
-        user ?? (appUserState is AppUserIsSignedin ? appUserState.user : null);
+    final profileUser = widget.user ??
+        (appUserState is AppUserIsSignedin ? appUserState.user : null);
 
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
@@ -66,7 +89,15 @@ class ProfilePage extends StatelessWidget {
                     ],
                   ),
                 )
-              : BlocListener<BioBloc, BioState>(
+              : BlocListener<FriendRequestsCubit, FriendRequestsState>(
+                  listener: (context, state) {
+                    if (state is FriendRequestAccepted) {
+                      showSnackbar(context, "Friend request accepted!");
+                    } else if (state is FriendRequestRejected) {
+                      showSnackbar(context, "Friend request declined");
+                    }
+                  },
+                  child: BlocListener<BioBloc, BioState>(
                   listener: (context, state) {
                     if (state is BioUpdateSuccess) {
                       final appUserState = context.read<AppUserCubit>().state;
@@ -98,6 +129,7 @@ class ProfilePage extends StatelessWidget {
                       ),
                     ],
                   ),
+                  ),
                 ),
         ),
       ),
@@ -110,7 +142,7 @@ class ProfilePage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          if (!isUser)
+          if (!widget.isUser)
             GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Container(
@@ -169,24 +201,137 @@ class ProfilePage extends StatelessWidget {
                 ),
               ],
             ),
-          if (isUser)
-            _buildActionButton(
-              icon: Icons.logout_rounded,
-              onTap: () async {
-                final shouldLogout = await showConfirmationDialog(
-                  context,
-                  'Log out?',
-                  Icons.warning_amber_outlined,
-                );
-                if (shouldLogout == true && context.mounted) {
-                  context.read<AuthBloc>().add(AuthSignOut());
-                  await FlutterShortcut.clearShortcutItems();
-                }
-              },
-              color: AppPallete.errorColor,
+          if (widget.isUser)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildFriendRequestsBadgeButton(context),
+                const SizedBox(width: 8),
+                _buildActionButton(
+                  icon: Icons.logout_rounded,
+                  onTap: () async {
+                    final shouldLogout = await showConfirmationDialog(
+                      context,
+                      'Log out?',
+                      Icons.warning_amber_outlined,
+                    );
+                    if (shouldLogout == true && context.mounted) {
+                      context.read<AuthBloc>().add(AuthSignOut());
+                      await FlutterShortcut.clearShortcutItems();
+                    }
+                  },
+                  color: AppPallete.errorColor,
+                ),
+              ],
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFriendRequestsBadgeButton(BuildContext context) {
+    return BlocBuilder<FriendRequestsCubit, FriendRequestsState>(
+      builder: (context, state) {
+        final count = state is FriendRequestsLoaded ? state.requests.length : 0;
+        final hasBadge = count > 0;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FriendRequestsPage()),
+            );
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: hasBadge
+                  ? LinearGradient(
+                      colors: [
+                        AppPallete.primaryOrange,
+                        AppPallete.lightOrange,
+                      ],
+                    )
+                  : null,
+              color: hasBadge ? null : AppPallete.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: hasBadge
+                    ? AppPallete.primaryOrange.withValues(alpha: 0.5)
+                    : AppPallete.divider,
+              ),
+              boxShadow: hasBadge
+                  ? [
+                      BoxShadow(
+                        color:
+                            AppPallete.primaryOrange.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        Icons.person_add_alt_1,
+                        color: hasBadge
+                            ? AppPallete.whiteColor
+                            : AppPallete.whiteColor,
+                        size: 24,
+                      ),
+                      if (hasBadge)
+                        Positioned(
+                          top: -6,
+                          right: -6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppPallete.errorColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppPallete.cardBg,
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppPallete.errorColor
+                                      .withValues(alpha: 0.4),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              count > 9 ? '9+' : '$count',
+                              style: TextStyle(
+                                color: AppPallete.whiteColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -229,7 +374,7 @@ class ProfilePage extends StatelessWidget {
   Widget _buildHeader(BuildContext context, dynamic profileUser) {
     final friendsState = context.watch<FriendsCubit>().state;
     final bool isOnline;
-    if (!isUser && friendsState is FriendsLoaded) {
+    if (!widget.isUser && friendsState is FriendsLoaded) {
       isOnline = friendsState.friends[profileUser.id]?.isEffectivelyOnline ?? false;
     } else {
       isOnline = true;
@@ -309,7 +454,7 @@ class ProfilePage extends StatelessWidget {
                       : null,
                 ),
               ),
-              if (isUser)
+              if (widget.isUser)
                 Positioned(
                   bottom: 8,
                   right: 8,
@@ -460,13 +605,13 @@ class ProfilePage extends StatelessWidget {
           children: [
             Row(
               children: [
-                if (isUser) ...[
+                if (widget.isUser) ...[
                   _buildStatItem(
                     icon: Icons.people_outline,
                     value: friendsCount.toString(),
                     label: "Friends",
                     color: AppPallete.primaryOrange,
-                    isClickable: isUser,
+                    isClickable: widget.isUser,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -515,7 +660,7 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 20),
             UserDetailsCard(
               bio: profileUser.bio,
-              onEditBio: isUser ? () {} : null,
+              onEditBio: widget.isUser ? () {} : null,
               userId: profileUser.id,
             ),
           ],
@@ -580,6 +725,10 @@ class ProfilePage extends StatelessWidget {
 
   Widget _buildMoreActions(
       BuildContext context, dynamic profileUser, dynamic appUserState) {
+    final friendsState = context.watch<FriendsCubit>().state;
+    context.watch<FriendRequestsCubit>();
+    final currentUser = appUserState is AppUserIsSignedin ? appUserState.user : null;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -606,7 +755,7 @@ class ProfilePage extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                "Explore",
+                widget.isUser ? "Explore" : "Actions",
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -617,27 +766,9 @@ class ProfilePage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          if (isUser)
+          if (widget.isUser)
             Row(
               children: [
-                // Expanded(
-                //   child: _buildFeatureCard(
-                //     icon: Icons.emoji_events,
-                //     title: "Achievements",
-                //     subtitle: "Your badges & rewards",
-                //     gradientColors: [
-                //       AppPallete.storyGradientStart,
-                //       AppPallete.storyGradientEnd,
-                //     ],
-                //     onTap: () {
-                //       Navigator.push(
-                //         context, 
-                //         MaterialPageRoute(builder: (context) => AchievementPage(userId: profileUser.id) )
-                //       );
-                //     },
-                //   ),
-                // ),
-                // const SizedBox(width: 14),
                 Expanded(
                   child: _buildFeatureCard(
                     icon: Icons.favorite,
@@ -658,8 +789,189 @@ class ProfilePage extends StatelessWidget {
               ],
             )
           else
-            _buildMessageButton(context, profileUser, appUserState),
+            _buildActionSection(context, profileUser, currentUser, friendsState),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionSection(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+    FriendsState friendsState,
+  ) {
+    if (currentUser == null) return const SizedBox();
+
+    final isFriend = friendsState is FriendsLoaded &&
+        friendsState.friends.containsKey(profileUser?.id);
+    final isIncomingRequest = currentUser.requests != null &&
+        currentUser.requests!.contains(profileUser?.id);
+
+    if (isFriend) {
+      return _buildFriendActionsRow(context, profileUser, currentUser);
+    }
+
+    if (isIncomingRequest) {
+      return _buildAcceptRejectRow(context, profileUser, currentUser);
+    }
+
+    final cubit = context.read<FriendRequestsCubit>();
+
+    return FutureBuilder<bool>(
+      future: cubit.checkSentRequestStatus(
+        currentUser.id,
+        profileUser?.id ?? '',
+      ),
+      initialData: cubit.hasSentRequestTo(profileUser?.id ?? ''),
+      builder: (context, snapshot) {
+        if (snapshot.data == true) {
+          return _buildRequestSentDisplay(profileUser, currentUser, context);
+        }
+        return _buildAddFriendButton(context, profileUser, currentUser);
+      },
+    );
+  }
+
+  Widget _buildAcceptRejectRow(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () {
+              context.read<FriendRequestsCubit>().acceptFriendRequest(
+                    userId: currentUser.id,
+                    requesterId: profileUser.id,
+                  );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppPallete.statusGreen,
+                    AppPallete.statusGreen.withValues(alpha: 0.8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppPallete.statusGreen.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check, color: AppPallete.whiteColor, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    "Accept",
+                    style: TextStyle(
+                      color: AppPallete.whiteColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: GestureDetector(
+            onTap: () {
+              context.read<FriendRequestsCubit>().rejectFriendRequest(
+                    userId: currentUser.id,
+                    requesterId: profileUser.id,
+                  );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              decoration: BoxDecoration(
+                color: AppPallete.cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppPallete.errorColor.withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.close, color: AppPallete.errorColor, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    "Decline",
+                    style: TextStyle(
+                      color: AppPallete.errorColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddFriendButton(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        context.read<FriendRequestsCubit>().sendFriendRequest(
+              userId: currentUser.id,
+              friendId: profileUser.id,
+            );
+        showSnackbar(context, "Friend request sent!");
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppPallete.primaryOrange,
+              AppPallete.lightOrange,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppPallete.primaryOrange.withValues(alpha: 0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_add_outlined,
+              color: AppPallete.whiteColor,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              "Add Friend",
+              style: TextStyle(
+                color: AppPallete.whiteColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -752,23 +1064,178 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageButton(
-      BuildContext context, dynamic profileUser, dynamic appUserState) {
+  Widget _buildFriendActionsRow(
+      BuildContext context, dynamic profileUser, dynamic currentUser) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMessageButton(context, profileUser, currentUser),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildRemoveFriendButton(context, profileUser, currentUser),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRemoveFriendButton(
+      BuildContext context, dynamic profileUser, dynamic currentUser) {
     return GestureDetector(
-      onTap: () {
-        if (appUserState is AppUserIsSignedin) {
-          final currentuser = appUserState.user;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (c) => ChatPage(
-                currentUserId: currentuser.id,
-                receiverId: profileUser.id,
-                receiverName: profileUser.name,
+      onTap: () async {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppPallete.cardBg,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Text(
+              'Remove Friend',
+              style: TextStyle(color: AppPallete.whiteColor),
+            ),
+            content: Text(
+              'Remove ${profileUser.name} from your friends?',
+              style: TextStyle(color: AppPallete.greyText),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('Cancel',
+                    style: TextStyle(color: AppPallete.greyText)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('Remove',
+                    style: TextStyle(color: AppPallete.errorColor)),
+              ),
+            ],
+          ),
+        );
+        if (confirm == true && context.mounted) {
+          context.read<FriendsCubit>().removeFriend(
+                userId: currentUser.id,
+                friendId: profileUser.id,
+              );
+          showSnackbar(context, '${profileUser.name} removed from friends');
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: AppPallete.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppPallete.errorColor.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_remove_outlined,
+              color: AppPallete.errorColor,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              "Remove Friend",
+              style: TextStyle(
+                color: AppPallete.errorColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
               ),
             ),
-          );
-        }
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCancelRequestDialog(BuildContext context, dynamic profileUser, dynamic currentUser) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppPallete.cardBg,
+        title: Text(
+          "Cancel Request",
+          style: TextStyle(color: AppPallete.whiteColor),
+        ),
+        content: Text(
+          "Cancel friend request to ${profileUser?.name ?? 'this user'}?",
+          style: TextStyle(color: AppPallete.greyText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              "No",
+              style: TextStyle(color: AppPallete.greyText),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<FriendRequestsCubit>().cancelFriendRequest(
+                    userId: currentUser.id,
+                    friendId: profileUser?.id ?? '',
+                  );
+            },
+            child: Text(
+              "Yes, Cancel",
+              style: TextStyle(color: AppPallete.primaryOrange),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequestSentDisplay(dynamic profileUser, dynamic currentUser, BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showCancelRequestDialog(context, profileUser, currentUser),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: AppPallete.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppPallete.divider.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              color: AppPallete.greyText,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              "Request Sent",
+              style: TextStyle(
+                color: AppPallete.greyText,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageButton(
+      BuildContext context, dynamic profileUser, dynamic currentUser) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (c) => ChatPage(
+              currentUserId: currentUser.id,
+              receiverId: profileUser.id,
+              receiverName: profileUser.name,
+            ),
+          ),
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),

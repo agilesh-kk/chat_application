@@ -11,3 +11,5 @@ class SearchStart extends SearchEvent {
   });
 }
 
+class ResetSearch extends SearchEvent {}
+

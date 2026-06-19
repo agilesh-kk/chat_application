@@ -8,6 +8,7 @@ class User {
   final String gender;
   final String? profilePic;
   final List<String>? friends;
+  final List<String>? requests;
   final String? bio;
   final bool isOnline;
   final DateTime? lastSeen;
@@ -20,6 +21,7 @@ class User {
     required this.gender,
     this.profilePic,
     this.friends,
+    this.requests,
     this.bio,
     this.isOnline = false,
     this.lastSeen,
@@ -41,6 +43,7 @@ class User {
     String? email,
     String? profilePic,
     List<String>? friends,
+    List<String>? requests,
     DateTime? birthDate,
     String? bio,
     String? gender,
@@ -53,6 +56,7 @@ class User {
       email: email ?? this.email,
       profilePic: profilePic ?? this.profilePic,
       friends: friends ?? this.friends,
+      requests: requests ?? this.requests,
       birthDate: birthDate ?? this.birthDate,
       bio: bio ?? this.bio,
       gender: gender ?? this.gender,

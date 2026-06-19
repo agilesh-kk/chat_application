@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:chat_application/core/common/entities/user.dart';
+import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/achievement/services/achievement_details_mapper.dart';
 import 'package:chat_application/features/chats/data/datasources/timeline_service.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
@@ -98,6 +99,15 @@ abstract interface class ChatRemoteDataSources {
     required String newContent,
     required String opCollection
   });
+
+  Future<void> updateConversationFriendStatus({
+    required String convoId,
+    required String userId,
+    required String friendId,
+    required bool isFriend,
+  });
+
+  Future<List<String>> getUserConvoList(String userId);
 }
 
 class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
@@ -395,6 +405,14 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       //skip operation for scheduled messages and when opCollection is not provided
       final shouldWriteOp = opCollection != null && !isScheduled;
 
+      if (!isScheduled) {
+        final senderDoc = await firestore.collection('users').doc(userId).get();
+        final senderFriends = List<String>.from(senderDoc.data()?['friends'] ?? []);
+        if (!senderFriends.contains(receiverId)) {
+          throw ServerExceptions("You must be friends with this user to send messages");
+        }
+      }
+
       final message = MessageModel(
         id: msgId,
         type: type,
@@ -465,41 +483,34 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           //per-user conversation model
           userId: {
             "receiverId": receiverId,
-            //"receiverName": receiverData["name"],
-            //"receiverProfile": receiverData["profilePic"],
             "unread": 0,
 
-            // ✅ per-user last message
             "lastMessage": type == "text" ? content : "📷 Image",
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),
+            "isFriend": true,
           },
 
           receiverId: {
             "receiverId": userId,
-            //"receiverName": userName,
-            //"receiverProfile": userProfile,
             "unread": FieldValue.increment(1),
 
             "lastMessage": type == "text" ? content : "📷 Image",
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),
+            "isFriend": true,
           },
         }, SetOptions(merge: true));
+
+        batch.set(firestore.collection('users').doc(userId), {
+          'convoList': FieldValue.arrayUnion([convoId]),
+        }, SetOptions(merge: true));
+        batch.set(firestore.collection('users').doc(receiverId), {
+          'convoList': FieldValue.arrayUnion([convoId]),
+        }, SetOptions(merge: true));
       }
-
-      final userRef = firestore.collection("users").doc(userId);
-      final receiverRef = firestore.collection("users").doc(receiverId);
-
-      batch.set(userRef, {
-        "friends": FieldValue.arrayUnion([receiverId]),
-      }, SetOptions(merge: true));
-
-      batch.set(receiverRef, {
-        "friends": FieldValue.arrayUnion([userId]),
-      }, SetOptions(merge: true));
 
       await batch.commit();
 
@@ -546,7 +557,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       //   );
       // }
     } catch (e) {
-      //print("Send message error: $e");
+      rethrow;
     }
   }
 
@@ -1031,5 +1042,27 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     } catch (e) {
       //print("Delete operation error: $e");
     }
+  }
+
+  @override
+  Future<void> updateConversationFriendStatus({
+    required String convoId,
+    required String userId,
+    required String friendId,
+    required bool isFriend,
+  }) async {
+    try {
+      await firestore.collection("Conversations").doc(convoId).update({
+        '$userId.isFriend': isFriend,
+        '$friendId.isFriend': isFriend,
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Future<List<String>> getUserConvoList(String userId) async {
+    final doc = await firestore.collection('users').doc(userId).get();
+    final data = doc.data();
+    return List<String>.from(data?['convoList'] ?? []);
   }
 }

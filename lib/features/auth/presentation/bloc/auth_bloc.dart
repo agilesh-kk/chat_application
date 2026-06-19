@@ -7,6 +7,7 @@ import 'package:chat_application/features/auth/domain/usecase/current_user.dart'
 import 'package:chat_application/features/auth/domain/usecase/user_sign_in.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_out.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_up.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,13 +22,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final UserSignOut _userSignOut;
   final AppUserCubit _appUserCubit;
   final FriendsCubit friendsCubit;
+  final FriendRequestsCubit friendRequestsCubit;
   AuthBloc({
     required UserSignUp userSignUp,
     required UserSignIn userSignIn,
     required CurrentUser currentUser,
     required UserSignOut userSignOut,
     required AppUserCubit appUserCubit,
-    required this.friendsCubit
+    required this.friendsCubit,
+    required this.friendRequestsCubit,
   })
     : _userSignUp = userSignUp,
     _userSignIn = userSignIn,
@@ -99,6 +102,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       (_) {
          _appUserCubit.updateUser(null);
          friendsCubit.clear();
+         friendRequestsCubit.clear();
          emit(AuthUnauthenticated());
       },
     );
