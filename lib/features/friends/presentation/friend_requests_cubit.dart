@@ -43,10 +43,10 @@ class FriendRequestsCubit extends Cubit<FriendRequestsState> {
   }
 
   Future<void> loadFriendRequests({required String userId}) async {
+    if (_requestSub != null) return;
     emit(FriendRequestsLoading());
     try {
       final requestSub = await repository.getFriendRequests(userId);
-      _requestSub?.cancel();
       _requestSub = requestSub.listen(
         (event) => emit(FriendRequestsLoaded(event)),
       );

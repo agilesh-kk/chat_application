@@ -32,17 +32,15 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    if (widget.isUser) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final appUserState = context.read<AppUserCubit>().state;
-        if (appUserState is AppUserIsSignedin) {
-          context
-              .read<FriendRequestsCubit>()
-              .loadFriendRequests(userId: appUserState.user.id);
-        }
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final appUserState = context.read<AppUserCubit>().state;
+      if (appUserState is AppUserIsSignedin) {
+        context
+            .read<FriendRequestsCubit>()
+            .loadFriendRequests(userId: appUserState.user.id);
+      }
+    });
   }
 
   @override
@@ -726,7 +724,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildMoreActions(
       BuildContext context, dynamic profileUser, dynamic appUserState) {
     final friendsState = context.watch<FriendsCubit>().state;
-    context.watch<FriendRequestsCubit>();
     final currentUser = appUserState is AppUserIsSignedin ? appUserState.user : null;
 
     return Padding(
@@ -805,8 +802,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final isFriend = friendsState is FriendsLoaded &&
         friendsState.friends.containsKey(profileUser?.id);
-    final isIncomingRequest = currentUser.requests != null &&
-        currentUser.requests!.contains(profileUser?.id);
+    final friendReqState = context.watch<FriendRequestsCubit>().state;
+    final isIncomingRequest = friendReqState is FriendRequestsLoaded &&
+        friendReqState.requests.containsKey(profileUser?.id);
 
     if (isFriend) {
       return _buildFriendActionsRow(context, profileUser, currentUser);

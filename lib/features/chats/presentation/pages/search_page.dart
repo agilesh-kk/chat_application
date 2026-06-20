@@ -325,6 +325,21 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
+  Widget _buildIncomingRequestIndicator() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppPallete.statusGreen.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(
+        Icons.person_add_alt_1,
+        color: AppPallete.statusGreen,
+        size: 20,
+      ),
+    );
+  }
+
   Widget _buildRequestSentIcon(User user) {
     return GestureDetector(
       onTap: () => _showCancelRequestDialog(user),
@@ -379,6 +394,8 @@ class _SearchPageState extends State<SearchPage> {
 
     final requestsCubit = context.watch<FriendRequestsCubit>();
     final hasSentRequest = requestsCubit.hasSentRequestTo(user.id);
+    final isIncomingRequest = requestsCubit.state is FriendRequestsLoaded &&
+        (requestsCubit.state as FriendRequestsLoaded).requests.containsKey(user.id);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -484,6 +501,8 @@ class _SearchPageState extends State<SearchPage> {
                         size: 20,
                       ),
                     )
+                  else if (isIncomingRequest)
+                    _buildIncomingRequestIndicator()
                   else if (hasSentRequest)
                     _buildRequestSentIcon(user)
                   else
