@@ -36,9 +36,9 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
       final appUserState = context.read<AppUserCubit>().state;
       if (appUserState is AppUserIsSignedin) {
-        context
-            .read<FriendRequestsCubit>()
-            .loadFriendRequests(userId: appUserState.user.id);
+        final cubit = context.read<FriendRequestsCubit>();
+        cubit.loadFriendRequests(userId: appUserState.user.id);
+        cubit.loadSentRequests(userId: appUserState.user.id);
       }
     });
   }
@@ -815,20 +815,10 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     final cubit = context.read<FriendRequestsCubit>();
-
-    return FutureBuilder<bool>(
-      future: cubit.checkSentRequestStatus(
-        currentUser.id,
-        profileUser?.id ?? '',
-      ),
-      initialData: cubit.hasSentRequestTo(profileUser?.id ?? ''),
-      builder: (context, snapshot) {
-        if (snapshot.data == true) {
-          return _buildRequestSentDisplay(profileUser, currentUser, context);
-        }
-        return _buildAddFriendButton(context, profileUser, currentUser);
-      },
-    );
+    if (cubit.hasSentRequestTo(profileUser?.id ?? '')) {
+      return _buildRequestSentDisplay(profileUser, currentUser, context);
+    }
+    return _buildAddFriendButton(context, profileUser, currentUser);
   }
 
   Widget _buildAcceptRejectRow(

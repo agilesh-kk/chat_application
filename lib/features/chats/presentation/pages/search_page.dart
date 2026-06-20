@@ -506,19 +506,7 @@ class _SearchPageState extends State<SearchPage> {
                   else if (hasSentRequest)
                     _buildRequestSentIcon(user)
                   else
-                    FutureBuilder<bool>(
-                      future: requestsCubit.checkSentRequestStatus(
-                        widget.currentUserId,
-                        user.id,
-                      ),
-                      initialData: false,
-                      builder: (context, snapshot) {
-                        if (snapshot.data == true) {
-                          return _buildRequestSentIcon(user);
-                        }
-                        return _buildAddFriendButton(user);
-                      },
-                    ),
+                    _buildAddFriendButton(user),
                 ],
               ),
             ),
