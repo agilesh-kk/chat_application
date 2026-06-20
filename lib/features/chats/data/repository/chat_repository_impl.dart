@@ -14,9 +14,9 @@ import 'package:image_picker/image_picker.dart';
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
   final ChatLocalDataSource chatLocalDataSource;
-  bool isRecentlyDownloaded = false;
+  final Set<String> _recentlyDownloadedConvos = {};
 
-  final Map<String,StreamSubscription<Map<String, dynamic>>> _opSub = {};
+  final Map<String, StreamSubscription<Map<String, dynamic>>> _opSub = {};
 
   ChatRepositoryImpl({
     required this.chatRemoteDataSources,
@@ -32,14 +32,13 @@ class ChatRepositoryImpl implements ChatRepository {
 
       final userChanged = await chatLocalDataSource.ischeckUserChanged(userId);
 
-      if(userChanged){
-         await chatLocalDataSource.updateUser(userId);
-         return left(Failure('user-changed'));
+      if (userChanged) {
+        await chatLocalDataSource.updateUser(userId);
+        return left(Failure('user-changed'));
       }
-     
 
-      Stream<List<Conversation>> res = chatLocalDataSource
-          .getConversationsStream();
+      Stream<List<Conversation>> res =
+          chatLocalDataSource.getConversationsStream();
       return right(res);
     } on ServerExceptions catch (e) {
       return left(Failure(e.message));
@@ -47,25 +46,25 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, bool>> downloadConversation({required String userId, required String friendId}) async{
-        try{
+  Future<Either<Failure, bool>> downloadConversation({
+    required String userId,
+    required String friendId,
+  }) async {
+    try {
+      final docs = await chatRemoteDataSources.fetchAllMessages(
+        conversationId: generateConversationId(userId, friendId),
+      );
+      if (docs.isNotEmpty) {
+        final docIds = docs.map((d) => d['_docId'] as String).toList();
+        await chatLocalDataSource.bulkInsertMessages(docs, docIds, friendId);
+      }
 
-              final docs = await chatRemoteDataSources.fetchAllMessages(
-                conversationId: generateConversationId(userId, friendId),
-              );
-              if (docs.isNotEmpty) {
-                final docIds = docs.map((d) => d['_docId'] as String).toList();
-                await chatLocalDataSource.bulkInsertMessages(docs, docIds, friendId);
-              }
-            
-            isRecentlyDownloaded = true;
+      _recentlyDownloadedConvos.add(generateConversationId(userId, friendId));
 
-            return right(true);
-          }
-
-        catch(e){
-          return left(Failure(e.toString()));
-        }
+      return right(true);
+    } catch (e) {
+      return left(Failure(e.toString()));
+    }
   }
 
   @override
@@ -82,10 +81,14 @@ class ChatRepositoryImpl implements ChatRepository {
           final docIds = docs.map((d) => d['_docId'] as String).toList();
           final parts = convoId.split('_');
           final receiverId = parts[0] == userId ? parts[1] : parts[0];
-          await chatLocalDataSource.bulkInsertMessages(docs, docIds, receiverId);
+          await chatLocalDataSource.bulkInsertMessages(
+            docs,
+            docIds,
+            receiverId,
+          );
         }
       }
-      isRecentlyDownloaded = true;
+      _recentlyDownloadedConvos.addAll(convoIds);
       return right(true);
     } catch (e) {
       return left(Failure(e.toString()));
@@ -128,23 +131,29 @@ class ChatRepositoryImpl implements ChatRepository {
     required String userId,
     required String receiverId,
   }) async {
-
     final convoId = generateConversationId(userId, receiverId);
     final opCollection = _getOtherOpCollection(userId, receiverId);
+
+    final bool skipFirst = _recentlyDownloadedConvos.contains(convoId);
 
     final stream = await chatRemoteDataSources.listenToOperations(
       conversationId: convoId,
       opCollection: opCollection,
-      skipFirst: isRecentlyDownloaded
+      skipFirst: skipFirst,
     );
 
-    await _opSub[opCollection]?.cancel();
+    await _opSub[convoId]?.cancel();
 
-    print("start listenerrrrrrrrrrrrrrr");
-
-    _opSub[opCollection] = stream.listen(
+    _opSub[convoId] = stream.listen(
       (opData) async {
-        await _processOperation(opData, convoId, userId, receiverId, opCollection);
+        _recentlyDownloadedConvos.remove(convoId);
+        await _processOperation(
+          opData,
+          convoId,
+          userId,
+          receiverId,
+          opCollection,
+        );
       },
       onError: (error) {
         // Operation listener error (e.g., permissions) - log and retry is handled by Firestore SDK
@@ -154,20 +163,26 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Future<void> stopOperationListener() async {
-    for(final e in _opSub.values){
+    for (final e in _opSub.values) {
       e.cancel();
     }
   }
 
   @override
-  Future<void> stopOperationListenerForReceiver(String userId, String receiverId) async {
-    final opCollection = _getOtherOpCollection(userId, receiverId);
-    await _opSub[opCollection]?.cancel();
-    _opSub.remove(opCollection);
+  Future<void> stopOperationListenerForReceiver(
+    String userId,
+    String receiverId,
+  ) async {
+    final convoId = generateConversationId(userId, receiverId);
+    await _opSub[convoId]?.cancel();
+    _opSub.remove(convoId);
   }
 
   @override
-  Future<void> updateConversationFriendStatus(String convoId, bool isFriend) async {
+  Future<void> updateConversationFriendStatus(
+    String convoId,
+    bool isFriend,
+  ) async {
     await chatLocalDataSource.updateConversationFriendStatus(convoId, isFriend);
   }
 
@@ -222,8 +237,16 @@ class ChatRepositoryImpl implements ChatRepository {
       switch (type) {
         case 'new_message':
           final msgId = opData['messageId'] as String? ?? docId;
-          final content = opData['messageType'] == "text" ? opData['content'] : "📷 Image" ;
-          await chatLocalDataSource.updateConvo(convoId,msgId,content,opData['createdAt'],opData['senderId'],opData['senderId']);
+          final content =
+              opData['messageType'] == "text" ? opData['content'] : "📷 Image";
+          await chatLocalDataSource.updateConvo(
+            convoId,
+            msgId,
+            content,
+            opData['createdAt'],
+            receiverId,
+            opData['senderId'],
+          );
           await chatLocalDataSource.upsertMessageFromFirestore(opData, msgId);
           break;
 
@@ -232,7 +255,12 @@ class ChatRepositoryImpl implements ChatRepository {
           final deletedfor = List<String>.from(opData['deletedfor'] ?? []);
           final deletedForEveryone = opData['deletedForEveryone'] ?? false;
           await chatLocalDataSource.updateMessageDeletion(
-            msgId, convoId, userId, receiverId, deletedfor, deletedForEveryone, 
+            msgId,
+            convoId,
+            userId,
+            receiverId,
+            deletedfor,
+            deletedForEveryone,
           );
           break;
 
@@ -240,15 +268,29 @@ class ChatRepositoryImpl implements ChatRepository {
           final msgId = opData['messageId'] as String? ?? docId;
           final userId = opData['userId'] as String;
           final emoji = opData['emoji'] as String;
-          final reactions = Map<String, String>.from(opData['reactions'] as Map? ?? {});
-          await chatLocalDataSource.updateMessageReaction(msgId, convoId, userId, receiverId,reactions, emoji, userId);
+          final reactions = Map<String, String>.from(
+            opData['reactions'] as Map? ?? {},
+          );
+          await chatLocalDataSource.updateMessageReaction(
+            msgId,
+            convoId,
+            userId,
+            receiverId,
+            reactions,
+            emoji,
+            userId,
+          );
           break;
 
         case 'seen':
           final msgIds = List<String>.from(opData['messageIds'] ?? []);
           final seenByUserId = opData['seenByUserId'] as String? ?? '';
           if (msgIds.isNotEmpty) {
-            await chatLocalDataSource.markMessagesSeen(msgIds, seenByUserId, convoId);
+            await chatLocalDataSource.markMessagesSeen(
+              msgIds,
+              seenByUserId,
+              convoId,
+            );
           }
           break;
 
@@ -318,10 +360,15 @@ class ChatRepositoryImpl implements ChatRepository {
           'profile': userProfile,
           'convoId': convoId,
         });
-         chatLocalDataSource.updateConvo(convoId,msgId, content, DateTime.now(), receiverId, userId);
+        chatLocalDataSource.updateConvo(
+          convoId,
+          msgId,
+          content,
+          DateTime.now(),
+          receiverId,
+          userId,
+        );
       }
-
-     
 
       await chatRemoteDataSources.sendMessage(
         receiverId: receiverId,
@@ -389,7 +436,14 @@ class ChatRepositoryImpl implements ChatRepository {
         'convoId': convoId,
       });
 
-      chatLocalDataSource.updateConvo(convoId,msgId, "📷 Image", DateTime.now(), receiverId, userId);
+      chatLocalDataSource.updateConvo(
+        convoId,
+        msgId,
+        "📷 Image",
+        DateTime.now(),
+        receiverId,
+        userId,
+      );
 
       await chatRemoteDataSources.sendMessage(
         type: "image",
@@ -432,11 +486,21 @@ class ChatRepositoryImpl implements ChatRepository {
       // Update local DB
       if (deleteForEveryone) {
         await chatLocalDataSource.updateMessageDeletion(
-          msgId, generateConversationId(userId, receiverId), userId, receiverId,[], true,
+          msgId,
+          generateConversationId(userId, receiverId),
+          userId,
+          receiverId,
+          [],
+          true,
         );
       } else {
         await chatLocalDataSource.updateMessageDeletion(
-          msgId, generateConversationId(userId, receiverId), userId, receiverId,[userId], false,
+          msgId,
+          generateConversationId(userId, receiverId),
+          userId,
+          receiverId,
+          [userId],
+          false,
         );
       }
 
@@ -509,7 +573,13 @@ class ChatRepositoryImpl implements ChatRepository {
 
       // Update local DB
       await chatLocalDataSource.updateMessageReaction(
-        messageId, generateConversationId(userId, receiverId), userId, receiverId, {userId: emoji}, emoji, userId
+        messageId,
+        generateConversationId(userId, receiverId),
+        userId,
+        receiverId,
+        {userId: emoji},
+        emoji,
+        userId,
       );
     } catch (e) {
       throw ServerExceptions(e.toString());
@@ -531,7 +601,7 @@ class ChatRepositoryImpl implements ChatRepository {
         receiverId: receiverId,
         msgId: msgId,
         newContent: newContent,
-        opCollection: _getMyOpCollection(userId, receiverId)
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
     } catch (e) {
       throw ServerExceptions(e.toString());
@@ -554,6 +624,4 @@ class ChatRepositoryImpl implements ChatRepository {
     final sorted = [userId, receiverId]..sort();
     return sorted[0] == userId ? "operation_2" : "operation_1";
   }
-  
-  
 }
