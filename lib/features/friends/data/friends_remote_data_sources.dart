@@ -11,6 +11,13 @@ abstract class FriendsRemoteDataSource {
     required String targetUserId,
   });
 
+  Future<Stream<Set<String>>> getSentRequests(String userId);
+
+  Future<bool> checkIfUserIsFriend({
+    required String userId,
+    required String targetUserId,
+  });
+
   Future<void> addFriend(String userId, String friendId);
 
   Future<void> removeFriend(String userId, String friendId);
@@ -136,10 +143,14 @@ class FriendsRemoteDataSourceImpl implements FriendsRemoteDataSource {
     required String friendId,
   }) async {
     final batch = firestore.batch();
+    final userRef = firestore.collection('users').doc(userId);
     final friendRef = firestore.collection('users').doc(friendId);
     batch.set(friendRef, {
       'Requests': FieldValue.arrayUnion([userId]),
     }, SetOptions(merge: true));
+    batch.update(userRef, {
+      'sentRequests': FieldValue.arrayUnion([friendId]),
+    });
     await batch.commit();
   }
 
@@ -158,6 +169,7 @@ class FriendsRemoteDataSourceImpl implements FriendsRemoteDataSource {
     });
     batch.update(requesterRef, {
       'friends': FieldValue.arrayUnion([userId]),
+      'sentRequests': FieldValue.arrayRemove([userId]),
     });
 
     await batch.commit();
@@ -168,9 +180,39 @@ class FriendsRemoteDataSourceImpl implements FriendsRemoteDataSource {
     required String userId,
     required String requesterId,
   }) async {
+    final batch = firestore.batch();
     final userRef = firestore.collection('users').doc(userId);
-    await userRef.update({
+    final requesterRef = firestore.collection('users').doc(requesterId);
+    batch.update(userRef, {
       'Requests': FieldValue.arrayRemove([requesterId]),
     });
+    batch.update(requesterRef, {
+      'sentRequests': FieldValue.arrayRemove([userId]),
+    });
+    await batch.commit();
+  }
+
+  @override
+  Future<Stream<Set<String>>> getSentRequests(String userId) async {
+    return firestore
+        .collection('users')
+        .doc(userId)
+        .snapshots()
+        .map((snapshot) {
+      final sentRequests =
+          List<String>.from(snapshot.data()?['sentRequests'] ?? []);
+      return sentRequests.toSet();
+    });
+  }
+
+  @override
+  Future<bool> checkIfUserIsFriend({
+    required String userId,
+    required String targetUserId,
+  }) async {
+    final doc = await firestore.collection('users').doc(userId).get();
+    if (!doc.exists) return false;
+    final friends = List<String>.from(doc.data()?['friends'] ?? []);
+    return friends.contains(targetUserId);
   }
 }

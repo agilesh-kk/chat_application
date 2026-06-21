@@ -10,48 +10,59 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class FriendRequestsCubit extends Cubit<FriendRequestsState> {
   final FriendsRemoteDataSource repository;
   StreamSubscription<Map<String, FriendModel>>? _requestSub;
+  StreamSubscription<Set<String>>? _sentRequestSub;
   final Set<String> _sentRequestIds = {};
-  final Map<String, bool> _sentStatusCache = {};
 
   FriendRequestsCubit(this.repository) : super(FriendRequestsInitial());
 
   bool hasSentRequestTo(String userId) => _sentRequestIds.contains(userId);
 
-  Future<bool> checkSentRequestStatus(
-    String currentUserId,
-    String targetUserId,
-  ) async {
-    final cacheKey = '$currentUserId->$targetUserId';
-    if (_sentStatusCache.containsKey(cacheKey)) {
-      return _sentStatusCache[cacheKey]!;
-    }
-    try {
-      final isPending = await repository.isUserInRequests(
-        userId: currentUserId,
-        targetUserId: targetUserId,
-      );
-      if (isPending) {
-        _sentRequestIds.add(targetUserId);
-      } else {
-        _sentRequestIds.remove(targetUserId);
-      }
-      _sentStatusCache[cacheKey] = isPending;
-      return isPending;
-    } catch (e) {
-      return _sentRequestIds.contains(targetUserId);
-    }
-  }
-
   Future<void> loadFriendRequests({required String userId}) async {
+    if (_requestSub != null) return;
     emit(FriendRequestsLoading());
     try {
       final requestSub = await repository.getFriendRequests(userId);
-      _requestSub?.cancel();
       _requestSub = requestSub.listen(
         (event) => emit(FriendRequestsLoaded(event)),
       );
     } catch (e) {
       emit(FriendRequestActionError(e.toString()));
+    }
+  }
+
+  Future<void> loadSentRequests({required String userId}) async {
+    if (_sentRequestSub != null) return;
+    try {
+      final sentSub = await repository.getSentRequests(userId);
+      _sentRequestSub = sentSub.listen((sentTargets) {
+        final removed =
+            _sentRequestIds.difference(sentTargets).where((id) => id.isNotEmpty).toSet();
+        _sentRequestIds
+          ..clear()
+          ..addAll(sentTargets);
+
+        for (final targetId in removed) {
+          _checkSentRequestOutcome(userId, targetId);
+        }
+      });
+    } catch (e) {
+      emit(FriendRequestActionError(e.toString()));
+    }
+  }
+
+  Future<void> _checkSentRequestOutcome(String userId, String targetId) async {
+    try {
+      final isFriend = await repository.checkIfUserIsFriend(
+        userId: userId,
+        targetUserId: targetId,
+      );
+      if (isFriend) {
+        emit(FriendRequestAccepted(targetId));
+      } else {
+        emit(FriendRequestRejected(targetId));
+      }
+    } catch (_) {
+      emit(FriendRequestActionError("Failed to check request status"));
     }
   }
 
@@ -62,8 +73,10 @@ class FriendRequestsCubit extends Cubit<FriendRequestsState> {
     try {
       await repository.sendFriendReq(userId: userId, friendId: friendId);
       _sentRequestIds.add(friendId);
-      _sentStatusCache.remove('$userId->$friendId');
       emit(FriendRequestSent(friendId));
+      if (_sentRequestSub == null) {
+        loadSentRequests(userId: userId);
+      }
     } catch (e) {
       emit(FriendRequestActionError(e.toString()));
     }
@@ -109,7 +122,6 @@ class FriendRequestsCubit extends Cubit<FriendRequestsState> {
         requesterId: userId,
       );
       _sentRequestIds.remove(friendId);
-      _sentStatusCache['$userId->$friendId'] = false;
       emit(FriendRequestCancelled(friendId));
     } catch (e) {
       emit(FriendRequestActionError(e.toString()));
@@ -118,14 +130,15 @@ class FriendRequestsCubit extends Cubit<FriendRequestsState> {
 
   Future<void> clear() async {
     _requestSub?.cancel();
+    _sentRequestSub?.cancel();
     _sentRequestIds.clear();
-    _sentStatusCache.clear();
     emit(FriendRequestsInitial());
   }
 
   @override
   Future<void> close() {
     _requestSub?.cancel();
+    _sentRequestSub?.cancel();
     return super.close();
   }
 }

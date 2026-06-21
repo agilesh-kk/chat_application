@@ -67,7 +67,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
     _db = await openDatabase(
       dbPath,
-      version: 6,
+      version: 7,
       onCreate: _createTables,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -88,6 +88,13 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
               ADD COLUMN isFriend INTEGER DEFAULT 1
             ''');
           } catch (_) {}
+        }
+
+        if (oldVersion < 7) {
+          await db.execute('''
+            CREATE INDEX IF NOT EXISTS idx_messages_conversation_time
+            ON messages(conversationId, createdAt DESC)
+          ''');
         }
       },
     );
@@ -145,7 +152,12 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
     await batch.commit(noResult: true);
 
-    final rows = await _db!.query('messages', limit: 1, orderBy: "createdAt DESC");
+    final rows = await _db!.query('messages',
+      where: 'conversationId = ?',
+      whereArgs: [convoId],
+      limit: 1,
+      orderBy: "createdAt DESC",
+    );
 
     if(rows.isNotEmpty){
       final first = rows[0];
@@ -207,6 +219,10 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
         isLocal INTEGER DEFAULT 0,
         localPath TEXT
       )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_messages_conversation_time
+      ON messages(conversationId, createdAt DESC)
     ''');
     await convoUpgrade(db);
   }
