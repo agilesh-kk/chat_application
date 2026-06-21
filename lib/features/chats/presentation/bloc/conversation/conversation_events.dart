@@ -7,6 +7,20 @@ class LoadConversationsEvent extends ConversationEvent {
   LoadConversationsEvent(this.userId);
 }
 
+class ConversationDownloadEvent extends ConversationEvent {
+  final String userId;
+  final List<String> receiverId;
+  final int val;
+  ConversationDownloadEvent(this.userId, this.receiverId, this.val);
+}
+
+class ConvoListDownloadEvent extends ConversationEvent {
+  final String userId;
+  final List<String> convoIds;
+  final int val;
+  ConvoListDownloadEvent(this.userId, this.convoIds, this.val);
+}
+
 class ConversationSelectedEvent extends ConversationEvent {
   final String convoId;
   ConversationSelectedEvent(this.convoId);

@@ -13,6 +13,7 @@ class ConversationModel extends Conversation {
     required super.receiverName,
     required super.profilepicLink,
     required super.lastSender,
+    super.isFriend,
   });
 
   factory ConversationModel.fromJson(
@@ -32,6 +33,7 @@ class ConversationModel extends Conversation {
       profilepicLink: userData["receiverProfile"] ?? "",
       unread: userData["unread"] ?? 0,
       lastSender: userData["lastSender"] ?? "",
+      isFriend: userData["isFriend"] ?? true,
     );
   }
 

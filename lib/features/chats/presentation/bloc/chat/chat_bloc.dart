@@ -30,7 +30,6 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
   String? _currentUserId;
   String? _currentReceiverId;
-  bool _alreadyMarkedRecently = false;
   bool _hasMore = true;
   StreamSubscription<List<Message>>? _messageSub;
 
@@ -250,35 +249,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
   void updateMessages(List<Message> received, emit) {
     // =========================
-    // 🔥 STEP 1: DETECT UNSEEN MESSAGES
-    // =========================
-    final hasUnseen = received.any(
-      (msg) =>
-          msg.senderId == _currentReceiverId && // ✅ only incoming
-          msg.status == "sent" &&
-          !msg.isLocal,
-    );
-
-    if (hasUnseen &&
-        !_alreadyMarkedRecently &&
-        _currentUserId != null &&
-        _currentReceiverId != null) {
-
-      _alreadyMarkedRecently = true;
-
-      add(MarkMessagesDeliveredEvent(
-        userId: _currentUserId!,
-        receiverId: _currentReceiverId!,
-      ));
-
-      // debounce reset
-      Future.delayed(const Duration(milliseconds: 500), () {
-        _alreadyMarkedRecently = false;
-      });
-    }
-
-    // =========================
-    // 🔥 STEP 2: MERGE STREAM DATA WITH EXISTING MESSAGES
+    // MERGE STREAM DATA WITH EXISTING MESSAGES
     // =========================
     if (state is ChatLoaded) {
       final currentState = state as ChatLoaded;

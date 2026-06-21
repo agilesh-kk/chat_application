@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
@@ -99,4 +101,38 @@ abstract interface class ChatRepository{
     required String msgId,
     required String newContent,
   });
+
+  // Operation sync methods
+  Future<Either<Failure, bool>> downloadConversation({
+    required String userId,
+    required String friendId,
+  });
+
+  Future<Either<Failure, bool>> downloadAllConversations(String userId);
+
+  Future<List<String>> getUserConvoList(String userId);
+
+  void startOperationListener({
+    required String userId,
+    required String receiverId,
+  });
+
+  Future<void> stopOperationListener();
+
+  Future<void> stopOperationListenerForReceiver(
+    String userId,
+    String receiverId,
+  );
+
+  Future<void> updateConversationFriendStatus(String convoId, bool isFriend);
+
+  Future<void> markConversationNotFriend(String userId, String friendId);
+
+  Future<List<Conversation>> queryAllLocalConversations();
+
+  Future<String?> getConvoIdByReceiverId(String receiverId);
+
+  Future<void> restoreFriendConversation(String userId, String friendId);
+
+  String generateConversationId(String userId, String receiverId);
 }

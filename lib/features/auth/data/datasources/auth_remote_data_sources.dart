@@ -83,6 +83,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         'friends': [],
         'gender' : gender,
         'bio' : "",
+        'convoList': [],
       });
 
       final timelineRef = firebaseFirestore

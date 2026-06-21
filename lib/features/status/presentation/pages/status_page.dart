@@ -3,6 +3,7 @@ import 'package:chat_application/core/common/widgets/loader.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/functions/helper_functions.dart';
@@ -98,11 +99,14 @@ class _StatusPageState extends State<StatusPage>
               }
               if (state is StatusDisplaySuccess) {
                 final Map<String, List<Status>> groupedStatuses = {};
-                final friends = appUserState.user.friends;
+                final friendsState = context.read<FriendsCubit>().state;
+                final friendIds = friendsState is FriendsLoaded
+                    ? friendsState.friends.keys.toSet()
+                    : <String>{};
 
                 for (var st in state.status) {
                   if (st.userId == currentUserId) continue;
-                  if (!friends!.contains(st.userId)) continue;
+                  if (!friendIds.contains(st.userId)) continue;
 
                   if (!groupedStatuses.containsKey(st.userId)) {
                     groupedStatuses[st.userId] = [];

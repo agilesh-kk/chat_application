@@ -6,6 +6,8 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
+import 'package:chat_application/features/friends/presentation/pages/friend_requests_page.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/pages/edit_avatar.dart';
@@ -458,7 +460,9 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                 ),
               const Spacer(),
-              if (widget.isUser)
+              if (widget.isUser) ...[
+                _buildFriendRequestButton(context),
+                const SizedBox(width: 12),
                 _buildActionButton(
                   icon: Icons.logout_rounded,
                   onTap: () async {
@@ -474,6 +478,7 @@ class _ProfilePageState extends State<ProfilePage>
                   },
                   color: AppPallete.errorColor,
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 4),
@@ -537,6 +542,72 @@ class _ProfilePageState extends State<ProfilePage>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFriendRequestButton(BuildContext context) {
+    final reqState = context.watch<FriendRequestsCubit>().state;
+    final pendingCount = reqState is FriendRequestsLoaded ? reqState.requests.length : 0;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FriendRequestsPage()),
+        );
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppPallete.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppPallete.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.person_add_outlined,
+              color: AppPallete.whiteColor,
+              size: 24,
+            ),
+          ),
+          if (pendingCount > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppPallete.errorColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppPallete.errorColor.withValues(alpha: 0.4),
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Text(
+                  "$pendingCount",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppPallete.whiteColor,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

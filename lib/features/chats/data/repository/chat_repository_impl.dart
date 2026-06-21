@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
@@ -12,6 +14,8 @@ import 'package:image_picker/image_picker.dart';
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
   final ChatLocalDataSource chatLocalDataSource;
+  final Set<String> _recentlyDownloadedConvos = {};
+  final Map<String, StreamSubscription<Map<String, dynamic>>> _opSub = {};
 
   ChatRepositoryImpl({
     required this.chatRemoteDataSources,
@@ -23,12 +27,164 @@ class ChatRepositoryImpl implements ChatRepository {
     required String userId,
   }) async {
     try {
-      Stream<List<Conversation>> res = await chatRemoteDataSources
-          .getConversations(userId: userId);
-      return right(res);
+      final stream = await chatRemoteDataSources.getConversations(userId: userId);
+      return right(stream);
     } on ServerExceptions catch (e) {
       return left(Failure(e.message));
     }
+  }
+
+  @override
+  Future<Either<Failure, bool>> downloadConversation({
+    required String userId,
+    required String friendId,
+  }) async {
+    try {
+      await chatRemoteDataSources.fetchAllMessages(
+        conversationId: generateConversationId(userId, friendId),
+      );
+      _recentlyDownloadedConvos.add(generateConversationId(userId, friendId));
+      return right(true);
+    } catch (e) {
+      return left(Failure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> downloadAllConversations(String userId) async {
+    try {
+      final convoIds = await getUserConvoList(userId);
+      if (convoIds.isEmpty) return right(false);
+      for (final convoId in convoIds) {
+        await chatRemoteDataSources.fetchAllMessages(
+          conversationId: convoId,
+        );
+      }
+      _recentlyDownloadedConvos.addAll(convoIds);
+      return right(true);
+    } catch (e) {
+      return left(Failure(e.toString()));
+    }
+  }
+
+  @override
+  Future<List<String>> getUserConvoList(String userId) async {
+    return chatRemoteDataSources.getUserConvoList(userId);
+  }
+
+  @override
+  void startOperationListener({
+    required String userId,
+    required String receiverId,
+  }) {
+    _startOperationListener(userId, receiverId);
+  }
+
+  Future<void> _startOperationListener(
+    String userId,
+    String receiverId,
+  ) async {
+    final convoId = generateConversationId(userId, receiverId);
+    final opCollection = _getOtherOpCollection(userId, receiverId);
+    final bool skipFirst = _recentlyDownloadedConvos.contains(convoId);
+
+    final stream = await chatRemoteDataSources.listenToOperations(
+      conversationId: convoId,
+      opCollection: opCollection,
+      skipFirst: skipFirst,
+    );
+
+    await _opSub[convoId]?.cancel();
+
+    _opSub[convoId] = stream.listen(
+      (opData) async {
+        _recentlyDownloadedConvos.remove(convoId);
+        await _processOperation(
+          opData,
+          convoId,
+          userId,
+          receiverId,
+          opCollection,
+        );
+      },
+      onError: (error) {},
+    );
+  }
+
+  @override
+  Future<void> stopOperationListener() async {
+    for (final e in _opSub.values) {
+      e.cancel();
+    }
+  }
+
+  @override
+  Future<void> stopOperationListenerForReceiver(
+    String userId,
+    String receiverId,
+  ) async {
+    final convoId = generateConversationId(userId, receiverId);
+    await _opSub[convoId]?.cancel();
+    _opSub.remove(convoId);
+  }
+
+  @override
+  Future<void> updateConversationFriendStatus(
+    String convoId,
+    bool isFriend,
+  ) async {}
+
+  @override
+  Future<void> markConversationNotFriend(
+    String userId,
+    String friendId,
+  ) async {}
+
+  @override
+  Future<List<Conversation>> queryAllLocalConversations() async {
+    return [];
+  }
+
+  @override
+  Future<String?> getConvoIdByReceiverId(String receiverId) async {
+    return null;
+  }
+
+  @override
+  Future<void> restoreFriendConversation(
+    String userId,
+    String friendId,
+  ) async {}
+
+  @override
+  String generateConversationId(String user1, String user2) {
+    final sorted = [user1, user2]..sort();
+    return "${sorted[0]}_${sorted[1]}";
+  }
+
+  String _getOtherOpCollection(String userId, String receiverId) {
+    final sorted = [userId, receiverId]..sort();
+    return sorted[0] == userId ? "operation_2" : "operation_1";
+  }
+
+  String _getMyOpCollection(String userId, String receiverId) {
+    final sorted = [userId, receiverId]..sort();
+    return sorted[0] == userId ? "operation_1" : "operation_2";
+  }
+
+  Future<void> _processOperation(
+    Map<String, dynamic> opData,
+    String convoId,
+    String userId,
+    String receiverId,
+    String opCollection,
+  ) async {
+    final docId = opData['_docId'] as String;
+    await chatRemoteDataSources.deleteOperation(
+      conversationId: convoId,
+      opCollection: opCollection,
+      opId: docId,
+    );
   }
 
   @override
@@ -95,12 +251,10 @@ class ChatRepositoryImpl implements ChatRepository {
   }) async {
     try {
       await chatLocalDataSource.saveImage(image, msgId);
-
       final imageUrl = await chatRemoteDataSources.uploadImage(
         image: image,
         msgId: msgId,
       );
-
       await chatRemoteDataSources.sendMessage(
         type: "image",
         receiverId: receiverId,
@@ -113,11 +267,10 @@ class ChatRepositoryImpl implements ChatRepository {
         replyToContent: replyToContent,
         replyToSenderId: replyToSenderId,
         replyToType: replyToType,
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
-
       return right(null);
     } catch (e) {
-      //print(e.toString());
       return left(Failure(e.toString()));
     }
   }
@@ -130,19 +283,14 @@ class ChatRepositoryImpl implements ChatRepository {
     required String msgId,
     String? userName,
     String? userProfile,
-
-    //time capsule
     DateTime? sendAt,
     bool isScheduled = false,
-
-    //for reply
     String? replyToId,
     String? replyToContent,
     String? replyToSenderId,
     String? replyToType,
   }) async {
     try {
-      //await chatLocalDataSource.initDatabase();
       await chatRemoteDataSources.sendMessage(
         receiverId: receiverId,
         userId: userId,
@@ -155,6 +303,7 @@ class ChatRepositoryImpl implements ChatRepository {
         replyToContent: replyToContent,
         replyToSenderId: replyToSenderId,
         replyToType: replyToType,
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
       return right(null);
     } on ServerExceptions catch (e) {
@@ -177,11 +326,15 @@ class ChatRepositoryImpl implements ChatRepository {
       return left(Failure(e.message));
     }
   }
-  
+
   @override
-  Future<Either<Failure, Stream<List<Message>>>> getScheduledMessages({required String receiverId, required String userId}) async{
+  Future<Either<Failure, Stream<List<Message>>>> getScheduledMessages({
+    required String receiverId,
+    required String userId,
+  }) async {
     try {
-      Stream<List<Message>> res = await chatRemoteDataSources.getScheduledMessages(
+      Stream<List<Message>> res =
+          await chatRemoteDataSources.getScheduledMessages(
         receiverId: receiverId,
         userId: userId,
       );
@@ -190,7 +343,7 @@ class ChatRepositoryImpl implements ChatRepository {
       return left(Failure(e.message));
     }
   }
-  
+
   @override
   Future<void> deleteMessage({
     required String msgId,
@@ -205,13 +358,11 @@ class ChatRepositoryImpl implements ChatRepository {
         userId: userId,
         receiverId: receiverId,
         deleteForEveryone: deleteForEveryone,
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
-
-      if(type == "image"){
-        //print(type);
+      if (type == "image") {
         await chatLocalDataSource.deleteImage(msgId);
       }
-      
     } catch (e) {
       throw ServerExceptions(e.toString());
     }
@@ -230,6 +381,7 @@ class ChatRepositoryImpl implements ChatRepository {
         receiverId: receiverId,
         messageId: messageId,
         emoji: emoji,
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
     } catch (e) {
       throw ServerExceptions(e.toString());
@@ -249,6 +401,7 @@ class ChatRepositoryImpl implements ChatRepository {
         receiverId: receiverId,
         msgId: msgId,
         newContent: newContent,
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
     } catch (e) {
       throw ServerExceptions(e.toString());

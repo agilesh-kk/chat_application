@@ -126,6 +126,10 @@ class _ChatPageState extends State<ChatPage>
   late final StickyHeaderCubit _stickyHeaderCubit;
   bool _showScrollToBottom = false;
   bool _isLoadingMore = false;
+  Timer? _markSeenTimer;
+  bool _isPageActive = true;
+  Timer? _routeCheckerTimer;
+  Timer? _heartbeatTimer;
   late final ConvoTypingCubit typingCubit;
 
   String get _conversationId {
@@ -155,18 +159,33 @@ class _ChatPageState extends State<ChatPage>
             receiverId: widget.receiverId,
           ),
         );
-    context.read<ChatBloc>().add(
-      MarkMessagesDeliveredEvent(
-        userId: widget.currentUserId,
-        receiverId: widget.receiverId,
-      ),
-    );
     typingCubit = context.read<ConvoTypingCubit>();
     typingCubit.subscribeToTyping(_conversationId, widget.receiverId);
 
     _restoreDraft();
     context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
     context.read<InChatCubit>().subscribeToInChat(_conversationId, widget.receiverId);
+    _routeCheckerTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) return;
+      final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+      if (isCurrent != _isPageActive) {
+        _isPageActive = isCurrent;
+        context.read<InChatCubit>().setInChat(
+          _conversationId, widget.currentUserId, isCurrent,
+        );
+      }
+    });
+    if (_isPageActive) {
+      cb.add(MarkMessagesDeliveredEvent(
+        userId: widget.currentUserId,
+        receiverId: widget.receiverId,
+      ));
+    }
+
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!mounted || !_isPageActive) return;
+      context.read<InChatCubit>().heartbeat(_conversationId, widget.currentUserId);
+    });
 
     _animationController = AnimationController(
       vsync: this,
@@ -289,8 +308,11 @@ class _ChatPageState extends State<ChatPage>
     _stickyHeaderCubit.close();
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     typingCubit.unsubscribeFromTyping(_conversationId);
+    _heartbeatTimer?.cancel();
     context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
     context.read<InChatCubit>().unsubscribeFromInChat(_conversationId);
+    _markSeenTimer?.cancel();
+    _routeCheckerTimer?.cancel();
     cb.add(Closechat());
     _messageFocusNode.dispose();
     _kbFocusNode.dispose();
@@ -302,9 +324,16 @@ class _ChatPageState extends State<ChatPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _isPageActive = false;
+      _heartbeatTimer?.cancel();
       context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
     } else if (state == AppLifecycleState.resumed) {
+      _isPageActive = true;
       context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
+      _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+        if (!mounted || !_isPageActive) return;
+        context.read<InChatCubit>().heartbeat(_conversationId, widget.currentUserId);
+      });
     }
   }
 
@@ -340,6 +369,22 @@ class _ChatPageState extends State<ChatPage>
     final shouldShow = !isIndexZeroVisible;
     if (shouldShow != _showScrollToBottom) {
       setState(() => _showScrollToBottom = shouldShow);
+    }
+
+    // Mark messages as seen when scrolled to the newest message (only if page is visible)
+    if (_isPageActive && isIndexZeroVisible && blocState is ChatLoaded) {
+      _markSeenTimer ??= Timer(const Duration(milliseconds: 1500), () {
+        if (!mounted) return;
+        context.read<ChatBloc>().add(
+          MarkMessagesDeliveredEvent(
+            userId: widget.currentUserId,
+            receiverId: widget.receiverId,
+          ),
+        );
+      });
+    } else {
+      _markSeenTimer?.cancel();
+      _markSeenTimer = null;
     }
 
     // Load older messages when scrolling near the top (oldest messages)

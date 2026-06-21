@@ -93,6 +93,7 @@ abstract interface class ChatRemoteDataSources {
   Future<Stream<Map<String, dynamic>>> listenToOperations({
     required String conversationId,
     required String opCollection,
+    bool skipFirst = false,
   });
 
   Future<void> deleteOperation({
@@ -100,6 +101,8 @@ abstract interface class ChatRemoteDataSources {
     required String opCollection,
     required String opId,
   });
+
+  Future<List<String>> getUserConvoList(String userId);
 
   Future<void> editMessage({
     required String userId,
@@ -1043,15 +1046,16 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
   Future<Stream<Map<String, dynamic>>> listenToOperations({
     required String conversationId,
     required String opCollection,
+    bool skipFirst = false,
   }) async {
     try{
-    return firestore
+    var query = firestore
         .collection("Conversations")
         .doc(conversationId)
         .collection(opCollection)
-        .orderBy("timestamp", descending: true)
-        .snapshots()
-        .map((snapshot) {
+        .orderBy("timestamp", descending: true);
+
+    return query.snapshots().map((snapshot) {
           final results = <Map<String, dynamic>>[];
           for (final change in snapshot.docChanges) {
             if (change.type == DocumentChangeType.added) {
@@ -1059,6 +1063,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
               data['_docId'] = change.doc.id;
               results.add(data);
             }
+          }
+          if (skipFirst && snapshot.docChanges.length == snapshot.docs.length) {
+            return <Map<String, dynamic>>[];
           }
           return results;
         })
@@ -1086,5 +1093,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     } catch (e) {
       //print("Delete operation error: $e");
     }
+  }
+
+  @override
+  Future<List<String>> getUserConvoList(String userId) async {
+    final doc = await firestore.collection('users').doc(userId).get();
+    final data = doc.data();
+    return List<String>.from(data?['convoList'] ?? []);
   }
 }

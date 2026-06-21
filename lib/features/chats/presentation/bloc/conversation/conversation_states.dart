@@ -6,6 +6,11 @@ class ConversationInitial extends ConversationState {}
 
 class ConversationLoading extends ConversationState {}
 
+class ConversationDownloading extends ConversationState {
+  final int loaded;
+  ConversationDownloading(this.loaded);
+}
+
 class ConversationLoaded extends ConversationState with EquatableMixin {
   final List<Conversation> conversations;
   final String? selectedConvoId; // currently active conversation

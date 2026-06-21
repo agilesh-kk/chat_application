@@ -696,15 +696,16 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
   Future<Stream<Map<String, dynamic>>> listenToOperations({
     required String conversationId,
     required String opCollection,
+    bool skipFirst = false,
   }) async {
     try{
-    return firestore
+    var query = firestore
         .collection("Conversations")
         .doc(conversationId)
         .collection(opCollection)
-        .orderBy("timestamp", descending: true)
-        .snapshots()
-        .map((snapshot) {
+        .orderBy("timestamp", descending: true);
+
+    return query.snapshots().map((snapshot) {
           final results = <Map<String, dynamic>>[];
           for (final change in snapshot.docChanges) {
             if (change.type == DocumentChangeType.added) {
@@ -712,6 +713,9 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
               data['_docId'] = change.doc.id;
               results.add(data);
             }
+          }
+          if (skipFirst && snapshot.docChanges.length == snapshot.docs.length) {
+            return <Map<String, dynamic>>[];
           }
           return results;
         })
@@ -749,5 +753,12 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
   String _getMyOpCollection(String userId, String receiverId) {
     final sorted = [userId, receiverId]..sort();
     return sorted[0] == userId ? "operation_1" : "operation_2";
+  }
+
+  @override
+  Future<List<String>> getUserConvoList(String userId) async {
+    final doc = await firestore.collection('users').doc(userId).get();
+    final data = doc.data();
+    return List<String>.from(data?['convoList'] ?? []);
   }
 }

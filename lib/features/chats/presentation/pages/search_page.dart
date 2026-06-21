@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:chat_application/core/common/entities/user.dart';
+import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
+import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +31,7 @@ class _SearchPageState extends State<SearchPage>
   late Animation<Offset> _headerSlide;
   late Animation<Offset> _searchSlide;
   late Animation<Offset> _contentSlide;
+  StreamSubscription? _friendStateSub;
 
   @override
   void initState() {
@@ -68,6 +74,10 @@ class _SearchPageState extends State<SearchPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
+
+    _friendStateSub = context.read<FriendRequestsCubit>().stream.listen((event) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -76,6 +86,7 @@ class _SearchPageState extends State<SearchPage>
     _kbFocusNode.dispose();
     controller.dispose();
     _focusNode.dispose();
+    _friendStateSub?.cancel();
     super.dispose();
   }
 
@@ -350,6 +361,12 @@ class _SearchPageState extends State<SearchPage>
   }
 
   Widget _buildUserTile(User user) {
+    if (user.id == widget.currentUserId) return const SizedBox.shrink();
+    final friendsState = context.watch<FriendsCubit>().state;
+    final reqCubit = context.read<FriendRequestsCubit>();
+    final isFriend = friendsState is FriendsLoaded && friendsState.friends.containsKey(user.id);
+    final isRequestSent = reqCubit.hasSentRequestTo(user.id);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       child: Container(
@@ -441,18 +458,71 @@ class _SearchPageState extends State<SearchPage>
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppPallete.primaryOrange.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                  if (isFriend)
+                    GestureDetector(
+                      onTap: () {
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProfilePage(isUser: false, user: user),
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppPallete.statusGreen.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.chat_bubble_outline,
+                          color: AppPallete.statusGreen,
+                          size: 20,
+                        ),
+                      ),
+                    )
+                  else if (isRequestSent)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppPallete.greyText.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.hourglass_empty, color: AppPallete.greyText, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            "Pending",
+                            style: TextStyle(color: AppPallete.greyText, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    GestureDetector(
+                      onTap: () {
+                        reqCubit.sendFriendRequest(
+                          userId: widget.currentUserId,
+                          friendId: user.id,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppPallete.primaryOrange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.person_add_outlined,
+                          color: AppPallete.primaryOrange,
+                          size: 20,
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.chat_bubble_outline,
-                      color: AppPallete.primaryOrange,
-                      size: 20,
-                    ),
-                  ),
                 ],
               ),
             ),

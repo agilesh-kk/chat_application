@@ -76,6 +76,24 @@ class TypingRemoteDataSource {
     }
   }
 
+  Future<void> cancelOnDisconnectInChat(String convoId, String userId) async {
+    try {
+      await _inChatRef(convoId, userId).onDisconnect().cancel();
+    } catch (e) {
+      debugPrint('TypingRemoteDataSource.cancelOnDisconnectInChat error: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> getInChat(String convoId, String userId) async {
+    try {
+      final snapshot = await _inChatRef(convoId, userId).get();
+      return snapshot.value as Map<String, dynamic>?;
+    } catch (e) {
+      debugPrint('TypingRemoteDataSource.getInChat error: $e');
+      return null;
+    }
+  }
+
   Future<void> cancelOnDisconnect(String convoId, String userId) async {
     try {
       await _typingRef(convoId, userId).onDisconnect().cancel();

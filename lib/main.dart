@@ -16,6 +16,7 @@ import 'package:chat_application/features/chats/presentation/cubit/convo_typing_
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:chat_application/features/profile/presentation/bloc/bio/bio_bloc.dart';
 import 'package:chat_application/features/profile/presentation/bloc/profile_picture/profilePic_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
@@ -40,6 +41,7 @@ import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit
 import 'notification_storage.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 const int _groupSummaryId = 2001;
 final Map<String, Person> _personCache = {};
@@ -500,6 +502,10 @@ void main() async {
         ),
 
         BlocProvider(
+          create: (context) => serviceLocator<FriendRequestsCubit>(),
+        ),
+
+        BlocProvider(
           create: (_) => serviceLocator<NotificationDetailsCubit>(),
         ),
 
@@ -615,6 +621,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navigatorKey,
+      navigatorObservers: [routeObserver],
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         scaffoldBackgroundColor: Color(0xFF0D0D0D),

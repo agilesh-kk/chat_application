@@ -1,4 +1,4 @@
-import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
+﻿import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/cubit/nav_page_index_cubit.dart';
 import 'package:chat_application/core/common/data/presence_remote_data_source.dart';
 import 'package:chat_application/core/data/user_device_data_source.dart';
@@ -44,6 +44,7 @@ import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/friends/data/friends_remote_data_sources.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
+import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:chat_application/features/profile/data/datasources/profile_remote_data_source.dart';
 import 'package:chat_application/features/profile/data/repository/profile_repository_impl.dart';
 import 'package:chat_application/features/profile/domain/repository/profile_repository.dart';
@@ -130,6 +131,8 @@ Future<void> initDependencies() async {
   serviceLocator.registerFactory<FriendsRemoteDataSource>(()=>FriendsRemoteDataSourceImpl(serviceLocator<FirebaseFirestore>()));
 
   serviceLocator.registerLazySingleton(() => FriendsCubit(serviceLocator<FriendsRemoteDataSource>()));
+
+  serviceLocator.registerLazySingleton(() => FriendRequestsCubit(serviceLocator<FriendsRemoteDataSource>()));
 
   serviceLocator.registerFactory<TypingRemoteDataSource>(
     () => TypingRemoteDataSource(serviceLocator<FirebaseDatabase>()),
@@ -256,16 +259,17 @@ void _initAuth() {
   )
 
   //Bloc
-  ..registerLazySingleton(
-    () => AuthBloc(
-      userSignUp: serviceLocator<UserSignUp>(), 
-      userSignIn: serviceLocator<UserSignIn>(),
-      currentUser: serviceLocator<CurrentUser>(),
-      userSignOut: serviceLocator<UserSignOut>(),
-      appUserCubit: serviceLocator<AppUserCubit>(),
-      friendsCubit: serviceLocator<FriendsCubit>()
-    ),
-  );
+      ..registerLazySingleton(
+        () => AuthBloc(
+          userSignUp: serviceLocator<UserSignUp>(), 
+          userSignIn: serviceLocator<UserSignIn>(),
+          currentUser: serviceLocator<CurrentUser>(),
+          userSignOut: serviceLocator<UserSignOut>(),
+          appUserCubit: serviceLocator<AppUserCubit>(),
+          friendsCubit: serviceLocator<FriendsCubit>(),
+          friendRequestsCubit: serviceLocator<FriendRequestsCubit>(),
+        ),
+      );
 }
 
 void _initChat()async {
@@ -287,7 +291,7 @@ void _initChat()async {
           ),
   )
 
-  ..registerFactory<ChatRepository>(
+  ..registerLazySingleton<ChatRepository>(
     () => ChatRepositoryImpl(
       chatRemoteDataSources:  serviceLocator<ChatRemoteDataSources>(),
       chatLocalDataSource: serviceLocator<ChatLocalDataSource>()
@@ -369,6 +373,7 @@ void _initChat()async {
       friendsCubit: serviceLocator<FriendsCubit>(),
       getConversations: serviceLocator(),
       draftService: serviceLocator<DraftService>(),
+      chatRepositoryImpl: serviceLocator<ChatRepository>(), // ChatRepository resolves to ChatRepositoryImpl
     )
   )
 
