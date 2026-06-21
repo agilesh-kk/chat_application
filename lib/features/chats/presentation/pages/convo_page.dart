@@ -215,6 +215,7 @@ class _ConversationPageState extends State<ConversationPage>
               lastSender: convo.lastSender == widget.userId ? "you" : "",
               isOnline: convo.receiverIsOnline,
               isTyping: typingMap[convo.convoId] == true,
+              draft: convo.draft,
               isSelected: convo.convoId == widget.selectedConvoId,
               onTap: () {
                 _searchFocusNode.unfocus();

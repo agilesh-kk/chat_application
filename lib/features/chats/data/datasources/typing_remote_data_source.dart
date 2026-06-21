@@ -42,6 +42,40 @@ class TypingRemoteDataSource {
     }
   }
 
+  DatabaseReference _inChatRef(String convoId, String userId) {
+    return _database.ref('inChat/$convoId/$userId');
+  }
+
+  Future<void> setInChat(String convoId, String userId, bool isInChat) async {
+    try {
+      await _inChatRef(convoId, userId).set({
+        'isInChat': isInChat,
+        'timestamp': ServerValue.timestamp,
+      });
+    } catch (e) {
+      debugPrint('TypingRemoteDataSource.setInChat error: $e');
+    }
+  }
+
+  Stream<bool> watchInChat(String convoId, String otherUserId) {
+    return _database
+        .ref('inChat/$convoId/$otherUserId/isInChat')
+        .onValue
+        .map((event) => event.snapshot.value as bool? ?? false)
+        .handleError((e) {
+      debugPrint('TypingRemoteDataSource.watchInChat error: $e');
+      return false;
+    });
+  }
+
+  Future<void> onDisconnectRemoveInChat(String convoId, String userId) async {
+    try {
+      await _inChatRef(convoId, userId).onDisconnect().remove();
+    } catch (e) {
+      debugPrint('TypingRemoteDataSource.onDisconnectRemoveInChat error: $e');
+    }
+  }
+
   Future<void> cancelOnDisconnect(String convoId, String userId) async {
     try {
       await _typingRef(convoId, userId).onDisconnect().cancel();

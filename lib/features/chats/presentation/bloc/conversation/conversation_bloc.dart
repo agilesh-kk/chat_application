@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chat_application/features/chats/data/datasources/draft_data_source.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/usecase/get_conversations.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
@@ -12,13 +13,15 @@ part 'conversation_states.dart';
 class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
   final GetConversations getConversations;
   final FriendsCubit friendsCubit;
+  final DraftService draftService;
 
   StreamSubscription<List<Conversation>>? _convoSub;
   StreamSubscription? _friendsub;
 
   ConversationBloc({
     required this.getConversations,
-    required this.friendsCubit
+    required this.friendsCubit,
+    required this.draftService,
   }) : super(ConversationInitial()) {
 
     // =========================================================
@@ -68,7 +71,9 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                     ),
                   );
                 }
-                add(_ConversationUpdated(updated));
+                _enrichWithDrafts(updated).then((withDrafts) {
+                  add(_ConversationUpdated(withDrafts));
+                });
               },
               onError: (error) {
                 add(_ConversationErrorEvent(error.toString()));
@@ -102,7 +107,9 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
                     ),
                   );
                 }
-                add(_ConversationUpdated(updated));
+                _enrichWithDrafts(updated).then((withDrafts) {
+                  add(_ConversationUpdated(withDrafts));
+                });
               },
               onError: (error) {
                 add(_ConversationErrorEvent(error.toString()));
@@ -150,11 +157,45 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         ));
       }
     });
+
+    // =========================================================
+    // 🔥 DRAFT SAVED — refresh draft enrichment
+    // =========================================================
+    on<DraftSavedEvent>((event, emit) async {
+      if (state is ConversationLoaded) {
+        final current = state as ConversationLoaded;
+        final enriched = await _enrichWithDrafts(current.conversations);
+        emit(ConversationLoaded(
+          conversations: enriched,
+          selectedConvoId: current.selectedConvoId,
+        ));
+      }
+    });
   }
 
   // =========================================================
   // 🔥 CLEANUP
   // =========================================================
+  Future<List<Conversation>> _enrichWithDrafts(List<Conversation> conversations) async {
+    final result = <Conversation>[];
+    for (final c in conversations) {
+      final draft = await draftService.getDraft(c.convoId);
+      result.add(Conversation(
+        convoId: c.convoId,
+        receiverId: c.receiverId,
+        lastMessage: c.lastMessage,
+        lastupdateTime: c.lastupdateTime,
+        profilepicLink: c.profilepicLink,
+        receiverName: c.receiverName,
+        unread: c.unread,
+        lastSender: c.lastSender,
+        receiverIsOnline: c.receiverIsOnline,
+        draft: draft,
+      ));
+    }
+    return result;
+  }
+
   @override
   Future<void> close() {
     _convoSub?.cancel();

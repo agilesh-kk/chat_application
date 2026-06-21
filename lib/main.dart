@@ -35,6 +35,7 @@ import 'package:fpdart/fpdart.dart' as fp;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:uuid/uuid.dart';
+import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit.dart';
 
 import 'notification_storage.dart';
 
@@ -504,6 +505,9 @@ void main() async {
 
         BlocProvider(
           create: (_) => serviceLocator<ConvoTypingCubit>(),
+        ),
+        BlocProvider(
+          create: (_) => serviceLocator<InChatCubit>(),
         ),
 
         //authentication bloc

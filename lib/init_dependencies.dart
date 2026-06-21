@@ -37,8 +37,10 @@ import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc
 import 'package:chat_application/features/chats/presentation/bloc/time_capsule/time_capsule_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/search/search_bloc.dart';
+import 'package:chat_application/features/chats/data/datasources/draft_data_source.dart';
 import 'package:chat_application/features/chats/data/datasources/typing_remote_data_source.dart';
 import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
+import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit.dart';
 import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/friends/data/friends_remote_data_sources.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
@@ -135,6 +137,14 @@ Future<void> initDependencies() async {
 
   serviceLocator.registerLazySingleton<ConvoTypingCubit>(
     () => ConvoTypingCubit(dataSource: serviceLocator<TypingRemoteDataSource>()),
+  );
+
+  serviceLocator.registerLazySingleton<DraftService>(
+    () => DraftService(),
+  );
+
+  serviceLocator.registerLazySingleton<InChatCubit>(
+    () => InChatCubit(dataSource: serviceLocator<TypingRemoteDataSource>()),
   );
 
 }
@@ -357,7 +367,8 @@ void _initChat()async {
   ..registerLazySingleton(
     ()=> ConversationBloc(
       friendsCubit: serviceLocator<FriendsCubit>(),
-      getConversations: serviceLocator()
+      getConversations: serviceLocator(),
+      draftService: serviceLocator<DraftService>(),
     )
   )
 

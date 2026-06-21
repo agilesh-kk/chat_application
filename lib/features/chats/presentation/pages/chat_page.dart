@@ -33,7 +33,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:chat_application/features/chats/presentation/cubit/sticky_header_cubit.dart';
 import 'package:chat_application/notification_storage.dart';
 import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
+import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit.dart';
 import 'package:chat_application/features/chats/presentation/widgets/typing_indicator.dart';
+import 'package:chat_application/features/chats/data/datasources/draft_data_source.dart';
+import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
+import 'package:chat_application/init_dependencies.dart';
 
 class ChatPage extends StatefulWidget {
   static String? activeConvoId;
@@ -69,7 +73,7 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _headerSlide;
@@ -133,6 +137,7 @@ class _ChatPageState extends State<ChatPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ChatPage.activeConvoId = widget.convoId;
     if (widget.convoId != null) {
       removeChatMessages(widget.convoId!);
@@ -158,6 +163,10 @@ class _ChatPageState extends State<ChatPage>
     );
     typingCubit = context.read<ConvoTypingCubit>();
     typingCubit.subscribeToTyping(_conversationId, widget.receiverId);
+
+    _restoreDraft();
+    context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
+    context.read<InChatCubit>().subscribeToInChat(_conversationId, widget.receiverId);
 
     _animationController = AnimationController(
       vsync: this,
@@ -234,8 +243,45 @@ class _ChatPageState extends State<ChatPage>
     );
   }
 
+  Future<void> _restoreDraft() async {
+    try {
+      final draft = await serviceLocator<DraftService>().getDraft(_conversationId);
+      if (draft != null && mounted) {
+        controller.text = draft;
+      }
+    } catch (e) {
+      debugPrint('_restoreDraft error: $e');
+    }
+  }
+
+  Future<void> _saveDraft() async {
+    try {
+      final text = controller.text.trim();
+      if (text.isNotEmpty) {
+        await serviceLocator<DraftService>().saveDraft(_conversationId, text);
+      } else {
+        await serviceLocator<DraftService>().clearDraft(_conversationId);
+      }
+      if (mounted) context.read<ConversationBloc>().add(DraftSavedEvent());
+    } catch (e) {
+      debugPrint('_saveDraft error: $e');
+    }
+  }
+
+  Future<void> _clearDraft() async {
+    try {
+      await serviceLocator<DraftService>().clearDraft(_conversationId);
+      if (mounted) context.read<ConversationBloc>().add(DraftSavedEvent());
+    } catch (e) {
+      debugPrint('_clearDraft error: $e');
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _saveDraft();
+    controller.dispose();
     _animationController.dispose();
     _timelineAnimController.dispose();
     _tcAnimController.dispose();
@@ -243,12 +289,23 @@ class _ChatPageState extends State<ChatPage>
     _stickyHeaderCubit.close();
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     typingCubit.unsubscribeFromTyping(_conversationId);
+    context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
+    context.read<InChatCubit>().unsubscribeFromInChat(_conversationId);
     cb.add(Closechat());
     _messageFocusNode.dispose();
     _kbFocusNode.dispose();
     _timelineFocusNode.dispose();
     _tcFocusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
+    } else if (state == AppLifecycleState.resumed) {
+      context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
+    }
   }
 
   void _onScrollPositionChanged() {
@@ -434,6 +491,7 @@ class _ChatPageState extends State<ChatPage>
     );
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     controller.clear();
+    _clearDraft();
     _clearReply();
     _messageFocusNode.requestFocus();
   }
@@ -483,6 +541,7 @@ class _ChatPageState extends State<ChatPage>
       ),
     );
     controller.clear();
+    _clearDraft();
     _clearReply();
   }
 
@@ -512,11 +571,19 @@ class _ChatPageState extends State<ChatPage>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        _messageFocusNode.unfocus();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          await _saveDraft();
+          if (context.mounted) Navigator.of(context).pop();
+        }
       },
-      child: Scaffold(
+      child: GestureDetector(
+        onTap: () {
+          _messageFocusNode.unfocus();
+        },
+        child: Scaffold(
         backgroundColor: AppPallete.darkBg,
         body: KeyboardListener(
           focusNode: _kbFocusNode,
@@ -526,6 +593,7 @@ class _ChatPageState extends State<ChatPage>
             if (event is KeyDownEvent &&
                 event.logicalKey == LogicalKeyboardKey.escape) {
               _messageFocusNode.unfocus();
+              _saveDraft();
               if (widget.isEmbedded) {
                 widget.onClose?.call();
               } else {
@@ -571,6 +639,7 @@ class _ChatPageState extends State<ChatPage>
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -588,6 +657,7 @@ class _ChatPageState extends State<ChatPage>
           GestureDetector(
             onTap: () {
               _messageFocusNode.unfocus();
+              _saveDraft();
               if (widget.isEmbedded) {
                 widget.onClose?.call();
               } else {
@@ -687,6 +757,14 @@ class _ChatPageState extends State<ChatPage>
                               if (typingMap[_conversationId] == true) {
                                 return const TypingIndicator();
                               }
+                              final inChatCubit = context.watch<InChatCubit>();
+                              if (inChatCubit.state[_conversationId] == true) {
+                                return const Text(
+                                  "In chat",
+                                  style: TextStyle(color: AppPallete.statusGreen, fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              }
                               return Text(
                                 f.isEffectivelyOnline
                                     ? "Online"
@@ -713,6 +791,7 @@ class _ChatPageState extends State<ChatPage>
             color: AppPallete.primaryOrange,
             onTap: () {
               _messageFocusNode.unfocus();
+              _saveDraft();
               _openTimelineCard();
             },
           ),
@@ -722,6 +801,7 @@ class _ChatPageState extends State<ChatPage>
             color: AppPallete.primaryOrange,
             onTap: () {
               _messageFocusNode.unfocus();
+              _saveDraft();
               _openTimeCapsuleCard();
             },
           ),
@@ -752,6 +832,7 @@ class _ChatPageState extends State<ChatPage>
   void _showFriendProfile(BuildContext context, FriendModel? friend) {
     if (friend == null) return;
     _messageFocusNode.unfocus();
+    _saveDraft();
     widget.onShowProfile?.call(friend);
   }
 
@@ -1308,11 +1389,13 @@ class _ChatPageState extends State<ChatPage>
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _send(),
                 onChanged:
-                    (text) => typingCubit.onTextChanged(
-                      _conversationId,
-                      widget.currentUserId,
-                      text,
-                    ),
+                    (text) {
+                      typingCubit.onTextChanged(
+                        _conversationId,
+                        widget.currentUserId,
+                        text,
+                      );
+                    },
                 minLines: 1,
                 maxLines: 5,
                 style: const TextStyle(color: AppPallete.whiteColor),

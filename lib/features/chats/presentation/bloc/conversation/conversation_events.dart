@@ -17,6 +17,8 @@ class ConversationCreatedEvent extends ConversationEvent {
   ConversationCreatedEvent(this.userId);
 }
 
+class DraftSavedEvent extends ConversationEvent {}
+
 // 🔥 INTERNAL EVENTS (VERY IMPORTANT)
 class _ConversationUpdated extends ConversationEvent {
   final List<Conversation> convos;
