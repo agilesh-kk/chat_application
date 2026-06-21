@@ -3,7 +3,6 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/profile_pic_provider.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
-import 'package:chat_application/features/achievement/presentation/pages/achievement_page.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
