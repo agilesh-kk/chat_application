@@ -99,7 +99,9 @@ class _QueueBottomSheetState extends State<QueueBottomSheet> {
           Expanded(
             child: BlocBuilder<W2GBloc, W2GState>(
               builder: (context, state) {
-                final queue = state is W2GRoomLoaded ? state.room.queue : widget.queue;
+                final rawQueue = state is W2GRoomLoaded ? state.room.queue : widget.queue;
+                final queue = List<W2GVideoItem>.from(rawQueue)
+                  ..sort((a, b) => a.addedAt.compareTo(b.addedAt));
                 if (queue.isEmpty) {
                   return const Center(
                     child: Text(

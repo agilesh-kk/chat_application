@@ -96,7 +96,6 @@ class W2GRemoteDataSourceImpl implements W2GRemoteDataSource {
       String roomId, W2GParticipantModel participant) async {
     final ref = _roomRef(roomId).child('participants/${participant.userId}');
     await ref.set(participant.toMap());
-    await ref.onDisconnect().remove();
   }
 
   @override
@@ -236,7 +235,6 @@ class W2GRemoteDataSourceImpl implements W2GRemoteDataSource {
   @override
   Future<void> setUserActiveRoom(String userId, String roomId) async {
     await _userRoomRef(userId).set(roomId);
-    await _userRoomRef(userId).onDisconnect().remove();
   }
 
   @override

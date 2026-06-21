@@ -107,13 +107,12 @@ class _W2GRoomPageState extends State<W2GRoomPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // if (state == AppLifecycleState.paused) {
-    //   _bloc.add(W2GPause(
-    //     roomId: widget.roomId,
-    //     userId: _currentUserId,
-    //     position: 0,
-    //   ));
-    // }
+    if (state == AppLifecycleState.detached) {
+      _bloc.add(W2GLeaveRoom(
+        roomId: widget.roomId,
+        userId: _currentUserId,
+      ));
+    }
   }
 
   void _setTyping(bool isTyping) {
