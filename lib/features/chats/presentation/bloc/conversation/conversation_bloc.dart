@@ -30,7 +30,6 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     required this.chatRepositoryImpl,
     required this.draftService,
   }) : super(ConversationInitial()) {
-
     // =========================================================
     // 🔥 LOAD CONVERSATIONS
     // =========================================================
@@ -46,14 +45,13 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         userId = event.userId;
 
         String? failureMessage;
-        result.fold(
-          (failure) => failureMessage = failure.message,
-          (_) {},
-        );
+        result.fold((failure) => failureMessage = failure.message, (_) {});
 
         if (failureMessage == "user-changed") {
           emit(ConversationLoading());
-          final dl = await chatRepositoryImpl.downloadAllConversations(event.userId);
+          final dl = await chatRepositoryImpl.downloadAllConversations(
+            event.userId,
+          );
           dl.fold(
             (f) => emit(ConversationError(f.message)),
             (_) => add(LoadConversationsEvent(event.userId)),
@@ -66,159 +64,110 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
           return;
         }
 
-        result.fold(
-          (_) {},
-          (convoStream) {
-            _convoSub = convoStream.listen(
-              (convos) {
-                if (convos.isEmpty) {
-                  add(_ConversationUpdated([]));
-                }
-                var sub = {};
-                if (friendsCubit.state is FriendsLoaded) {
-                  sub = (friendsCubit.state as FriendsLoaded).friends;
-                }
+        result.fold((_) {}, (convoStream) {
+          _convoSub = convoStream.listen(
+            (convos) {
+              if (convos.isEmpty) {
+                add(_ConversationUpdated([]));
+              }
+              var sub = {};
+              if (friendsCubit.state is FriendsLoaded) {
+                sub = (friendsCubit.state as FriendsLoaded).friends;
+              }
 
-                final List<Conversation> updated = <Conversation>[];
-                for (final c in convos) {
-                  updated.add(
-                    Conversation(
-                      convoId: c.convoId,
-                      receiverId: c.receiverId,
-                      lastMessage: c.lastMessage,
-                      lastupdateTime: c.lastupdateTime,
-                      profilepicLink: sub[c.receiverId]?.profilePic ?? "loading",
-                      receiverName: sub[c.receiverId]?.name ?? "loading",
-                      unread: c.unread,
-                      lastSender: c.lastSender,
-                      receiverIsOnline: sub[c.receiverId]?.isEffectivelyOnline ?? false,
-                      isFriend: c.isFriend,
-                    ),
-                  );
-                }
-                _enrichWithDrafts(updated).then((withDrafts) {
-                  add(_ConversationUpdated(withDrafts));
-                });
-              },
-              onError: (error) {
-                add(_ConversationErrorEvent(error.toString()));
-              },
-            );
+              final List<Conversation> updated = <Conversation>[];
+              for (final c in convos) {
+                updated.add(
+                  Conversation(
+                    convoId: c.convoId,
+                    receiverId: c.receiverId,
+                    lastMessage: c.lastMessage,
+                    lastupdateTime: c.lastupdateTime,
+                    profilepicLink: sub[c.receiverId]?.profilePic ?? "loading",
+                    receiverName: sub[c.receiverId]?.name ?? "loading",
+                    unread: c.unread,
+                    lastSender: c.lastSender,
+                    receiverIsOnline:
+                        sub[c.receiverId]?.isEffectivelyOnline ?? false,
+                    isFriend: c.isFriend,
+                  ),
+                );
+              }
+              _enrichWithDrafts(updated).then((withDrafts) {
+                add(_ConversationUpdated(withDrafts));
+              });
+            },
+            onError: (error) {
+              add(_ConversationErrorEvent(error.toString()));
+              print("error");
+            },
+          );
 
-            _friendsub?.cancel();
+          _friendsub?.cancel();
 
-            _friendsub = friendsCubit.stream.listen(
-              (d) async {
-                if (d is! FriendsLoaded) return;
+          _friendsub = friendsCubit.stream.listen((d) async {
+            if (d is! FriendsLoaded) return;
+            await _onFriendsLoaded(d);
+          });
 
-                final currentFriendIds = d.friends.keys.toSet();
-
-                final removedIds = _prevFriendIds.difference(currentFriendIds);
-                for (final removedId in removedIds) {
-                  await chatRepositoryImpl.stopOperationListenerForReceiver(userId!, removedId);
-                  _activeListenerFriends.remove(removedId);
-                  final convoId = chatRepositoryImpl.generateConversationId(userId!, removedId);
-                  await chatRepositoryImpl.updateConversationFriendStatus(convoId, false);
-                  await chatRepositoryImpl.markConversationNotFriend(userId!, removedId);
-                }
-
-                final addedIds = currentFriendIds.difference(_prevFriendIds);
-                for (final addedId in addedIds) {
-                  if (!_activeListenerFriends.contains(addedId)) {
-                    chatRepositoryImpl.startOperationListener(userId: userId!, receiverId: addedId);
-                    _activeListenerFriends.add(addedId);
-                  }
-                  final localConvoId = await chatRepositoryImpl.getConvoIdByReceiverId(addedId);
-                  if (localConvoId != null) {
-                    await chatRepositoryImpl.updateConversationFriendStatus(localConvoId, true);
-                    await chatRepositoryImpl.restoreFriendConversation(userId!, addedId);
-                  }
-                }
-
-                final allConvos = await chatRepositoryImpl.queryAllLocalConversations();
-                for (final convo in allConvos) {
-                  final isInFriends = currentFriendIds.contains(convo.receiverId);
-                  if (isInFriends != convo.isFriend) {
-                    await chatRepositoryImpl.updateConversationFriendStatus(convo.convoId, isInFriends);
-                  }
-                }
-
-                _prevFriendIds
-                  ..clear()
-                  ..addAll(currentFriendIds);
-
-                manageListeners(d.friends.values.toList());
-
-                final loadedState = state;
-                if (loadedState is! ConversationLoaded) return;
-
-                final List<Conversation> updated = <Conversation>[];
-                for (final c in loadedState.conversations) {
-                  updated.add(
-                    Conversation(
-                      convoId: c.convoId,
-                      receiverId: c.receiverId,
-                      lastMessage: c.lastMessage,
-                      lastupdateTime: c.lastupdateTime,
-                      profilepicLink: d.friends[c.receiverId]?.profilePic ?? "loading",
-                      receiverName: d.friends[c.receiverId]?.name ?? "loading",
-                      unread: c.unread,
-                      lastSender: c.lastSender,
-                      receiverIsOnline: d.friends[c.receiverId]?.isEffectivelyOnline ?? false,
-                      isFriend: c.isFriend,
-                    ),
-                  );
-                }
-                _enrichWithDrafts(updated).then((withDrafts) {
-                  add(_ConversationUpdated(withDrafts));
-                });
-              },
-            );
-          },
-        );
+          if (friendsCubit.state is FriendsLoaded) {
+            _onFriendsLoaded(friendsCubit.state as FriendsLoaded);
+          }
+        });
       } catch (e) {
         emit(ConversationError(e.toString()));
       }
     });
 
-    on<ConversationDownloadEvent>((event, emit) async{
+    on<ConversationDownloadEvent>((event, emit) async {
       final reId = event.receiverId.removeLast();
-      final res = await chatRepositoryImpl.downloadConversation(userId: event.userId, friendId: reId);
-      res.fold((e)=>emit(ConversationError(e.message)), (r){
-          if(state is ConversationLoading){
-            emit(ConversationDownloading(event.val));
-          }else{
-            emit(ConversationDownloading((state as ConversationDownloading).loaded + event.val));
-          }
-          if(event.receiverId.isNotEmpty){
-            add(ConversationDownloadEvent(event.userId, event.receiverId, event.val));
-          }else{
-            add(LoadConversationsEvent(event.userId));
-          }
+      final res = await chatRepositoryImpl.downloadConversation(
+        userId: event.userId,
+        friendId: reId,
+      );
+      res.fold((e) => emit(ConversationError(e.message)), (r) {
+        if (state is ConversationLoading) {
+          emit(ConversationDownloading(event.val));
+        } else {
+          emit(
+            ConversationDownloading(
+              (state as ConversationDownloading).loaded + event.val,
+            ),
+          );
+        }
+        if (event.receiverId.isNotEmpty) {
+          add(
+            ConversationDownloadEvent(
+              event.userId,
+              event.receiverId,
+              event.val,
+            ),
+          );
+        } else {
+          add(LoadConversationsEvent(event.userId));
+        }
       });
-    },);
+    });
 
     // =========================================================
     // 🔥 HANDLE STREAM DATA
     // =========================================================
     on<_ConversationUpdated>((event, emit) {
-      final friends = friendsCubit.state is FriendsLoaded
-          ? (friendsCubit.state as FriendsLoaded).friends
-          : null;
-      final filtered = event.convos.where((c) {
-        if (friends != null) return friends.containsKey(c.receiverId);
-        return c.isFriend;
-      }).toList();
+      final friends =
+          friendsCubit.state is FriendsLoaded
+              ? (friendsCubit.state as FriendsLoaded).friends
+              : null;
+      final filtered =
+          event.convos.where((c) {
+            if (friends != null) return friends.containsKey(c.receiverId);
+            return c.isFriend;
+          }).toList();
 
-      emit(ConversationLoaded(
-        conversations: List.from(filtered),
-      ));
+      emit(ConversationLoaded(conversations: List.from(filtered)));
     });
-
 
     on<ConversationCloseEvent>((event, emit) {
       //print("🚀 EMITTING STATE");
-      
     });
 
     on<RefreshDraftsEvent>((event, emit) {
@@ -244,43 +193,134 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
       final currentState = state;
 
       if (currentState is ConversationLoaded) {
-        emit(ConversationLoaded(
-          conversations: currentState.conversations,
-          selectedConvoId: event.convoId,
-        ));
+        emit(
+          ConversationLoaded(
+            conversations: currentState.conversations,
+            selectedConvoId: event.convoId,
+          ),
+        );
       }
     });
   }
 
-  Future<List<Conversation>> _enrichWithDrafts(List<Conversation> conversations) async {
+  Future<List<Conversation>> _enrichWithDrafts(
+    List<Conversation> conversations,
+  ) async {
     final result = <Conversation>[];
     for (final c in conversations) {
       final draft = await draftService.getDraft(c.convoId);
-      result.add(Conversation(
-        convoId: c.convoId,
-        receiverId: c.receiverId,
-        lastMessage: c.lastMessage,
-        lastupdateTime: c.lastupdateTime,
-        profilepicLink: c.profilepicLink,
-        receiverName: c.receiverName,
-        unread: c.unread,
-        lastSender: c.lastSender,
-        receiverIsOnline: c.receiverIsOnline,
-        isFriend: c.isFriend,
-        draft: draft,
-      ));
+      result.add(
+        Conversation(
+          convoId: c.convoId,
+          receiverId: c.receiverId,
+          lastMessage: c.lastMessage,
+          lastupdateTime: c.lastupdateTime,
+          profilepicLink: c.profilepicLink,
+          receiverName: c.receiverName,
+          unread: c.unread,
+          lastSender: c.lastSender,
+          receiverIsOnline: c.receiverIsOnline,
+          isFriend: c.isFriend,
+          draft: draft,
+        ),
+      );
     }
     return result;
   }
 
-  void manageListeners(List<FriendModel> f){
-      for(final i in f){
-        if(!_activeListenerFriends.contains(i.id)){
-          chatRepositoryImpl.startOperationListener(userId: userId!, receiverId: i.id);
-          _activeListenerFriends.add(i.id);
-        }
+  Future<void> _onFriendsLoaded(FriendsLoaded d) async {
+    final currentFriendIds = d.friends.keys.toSet();
+
+    final removedIds = _prevFriendIds.difference(currentFriendIds);
+    for (final removedId in removedIds) {
+      await chatRepositoryImpl.stopOperationListenerForReceiver(
+        userId!,
+        removedId,
+      );
+      _activeListenerFriends.remove(removedId);
+      final convoId = chatRepositoryImpl.generateConversationId(
+        userId!,
+        removedId,
+      );
+      await chatRepositoryImpl.updateConversationFriendStatus(convoId, false);
+      await chatRepositoryImpl.markConversationNotFriend(userId!, removedId);
+    }
+
+    final addedIds = currentFriendIds.difference(_prevFriendIds);
+    for (final addedId in addedIds) {
+      if (!_activeListenerFriends.contains(addedId)) {
+        chatRepositoryImpl.startOperationListener(
+          userId: userId!,
+          receiverId: addedId,
+        );
+        _activeListenerFriends.add(addedId);
+      }
+      final localConvoId = await chatRepositoryImpl.getConvoIdByReceiverId(
+        addedId,
+      );
+      if (localConvoId != null) {
+        await chatRepositoryImpl.updateConversationFriendStatus(
+          localConvoId,
+          true,
+        );
+        await chatRepositoryImpl.restoreFriendConversation(userId!, addedId);
       }
     }
+
+    final allConvos = await chatRepositoryImpl.queryAllLocalConversations();
+    for (final convo in allConvos) {
+      final isInFriends = currentFriendIds.contains(convo.receiverId);
+      if (isInFriends != convo.isFriend) {
+        await chatRepositoryImpl.updateConversationFriendStatus(
+          convo.convoId,
+          isInFriends,
+        );
+      }
+    }
+
+    _prevFriendIds
+      ..clear()
+      ..addAll(currentFriendIds);
+
+    manageListeners(d.friends.values.toList());
+
+    final loadedState = state;
+    if (loadedState is! ConversationLoaded) return;
+
+    final List<Conversation> updated = <Conversation>[];
+    for (final c in loadedState.conversations) {
+      updated.add(
+        Conversation(
+          convoId: c.convoId,
+          receiverId: c.receiverId,
+          lastMessage: c.lastMessage,
+          lastupdateTime: c.lastupdateTime,
+          profilepicLink: d.friends[c.receiverId]?.profilePic ?? "loading",
+          receiverName: d.friends[c.receiverId]?.name ?? "loading",
+          unread: c.unread,
+          lastSender: c.lastSender,
+          receiverIsOnline:
+              d.friends[c.receiverId]?.isEffectivelyOnline ?? false,
+          isFriend: c.isFriend,
+        ),
+      );
+    }
+    _enrichWithDrafts(updated).then((withDrafts) {
+      add(_ConversationUpdated(withDrafts));
+    });
+  }
+
+  void manageListeners(List<FriendModel> f) {
+    for (final i in f) {
+      if (!_activeListenerFriends.contains(i.id)) {
+        chatRepositoryImpl.startOperationListener(
+          userId: userId!,
+          receiverId: i.id,
+        );
+        _activeListenerFriends.add(i.id);
+      }
+    }
+  }
 
   // =========================================================
   // 🔥 CLEANUP
@@ -292,7 +332,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     _friendsub!.cancel();
     _activeListenerFriends.clear();
     _prevFriendIds.clear();
-    
+
     return super.close();
   }
 }
