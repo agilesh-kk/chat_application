@@ -11,7 +11,9 @@ class EventDetailDialog {
       builder: (_) {
         return Dialog(
           backgroundColor: AppPallete.transparentColor,
-          child: Container(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -185,7 +187,8 @@ class EventDetailDialog {
               ],
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }
