@@ -6,6 +6,7 @@ import 'package:chat_application/features/auth/presentation/widgets/auth_dropdow
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
 import 'package:chat_application/core/utils/date_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -23,12 +24,14 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
   DateTime? selectedDate;
   String? selectedGender;
   final formKey = GlobalKey<FormState>();
+  final _focusNode = FocusNode();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _focusNode.requestFocus();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -42,6 +45,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
   @override
   void dispose() {
     _animationController.dispose();
+    _focusNode.dispose();
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
@@ -60,7 +64,14 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
       },
       child: Scaffold(
         backgroundColor: AppPallete.darkBg,
-        body: SafeArea(
+        body: KeyboardListener(
+          focusNode: _focusNode,
+          onKeyEvent: (event) {
+            if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+              Navigator.pop(context);
+            }
+          },
+          child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: BlocConsumer<AuthBloc, AuthState>(
@@ -102,6 +113,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
               },
             ),
           ),
+        ),
         ),
       ),
     );

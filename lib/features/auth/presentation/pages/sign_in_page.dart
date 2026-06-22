@@ -5,6 +5,7 @@ import 'package:chat_application/features/auth/presentation/pages/sign_up_page.d
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SignInPage extends StatefulWidget {
@@ -18,12 +19,14 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
+  final _focusNode = FocusNode();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _focusNode.requestFocus();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -46,7 +49,14 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: SafeArea(
+      body: KeyboardListener(
+        focusNode: _focusNode,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.pop(context);
+          }
+        },
+        child: SafeArea(
         child: BlocConsumer<AuthBloc, AuthState>(
           listener: (context, state) {
             if(state is AuthFailure){
@@ -86,6 +96,7 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
             );
           },
         ),
+      ),
       ),
     );
   }

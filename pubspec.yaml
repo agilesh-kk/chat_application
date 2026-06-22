@@ -49,6 +49,7 @@ flutter:
   assets:
     - assets/profile_images/
     - assets/animations/
+    - assets/logo/
 
 flutter_icons:
   android: true
