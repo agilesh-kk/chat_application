@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
+import 'package:chat_application/features/chats/domain/entities/list_operation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,7 +32,7 @@ abstract interface class ChatLocalDataSource {
   Future<void> resetUnread(String convoId);
   Future<void> deleteMessageLocally(String msgId);
   Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds, String receiverId);
-  Stream<List<Message>> getMessagesStream(String conversationId);
+  Stream<ListOperation<Message>> getMessagesStream(String conversationId);
   Stream<List<Conversation>> getConversationsStream();
 
   Future<bool> ischeckUserChanged(String userId);
@@ -48,7 +49,7 @@ abstract interface class ChatLocalDataSource {
 
 class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   Database? _db;
-  final Map<String, StreamController<List<Message>>> _controllers = {};
+  final Map<String, StreamController<ListOperation<Message>>> _controllers = {};
   StreamController<List<Conversation>>? _convoController;
 
   // ===================== Database Init =====================
@@ -383,7 +384,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     final controller = _controllers[conversationId];
     if (controller == null || controller.isClosed) return;
     _queryMessagesSafe(conversationId).then((messages) {
-      if (!controller.isClosed) controller.add(messages);
+     // if (!controller.isClosed) controller.add(messages);
     });
   }
 
@@ -705,13 +706,13 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   }
 
   @override
-  Stream<List<Message>> getMessagesStream(String conversationId) {
+  Stream<ListOperation<Message>> getMessagesStream(String conversationId) {
     if (_controllers[conversationId] == null || _controllers[conversationId]!.isClosed) {
-      _controllers[conversationId] = StreamController<List<Message>>.broadcast();
+      _controllers[conversationId] = StreamController<ListOperation<Message>>.broadcast();
     }
     _queryMessagesSafe(conversationId).then((messages) {
       if (!_controllers[conversationId]!.isClosed) {
-        _controllers[conversationId]?.add(messages);
+        _controllers[conversationId]?.add(FirstFetch<Message>(messages));
       }
     });
     return _controllers[conversationId]!.stream;

@@ -6,6 +6,7 @@ import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
+import 'package:chat_application/features/chats/domain/entities/list_operation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:fpdart/fpdart.dart';
@@ -101,7 +102,7 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, Stream<List<Message>>>> getMessages({
+  Future<Either<Failure, Stream<ListOperation<Message>>>> getMessages({
     required String receiverId,
     required String userId,
   }) async {
