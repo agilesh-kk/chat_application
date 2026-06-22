@@ -132,6 +132,18 @@ class FriendRequestsCubit extends Cubit<FriendRequestsState> {
     }
   }
 
+  Future<bool> checkSentRequestStatus(String userId, String targetId) async {
+    if (_sentRequestIds.contains(targetId)) return true;
+    try {
+      return await repository.isUserInRequests(
+        userId: targetId,
+        targetUserId: userId,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> clear() async {
     _requestSub?.cancel();
     _sentRequestSub?.cancel();

@@ -4,7 +4,9 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/cubit/nav_page_index_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
+import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:chat_application/features/friends/presentation/pages/friend_requests_page.dart';
@@ -56,6 +58,7 @@ class _ProfilePageState extends State<ProfilePage>
   final FocusNode _profileFocusNode = FocusNode();
   final FocusNode _avatarFocusNode = FocusNode();
   final FocusNode _personalTimelineFocusNode = FocusNode();
+  final FocusNode _profileBackFocusNode = FocusNode();
 
   void _closeFriendProfile() {
     setState(() => _selectedFriend = null);
@@ -161,6 +164,7 @@ class _ProfilePageState extends State<ProfilePage>
     _profileFocusNode.dispose();
     _avatarFocusNode.dispose();
     _personalTimelineFocusNode.dispose();
+    _profileBackFocusNode.dispose();
     super.dispose();
   }
 
@@ -186,7 +190,21 @@ class _ProfilePageState extends State<ProfilePage>
           ),
         ),
         child: SafeArea(
-          child: profileUser == null
+          child: KeyboardListener(
+            focusNode: _profileBackFocusNode,
+            autofocus: !widget.isUser,
+            onKeyEvent: (event) {
+              if (event is KeyDownEvent &&
+                  event.logicalKey == LogicalKeyboardKey.escape &&
+                  !widget.isUser) {
+                if (widget.isEmbedded) {
+                  widget.onClose?.call();
+                } else {
+                  Navigator.pop(context);
+                }
+              }
+            },
+            child: profileUser == null
               ? Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -400,6 +418,7 @@ class _ProfilePageState extends State<ProfilePage>
                       ),
                   ],
                 ),
+          ),
         ),
       ),
     );
@@ -613,6 +632,17 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildWebLayout(BuildContext context, dynamic profileUser) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 600) {
+          return _buildHorizontalLayout(context, profileUser);
+        }
+        return _buildVerticalLayout(context, profileUser);
+      },
+    );
+  }
+
+  Widget _buildHorizontalLayout(BuildContext context, dynamic profileUser) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -642,6 +672,31 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
+  Widget _buildVerticalLayout(BuildContext context, dynamic profileUser) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SlideTransition(
+          position: _profileCardSlide,
+          child: Column(
+            children: [
+              _buildProfileCard(context, profileUser),
+              if (widget.isUser) ...[
+                const SizedBox(height: 24),
+                _buildTimelineCard(context, profileUser),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        SlideTransition(
+          position: _contentSlide,
+          child: _buildContentPanel(context, profileUser),
+        ),
+      ],
+    );
+  }
+
   Widget _buildProfileCard(BuildContext context, dynamic profileUser) {
     final friendsState = context.watch<FriendsCubit>().state;
     final bool isOnline;
@@ -652,7 +707,6 @@ class _ProfilePageState extends State<ProfilePage>
     }
 
     return Container(
-      width: 320,
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: AppPallete.cardBg.withValues(alpha: 0.5),
@@ -854,7 +908,7 @@ class _ProfilePageState extends State<ProfilePage>
         children: [
           _buildAboutCards(profileUser),
           const SizedBox(height: 32),
-          _buildMessageButton(context, profileUser),
+          _buildActionSection(context, profileUser, appUserState, friendsState),
         ],
       );
     }
@@ -1182,7 +1236,268 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildMessageButton(BuildContext context, dynamic profileUser) {
+  Widget _buildActionSection(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic appUserState,
+    FriendsState friendsState,
+  ) {
+    final currentUser = appUserState is AppUserIsSignedin ? appUserState.user : null;
+    if (currentUser == null) return const SizedBox();
+
+    final isFriend = friendsState is FriendsLoaded &&
+        friendsState.friends.containsKey(profileUser?.id);
+    final friendReqState = context.watch<FriendRequestsCubit>().state;
+    final isIncomingRequest = friendReqState is FriendRequestsLoaded &&
+        friendReqState.requests.containsKey(profileUser?.id);
+
+    if (isFriend) {
+      return _buildFriendActionsRow(context, profileUser, currentUser);
+    }
+
+    if (isIncomingRequest) {
+      return _buildAcceptRejectRow(context, profileUser, currentUser);
+    }
+
+    final cubit = context.read<FriendRequestsCubit>();
+
+    return FutureBuilder<bool>(
+      future: cubit.checkSentRequestStatus(
+        currentUser.id,
+        profileUser?.id ?? '',
+      ),
+      initialData: cubit.hasSentRequestTo(profileUser?.id ?? ''),
+      builder: (context, snapshot) {
+        if (snapshot.data == true) {
+          return _buildRequestSentDisplay(context, profileUser, currentUser);
+        }
+        return _buildAddFriendButton(context, profileUser, currentUser);
+      },
+    );
+  }
+
+  Widget _buildAcceptRejectRow(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () {
+              context.read<FriendRequestsCubit>().acceptFriendRequest(
+                    userId: currentUser.id,
+                    requesterId: profileUser.id,
+                  );
+              showSnackbar(context, "Friend request accepted!");
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppPallete.statusGreen,
+                    AppPallete.statusGreen.withValues(alpha: 0.8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppPallete.statusGreen.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check, color: AppPallete.whiteColor, size: 28),
+                  const SizedBox(width: 12),
+                  Text(
+                    "Accept",
+                    style: TextStyle(
+                      color: AppPallete.whiteColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: GestureDetector(
+            onTap: () {
+              context.read<FriendRequestsCubit>().rejectFriendRequest(
+                    userId: currentUser.id,
+                    requesterId: profileUser.id,
+                  );
+              showSnackbar(context, "Friend request declined");
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              decoration: BoxDecoration(
+                color: AppPallete.cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppPallete.errorColor.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.close, color: AppPallete.errorColor, size: 28),
+                  const SizedBox(width: 12),
+                  Text(
+                    "Decline",
+                    style: TextStyle(
+                      color: AppPallete.errorColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddFriendButton(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        context.read<FriendRequestsCubit>().sendFriendRequest(
+              userId: currentUser.id,
+              friendId: profileUser.id,
+            );
+        showSnackbar(context, "Friend request sent!");
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppPallete.primaryOrange,
+              AppPallete.lightOrange,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppPallete.primaryOrange.withValues(alpha: 0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_add_outlined,
+              color: AppPallete.whiteColor,
+              size: 28,
+            ),
+            const SizedBox(width: 14),
+            Text(
+              "Add Friend",
+              style: TextStyle(
+                color: AppPallete.whiteColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFriendActionsRow(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildFriendMessageButton(context, profileUser, currentUser),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildRemoveFriendButton(context, profileUser, currentUser),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRemoveFriendButton(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+  ) {
+    return GestureDetector(
+      onTap: () async {
+        final confirm = await showConfirmationDialog(
+          context,
+          'Remove ${profileUser.name} from your friends?',
+          Icons.person_remove_outlined,
+        );
+        if (confirm == true && context.mounted) {
+          context.read<FriendsCubit>().removeFriend(
+                userId: currentUser.id,
+                friendId: profileUser.id,
+              );
+          showSnackbar(context, '${profileUser.name} removed from friends');
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
+          color: AppPallete.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppPallete.errorColor.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_remove_outlined,
+              color: AppPallete.errorColor,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              "Remove Friend",
+              style: TextStyle(
+                color: AppPallete.errorColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFriendMessageButton(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+  ) {
     return GestureDetector(
       onTap: () {
         if (widget.isEmbedded) {
@@ -1192,7 +1507,16 @@ class _ProfilePageState extends State<ProfilePage>
             profileUser.name as String,
           );
         } else {
-          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (c) => ChatPage(
+                currentUserId: currentUser.id,
+                receiverId: profileUser.id,
+                receiverName: profileUser.name,
+              ),
+            ),
+          );
         }
       },
       child: Container(
@@ -1216,13 +1540,13 @@ class _ProfilePageState extends State<ProfilePage>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.chat_bubble_outline,
               color: AppPallete.whiteColor,
               size: 28,
             ),
             const SizedBox(width: 14),
-            const Text(
+            Text(
               "Send Message",
               style: TextStyle(
                 color: AppPallete.whiteColor,
@@ -1235,6 +1559,92 @@ class _ProfilePageState extends State<ProfilePage>
       ),
     );
   }
+
+  Widget _buildRequestSentDisplay(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+  ) {
+    return GestureDetector(
+      onTap: () => _showCancelRequestDialog(context, profileUser, currentUser),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
+          color: AppPallete.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppPallete.divider.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              color: AppPallete.greyText,
+              size: 28,
+            ),
+            const SizedBox(width: 14),
+            Text(
+              "Request Sent",
+              style: TextStyle(
+                color: AppPallete.greyText,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCancelRequestDialog(
+    BuildContext context,
+    dynamic profileUser,
+    dynamic currentUser,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppPallete.cardBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          "Cancel Request",
+          style: TextStyle(color: AppPallete.whiteColor),
+        ),
+        content: Text(
+          "Cancel friend request to ${profileUser?.name ?? 'this user'}?",
+          style: TextStyle(color: AppPallete.greyText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              "No",
+              style: TextStyle(color: AppPallete.greyText),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<FriendRequestsCubit>().cancelFriendRequest(
+                    userId: currentUser.id,
+                    friendId: profileUser?.id ?? '',
+                  );
+            },
+            child: Text(
+              "Yes, Cancel",
+              style: TextStyle(color: AppPallete.primaryOrange),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 }
 
 class _InfoItem {

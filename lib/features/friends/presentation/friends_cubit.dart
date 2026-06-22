@@ -50,6 +50,17 @@ class FriendsCubit extends Cubit<FriendsState> {
     }
   }
 
+  Future<void> removeFriend({
+    required String userId,
+    required String friendId,
+  }) async {
+    try {
+      await repository.removeFriend(userId, friendId);
+    } catch (e) {
+      emit(FriendsError(e.toString()));
+    }
+  }
+
   @override
   Future<void> close() {
     _onlineTimer?.cancel();

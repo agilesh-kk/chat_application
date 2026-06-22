@@ -9,76 +9,79 @@ Future<bool?> showConfirmationDialog(
     builder: (BuildContext context) {
       return Dialog(
         backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppPallete.cardBg,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: AppPallete.divider,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppPallete.cardBg,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: AppPallete.divider,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 30,
+                  offset: const Offset(0, 15),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.4),
-                blurRadius: 30,
-                offset: const Offset(0, 15),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppPallete.primaryOrange.withValues(alpha: 0.2),
-                      AppPallete.lightOrange.withValues(alpha: 0.1),
-                    ],
-                  ),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppPallete.primaryOrange.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Icon(
-                  icon,
-                  color: AppPallete.primaryOrange,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                text,
-                style: TextStyle(
-                  color: AppPallete.whiteColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 28),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildButton(
-                      context: context,
-                      label: "No",
-                      isPrimary: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppPallete.primaryOrange.withValues(alpha: 0.2),
+                        AppPallete.lightOrange.withValues(alpha: 0.1),
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppPallete.primaryOrange.withValues(alpha: 0.3),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildButton(
-                      context: context,
-                      label: "Yes",
-                      isPrimary: true,
-                    ),
+                  child: Icon(
+                    icon,
+                    color: AppPallete.primaryOrange,
+                    size: 32,
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: AppPallete.whiteColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 28),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildButton(
+                        context: context,
+                        label: "No",
+                        isPrimary: false,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildButton(
+                        context: context,
+                        label: "Yes",
+                        isPrimary: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       );
