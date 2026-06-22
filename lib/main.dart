@@ -36,8 +36,6 @@ import 'package:fpdart/fpdart.dart' as fp;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:uuid/uuid.dart';
-import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit.dart';
-
 import 'notification_storage.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -512,9 +510,6 @@ void main() async {
         BlocProvider(
           create: (_) => serviceLocator<ConvoTypingCubit>(),
         ),
-        BlocProvider(
-          create: (_) => serviceLocator<InChatCubit>(),
-        ),
 
         //authentication bloc
         BlocProvider(
@@ -589,13 +584,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
     FirebaseMessaging.onMessage.listen((message) {
       if (message.data.isNotEmpty) {
-        final chatId = message.data['chat_id'] as String? ?? '';
-        if (ChatPage.activeConvoId != chatId) {
-          try{
-            _showNotification(message.data);
-          }catch(e){
-            //print(e);
-          }
+        try{
+          _showNotification(message.data);
+        }catch(e){
+          //print(e);
         }
       }
     });

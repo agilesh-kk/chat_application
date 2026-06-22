@@ -33,15 +33,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:chat_application/features/chats/presentation/cubit/sticky_header_cubit.dart';
 import 'package:chat_application/notification_storage.dart';
 import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
-import 'package:chat_application/features/chats/presentation/cubit/in_chat_cubit.dart';
 import 'package:chat_application/features/chats/presentation/widgets/typing_indicator.dart';
 import 'package:chat_application/features/chats/data/datasources/draft_data_source.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
 import 'package:chat_application/init_dependencies.dart';
 
 class ChatPage extends StatefulWidget {
-  static String? activeConvoId;
-
   final String? convoId;
   final String currentUserId;
   final String receiverId;
@@ -129,7 +126,6 @@ class _ChatPageState extends State<ChatPage>
   Timer? _markSeenTimer;
   bool _isPageActive = true;
   Timer? _routeCheckerTimer;
-  Timer? _heartbeatTimer;
   late final ConvoTypingCubit typingCubit;
 
   String get _conversationId {
@@ -142,7 +138,6 @@ class _ChatPageState extends State<ChatPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    ChatPage.activeConvoId = widget.convoId;
     if (widget.convoId != null) {
       removeChatMessages(widget.convoId!);
       flutterLocalNotificationsPlugin.cancel(
@@ -163,16 +158,11 @@ class _ChatPageState extends State<ChatPage>
     typingCubit.subscribeToTyping(_conversationId, widget.receiverId);
 
     _restoreDraft();
-    context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
-    context.read<InChatCubit>().subscribeToInChat(_conversationId, widget.receiverId);
     _routeCheckerTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted) return;
       final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
       if (isCurrent != _isPageActive) {
         _isPageActive = isCurrent;
-        context.read<InChatCubit>().setInChat(
-          _conversationId, widget.currentUserId, isCurrent,
-        );
       }
     });
     if (_isPageActive) {
@@ -182,10 +172,7 @@ class _ChatPageState extends State<ChatPage>
       ));
     }
 
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (!mounted || !_isPageActive) return;
-      context.read<InChatCubit>().heartbeat(_conversationId, widget.currentUserId);
-    });
+    _positionsListener.itemPositions.addListener(_onScrollPositionChanged);
 
     _animationController = AnimationController(
       vsync: this,
@@ -304,13 +291,9 @@ class _ChatPageState extends State<ChatPage>
     _animationController.dispose();
     _timelineAnimController.dispose();
     _tcAnimController.dispose();
-    ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     typingCubit.unsubscribeFromTyping(_conversationId);
-    _heartbeatTimer?.cancel();
-    context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
-    context.read<InChatCubit>().unsubscribeFromInChat(_conversationId);
     _markSeenTimer?.cancel();
     _routeCheckerTimer?.cancel();
     cb.add(Closechat());
@@ -325,15 +308,8 @@ class _ChatPageState extends State<ChatPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       _isPageActive = false;
-      _heartbeatTimer?.cancel();
-      context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, false);
     } else if (state == AppLifecycleState.resumed) {
       _isPageActive = true;
-      context.read<InChatCubit>().setInChat(_conversationId, widget.currentUserId, true);
-      _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-        if (!mounted || !_isPageActive) return;
-        context.read<InChatCubit>().heartbeat(_conversationId, widget.currentUserId);
-      });
     }
   }
 
@@ -374,6 +350,7 @@ class _ChatPageState extends State<ChatPage>
     // Mark messages as seen when scrolled to the newest message (only if page is visible)
     if (_isPageActive && isIndexZeroVisible && blocState is ChatLoaded) {
       _markSeenTimer ??= Timer(const Duration(milliseconds: 1500), () {
+        _markSeenTimer = null;
         if (!mounted) return;
         context.read<ChatBloc>().add(
           MarkMessagesDeliveredEvent(
@@ -801,14 +778,6 @@ class _ChatPageState extends State<ChatPage>
                               final f = friend!;
                               if (typingMap[_conversationId] == true) {
                                 return const TypingIndicator();
-                              }
-                              final inChatCubit = context.watch<InChatCubit>();
-                              if (inChatCubit.state[_conversationId] == true) {
-                                return const Text(
-                                  "In chat",
-                                  style: TextStyle(color: AppPallete.statusGreen, fontSize: 12),
-                                  overflow: TextOverflow.ellipsis,
-                                );
                               }
                               return Text(
                                 f.isEffectivelyOnline
