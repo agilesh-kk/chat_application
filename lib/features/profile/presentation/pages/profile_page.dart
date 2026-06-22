@@ -52,12 +52,17 @@ class _ProfilePageState extends State<ProfilePage>
   late AnimationController _personalTimelineAnimController;
   late Animation<double> _personalTimelineFadeAnimation;
   late Animation<double> _personalTimelineScaleAnimation;
+  late AnimationController _friendRequestsAnimController;
+  late Animation<double> _friendRequestsFadeAnimation;
+  late Animation<double> _friendRequestsScaleAnimation;
   dynamic _selectedFriend;
   bool _showEditAvatar = false;
   bool _showPersonalTimeline = false;
+  bool _showFriendRequests = false;
   final FocusNode _profileFocusNode = FocusNode();
   final FocusNode _avatarFocusNode = FocusNode();
   final FocusNode _personalTimelineFocusNode = FocusNode();
+  final FocusNode _friendRequestsFocusNode = FocusNode();
   final FocusNode _profileBackFocusNode = FocusNode();
 
   void _closeFriendProfile() {
@@ -80,6 +85,15 @@ class _ProfilePageState extends State<ProfilePage>
 
   void _closePersonalTimeline() {
     setState(() => _showPersonalTimeline = false);
+  }
+
+  void _openFriendRequests() {
+    setState(() => _showFriendRequests = true);
+    _friendRequestsAnimController.forward(from: 0);
+  }
+
+  void _closeFriendRequests() {
+    setState(() => _showFriendRequests = false);
   }
 
   @override
@@ -154,6 +168,23 @@ class _ProfilePageState extends State<ProfilePage>
         curve: Curves.easeOutCubic,
       ),
     );
+
+    _friendRequestsAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _friendRequestsFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _friendRequestsAnimController,
+        curve: Curves.easeOut,
+      ),
+    );
+    _friendRequestsScaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _friendRequestsAnimController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   @override
@@ -161,9 +192,11 @@ class _ProfilePageState extends State<ProfilePage>
     _animationController.dispose();
     _avatarAnimController.dispose();
     _personalTimelineAnimController.dispose();
+    _friendRequestsAnimController.dispose();
     _profileFocusNode.dispose();
     _avatarFocusNode.dispose();
     _personalTimelineFocusNode.dispose();
+    _friendRequestsFocusNode.dispose();
     _profileBackFocusNode.dispose();
     super.dispose();
   }
@@ -344,10 +377,78 @@ class _ProfilePageState extends State<ProfilePage>
                                 ),
                               ),
                             ],
-                          ),
+                      ),
+                    ),
+                  ),
+                  if (_showFriendRequests)
+                    Positioned.fill(
+                      child: KeyboardListener(
+                        focusNode: _friendRequestsFocusNode,
+                        autofocus: true,
+                        onKeyEvent: (event) {
+                          if (event is KeyDownEvent &&
+                              event.logicalKey == LogicalKeyboardKey.escape) {
+                            _closeFriendRequests();
+                          }
+                        },
+                        child: Stack(
+                          children: [
+                            ClipRect(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(
+                                  sigmaX: 6,
+                                  sigmaY: 6,
+                                ),
+                                child: Container(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                ),
+                              ),
+                            ),
+                            Center(
+                              child: AnimatedBuilder(
+                                animation: _friendRequestsAnimController,
+                                builder: (context, child) {
+                                  return Opacity(
+                                    opacity: _friendRequestsFadeAnimation.value,
+                                    child: Transform.scale(
+                                      scale: _friendRequestsScaleAnimation.value,
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 520,
+                                    maxHeight: 700,
+                                  ),
+                                  margin: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    color: AppPallete.cardBg,
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: AppPallete.divider,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.3),
+                                        blurRadius: 40,
+                                        offset: const Offset(0, 12),
+                                      ),
+                                    ],
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: FriendRequestsContent(
+                                    onClose: _closeFriendRequests,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    if (_showPersonalTimeline)
+                    ),
+                  if (_showPersonalTimeline)
                       Positioned.fill(
                         child: KeyboardListener(
                           focusNode: _personalTimelineFocusNode,
@@ -570,12 +671,7 @@ class _ProfilePageState extends State<ProfilePage>
     final pendingCount = reqState is FriendRequestsLoaded ? reqState.requests.length : 0;
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const FriendRequestsPage()),
-        );
-      },
+      onTap: () => _openFriendRequests(),
       child: Stack(
         clipBehavior: Clip.none,
         children: [

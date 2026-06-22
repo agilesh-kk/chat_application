@@ -4,7 +4,6 @@ import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class FriendRequestsPage extends StatefulWidget {
@@ -62,44 +61,36 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: KeyboardListener(
-        focusNode: FocusNode()..requestFocus(),
-        autofocus: true,
-        onKeyEvent: (event) {
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.escape) {
-            Navigator.pop(context);
-          }
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppPallete.darkBg,
-                AppPallete.darkSecondary,
-                AppPallete.darkBg,
-              ],
-            ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppPallete.darkBg,
+              AppPallete.darkSecondary,
+              AppPallete.darkBg,
+            ],
           ),
-          child: SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  SlideTransition(
-                    position: _headerSlide,
-                    child: _buildHeader(context),
-                  ),
-                  Expanded(
-                    child: SlideTransition(
-                      position: _contentSlide,
-                      child: _buildContent(),
+        ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                SlideTransition(
+                  position: _headerSlide,
+                  child: _buildHeader(),
+                ),
+                Expanded(
+                  child: SlideTransition(
+                    position: _contentSlide,
+                    child: FriendRequestsContent(
+                      onClose: () => Navigator.pop(context),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -107,7 +98,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Row(
@@ -174,50 +165,138 @@ class _FriendRequestsPageState extends State<FriendRequestsPage>
       ),
     );
   }
+}
 
-  Widget _buildContent() {
-    return BlocBuilder<FriendRequestsCubit, FriendRequestsState>(
-      builder: (context, state) {
-        if (state is FriendRequestsLoading) {
-          return const Center(
-            child: CircularProgressIndicator(
-              color: AppPallete.primaryOrange,
-            ),
-          );
-        }
+class FriendRequestsContent extends StatefulWidget {
+  final VoidCallback onClose;
 
-        if (state is FriendRequestsLoaded) {
-          final requests = state.requests;
+  const FriendRequestsContent({super.key, required this.onClose});
 
-          if (requests.isEmpty) {
-            return _buildEmptyState();
-          }
+  @override
+  State<FriendRequestsContent> createState() => _FriendRequestsContentState();
+}
 
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-            itemCount: requests.length,
-            itemBuilder: (context, index) {
-              final entry = requests.entries.elementAt(index);
-              return _buildRequestTile(context, entry.value, entry.key);
+class _FriendRequestsContentState extends State<FriendRequestsContent> {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildHeader(),
+        Flexible(
+          child: BlocBuilder<FriendRequestsCubit, FriendRequestsState>(
+            builder: (context, state) {
+              if (state is FriendRequestsLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: AppPallete.primaryOrange,
+                  ),
+                );
+              }
+
+              if (state is FriendRequestsLoaded) {
+                final requests = state.requests;
+
+                if (requests.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                  itemCount: requests.length,
+                  itemBuilder: (context, index) {
+                    final entry = requests.entries.elementAt(index);
+                    return _buildRequestTile(context, entry.value, entry.key);
+                  },
+                );
+              }
+
+              if (state is FriendRequestActionError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Text(
+                      state.message,
+                      style: TextStyle(color: AppPallete.errorColor),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              }
+
+              return _buildEmptyState();
             },
-          );
-        }
+          ),
+        ),
+      ],
+    );
+  }
 
-        if (state is FriendRequestActionError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(40),
-              child: Text(
-                state.message,
-                style: TextStyle(color: AppPallete.errorColor),
-                textAlign: TextAlign.center,
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: widget.onClose,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppPallete.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppPallete.divider),
+              ),
+              child: Icon(
+                Icons.arrow_back,
+                color: AppPallete.whiteColor,
+                size: 20,
               ),
             ),
-          );
-        }
-
-        return _buildEmptyState();
-      },
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Friend Requests',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppPallete.whiteColor,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppPallete.primaryOrange,
+                          AppPallete.lightOrange,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    width: 12,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: AppPallete.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
