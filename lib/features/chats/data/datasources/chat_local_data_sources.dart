@@ -380,11 +380,11 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
   }
 
-  void _notify(String conversationId) {
+  void _notify(String conversationId, ListOperation<Message> lp) {
     final controller = _controllers[conversationId];
     if (controller == null || controller.isClosed) return;
     _queryMessagesSafe(conversationId).then((messages) {
-     // if (!controller.isClosed) controller.add(messages);
+     if (!controller.isClosed) controller.add(lp);
     });
   }
 
@@ -437,7 +437,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       row,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    _notify(convoId);
+    _notify(convoId,NewMessageOperation(_dbToMessage(row)));
   }
 
   @override
@@ -457,8 +457,8 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
     row['isLocal'] = 0;
     row['localPath'] = null;
-    await _db!.insert('messages', row, conflictAlgorithm: ConflictAlgorithm.replace);
-    if (convoId.isNotEmpty) _notify(convoId);
+    _db!.insert('messages', row, conflictAlgorithm: ConflictAlgorithm.replace);
+    if (convoId.isNotEmpty) _notify(convoId,NewMessageOperation(_dbToMessage(row)));
   }
 
   @override
@@ -488,7 +488,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      _notify(convoId,DeleteMessageOperation(msgId, deletedfor,deleteForEveryone: deletedForEveryone));
     }
   }
 
@@ -504,14 +504,16 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   Future<void> updateMessageReaction(String msgId, String convoId,String userId, String receiverId,Map<String, String> reactions, String emoji, String reacterId) async {
     if (_db == null || kIsWeb) return;
     final row = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
-    final reacts = Map<String, dynamic>.from(jsonDecode(row.first['reactions'] as String? ?? "") as Map? ?? {});
+    final reacts = Map<String, String>.from(jsonDecode(row.first['reactions'] as String? ?? "") as Map? ?? {});
     final currenReaction = reacts[reacterId]?? "";
     if(currenReaction == emoji){
       reacts.remove(reacterId);
+      _notify(convoId,SetReactionOperation(msgId, reacts));
       await changeLastMessageToPreviousMessage(convoId, userId, receiverId, 1);
       _notifyConvo();
     }else{
       reacts[reacterId] = emoji;
+      _notify(convoId,SetReactionOperation(msgId, reacts));
         try
         {
           final row = await _db!.query("messages",where: "id = ?",whereArgs: [msgId],limit: 1);
@@ -533,10 +535,6 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
 
     final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
-    if (rows.isNotEmpty) {
-      final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
-    }
   }
 
   @override
@@ -551,7 +549,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      _notify(convoId,TimeLineOperation(msgId, added));
     }
   }
 
@@ -576,7 +574,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      _notify(convoId,EditMessageOperation(msgId, newContent));
     }
 
     
@@ -660,7 +658,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     );
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      _notify(convoId,MarkSeenOperation(msgIds));
       _notifyConvo();
     }
   }
@@ -672,7 +670,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     await _db!.delete('messages', where: 'id = ?', whereArgs: [msgId]);
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      //_notify(convoId);
     }
   }
 
@@ -694,7 +692,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
 
     await batch.commit(noResult: true);
-    if (convoId != null) _notify(convoId);
+    //if (convoId != null) _notify(convoId);
 
     final rows = await _db!.query('messages',where: "conversationId = ?",whereArgs: [convoId], limit: 1, orderBy: "createdAt DESC");
 

@@ -564,16 +564,8 @@ class ChatRepositoryImpl implements ChatRepository {
     required String emoji,
   }) async {
     try {
-      await chatRemoteDataSources.toggleReaction(
-        userId: userId,
-        receiverId: receiverId,
-        messageId: messageId,
-        emoji: emoji,
-        opCollection: _getMyOpCollection(userId, receiverId),
-      );
 
-      // Update local DB
-      await chatLocalDataSource.updateMessageReaction(
+       chatLocalDataSource.updateMessageReaction(
         messageId,
         generateConversationId(userId, receiverId),
         userId,
@@ -581,6 +573,14 @@ class ChatRepositoryImpl implements ChatRepository {
         {userId: emoji},
         emoji,
         userId,
+      );
+
+      await chatRemoteDataSources.toggleReaction(
+        userId: userId,
+        receiverId: receiverId,
+        messageId: messageId,
+        emoji: emoji,
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
     } catch (e) {
       throw ServerExceptions(e.toString());

@@ -169,12 +169,12 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
               final st = state;
               if(st is ChatLoaded){
                 operation.performOperation(st.ids, st.messages);
-                emit(ChatLoaded(st.messages, st.ids));
+                add(MessagesUpdatedEvent( st.ids,st.messages));
               }else{
                 Map<String,Message> temp = {};
                 List<String> ids = [];
                 operation.performOperation(ids, temp);
-                emit(ChatLoaded(temp, ids));
+                add(MessagesUpdatedEvent(ids,temp));
               }
             },
           );
@@ -287,7 +287,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     });
 
     on<MessagesUpdatedEvent>((event, emit) {
-      _updateMessages(emit);
+      _updateMessages(event.ids,event.messages,emit);
     });
 
     on<DeleteMessageEvent>(_onDeleteMessageEvent);
@@ -357,9 +357,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     ));
   }
 
-  void _updateMessages(Emitter<ChatState> emit) {
-    List<String> ids = (state as ChatLoaded).ids;
-    Map<String,Message> received = (state as ChatLoaded).messages;
+  void _updateMessages(List<String> ids,Map<String,Message> received,Emitter<ChatState> emit) {
 
     final hasUnseen = ids.any(
       (msg) =>

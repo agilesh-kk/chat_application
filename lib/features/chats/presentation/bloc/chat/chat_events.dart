@@ -77,8 +77,9 @@ class SendImageEvent extends ChatEvent {
 }
 
 class MessagesUpdatedEvent extends ChatEvent {
-
-  MessagesUpdatedEvent();
+  final Map<String,Message> messages;
+  final List<String> ids;
+  MessagesUpdatedEvent(this.ids, this.messages);
 }
 
 class DeleteMessageEvent extends ChatEvent{

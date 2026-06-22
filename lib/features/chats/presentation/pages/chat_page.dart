@@ -171,8 +171,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
     final topIndex = visibleItems.first.index;
     final state = cb.state;
-    if (state is ChatLoaded && topIndex < state.messages.length) {
-      final message = state.messages[topIndex];
+    if (state is ChatLoaded && topIndex < state.ids.length) {
+      final message = state.messages[state.ids[topIndex]]!;
       final newLabel = _getDateLabel(message.createdAt);
       _stickyHeaderCubit.updateDateLabel(newLabel);
     }
@@ -208,7 +208,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   void _onReplyTap(String replyToId) {
     final state = cb.state;
     if (state is ChatLoaded) {
-      final index = state.messages.indexWhere((m) => m.id == replyToId);
+      final index = state.ids.indexWhere((id) => id == replyToId);
       if (index != -1) {
         _scrollToIndex(index);
         Future.delayed(const Duration(milliseconds: 300), () {
@@ -592,7 +592,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               );
               if (cb.state is ChatLoaded) {
                 final cl = cb.state as ChatLoaded;
-                if (messageId != null && cl.messages.any((m) => m.id == messageId)) {
+                if (messageId != null && cl.messages.containsKey(messageId)) {
                   setState(() => widget.highlightMessageId = messageId);
                 }
               }
@@ -656,14 +656,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           }
           if (state is ChatLoaded) {
             final messages = state.messages;
+            final ids = state.ids;
 
-            if(messages.isNotEmpty){
+            if(ids.isNotEmpty){
             if(lastMessageId==null){
-              lastMessageId = messages[0].id;
+              lastMessageId = ids[0];
             }
-            else if(lastMessageId != messages[0].id && _scrollController.isAttached){
+            else if(lastMessageId != ids[0] && _scrollController.isAttached){
               _scrollController.scrollTo(index: 0, duration: Duration(milliseconds: 350),curve: Curves.easeIn);
-              lastMessageId = messages[0].id;
+              lastMessageId = ids[0];
             }
             }
 
@@ -673,7 +674,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             }
 
             if (widget.highlightMessageId != null) {
-              final highlightIndex = messages.indexWhere((m) => m.id == widget.highlightMessageId);
+              final highlightIndex = ids.indexWhere((id) => id == widget.highlightMessageId);
               if (highlightIndex != -1) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _scrollToIndex(highlightIndex);
@@ -699,12 +700,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   },
                   child: ScrollablePositionedList.builder(
                     reverse: true,
-                    itemCount: messages.length,
+                    itemCount: ids.length,
                     itemScrollController: _scrollController,
                     itemPositionsListener: _positionsListener,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemBuilder: (context, index) {
-                      final message = messages[index];
+                      final message = messages[ids[index]]!;
                       final isMe = message.senderId == widget.currentUserId;
                       bool isAnimate = false;
                   
@@ -721,7 +722,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         child: Column(
                           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                           children: [
-                            if (_shouldShowDateHeader(messages, index))
+                            if (_shouldShowDateHeader(messages, ids, index))
                               _buildDateHeader(message.createdAt),
                             SwipeToReply(
                               isMe: isMe,
@@ -776,7 +777,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                       child: AnimatedOpacity(
                         opacity: state.showHeader ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 300),
-                        child: _buildStickyDateHeader(state.dateLabel!,messages),
+                        child: _buildStickyDateHeader(state.dateLabel!, messages, ids),
                       ),
                     );
                   },
@@ -824,15 +825,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildStickyDateHeader(String label,List<Message> messages) {
+  Widget _buildStickyDateHeader(String label, Map<String, Message> messages, List<String> ids) {
     return GestureDetector(
       onLongPress: ()async{
-        print(messages[0].createdAt);
-        DateTime? picked = await showDatePicker(context: context, firstDate: messages[messages.length-1].createdAt, lastDate: DateTime.now());
+        print(messages[ids[0]]!.createdAt);
+        DateTime? picked = await showDatePicker(context: context, firstDate: messages[ids[ids.length-1]]!.createdAt, lastDate: DateTime.now());
 
         if(picked != null){
-          final index = messages.lastIndexWhere((element) => element.createdAt.eqvYearMonthDay(picked),);
-          if(index != null) {
+          final index = ids.lastIndexWhere((id) => messages[id]!.createdAt.eqvYearMonthDay(picked),);
+          if(index != -1) {
             _scrollToIndex(index);
           }
         }
@@ -855,10 +856,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
   }
 
-  bool _shouldShowDateHeader(List<Message> messages, int index) {
-    if (index == messages.length - 1) return true;
-    final currentDate = DateTime(messages[index].createdAt.year, messages[index].createdAt.month, messages[index].createdAt.day);
-    final nextDate = DateTime(messages[index + 1].createdAt.year, messages[index + 1].createdAt.month, messages[index + 1].createdAt.day);
+  bool _shouldShowDateHeader(Map<String, Message> messages, List<String> ids, int index) {
+    if (index == ids.length - 1) return true;
+    final currentDate = DateTime(messages[ids[index]]!.createdAt.year, messages[ids[index]]!.createdAt.month, messages[ids[index]]!.createdAt.day);
+    final nextDate = DateTime(messages[ids[index + 1]]!.createdAt.year, messages[ids[index + 1]]!.createdAt.month, messages[ids[index + 1]]!.createdAt.day);
     return currentDate != nextDate;
   }
 
