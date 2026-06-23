@@ -1,6 +1,6 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
-import 'package:chat_application/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class RichMessagingDetailPage extends StatefulWidget {
   const RichMessagingDetailPage({super.key});
@@ -19,13 +19,13 @@ class _RichMessagingDetailPageState extends State<RichMessagingDetailPage>
   late AnimationController _bubble4Controller;
   late AnimationController _typingController;
   late AnimationController _reactionController;
-  final ScrollController _scrollController = ScrollController();
-  bool _mockupTriggered = false;
+  final _focusNode = FocusNode();
   bool _showReaction = false;
 
   @override
   void initState() {
     super.initState();
+    _focusNode.requestFocus();
     _mockupController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -56,19 +56,14 @@ class _RichMessagingDetailPageState extends State<RichMessagingDetailPage>
       duration: const Duration(milliseconds: 400),
     );
 
-    _scrollController.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    if (!_mockupTriggered && _scrollController.position.pixels > 80) {
-      _mockupTriggered = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _mockupController.forward();
-      Future.delayed(const Duration(milliseconds: 200), () => _bubble1Controller.forward());
-      Future.delayed(const Duration(milliseconds: 500), () => _bubble2Controller.forward());
-      Future.delayed(const Duration(milliseconds: 800), () => _bubble3Controller.forward());
-      Future.delayed(const Duration(milliseconds: 1100), () => _bubble4Controller.forward());
-      Future.delayed(const Duration(milliseconds: 1400), () => _typingController.repeat(reverse: true));
-    }
+      _bubble1Controller.forward();
+      _bubble2Controller.forward();
+      _bubble3Controller.forward();
+      _bubble4Controller.forward();
+      _typingController.repeat(reverse: true);
+    });
   }
 
   void _toggleReaction() {
@@ -89,7 +84,7 @@ class _RichMessagingDetailPageState extends State<RichMessagingDetailPage>
     _bubble4Controller.dispose();
     _typingController.dispose();
     _reactionController.dispose();
-    _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -97,30 +92,34 @@ class _RichMessagingDetailPageState extends State<RichMessagingDetailPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppPallete.darkBg, AppPallete.darkSecondary, AppPallete.darkBg],
-            stops: [0.0, 0.5, 1.0],
+      body: KeyboardListener(
+        focusNode: _focusNode,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.pop(context);
+          }
+        },
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppPallete.darkBg, AppPallete.darkSecondary, AppPallete.darkBg],
+              stops: [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              children: [
-                _buildTopBar(),
-                _buildMockupSection(),
-                const SizedBox(height: 40),
-                _buildTitleSection(),
-                const SizedBox(height: 32),
-                _buildHighlights(),
-                const SizedBox(height: 40),
-                _buildCTA(),
-                const SizedBox(height: 40),
-              ],
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildTopBar(),
+                  _buildMockupSection(),
+                  const SizedBox(height: 40),
+                  _buildTitleSection(),
+                  const SizedBox(height: 32),
+                  _buildHighlights(),
+                ],
+              ),
             ),
           ),
         ),
@@ -459,78 +458,51 @@ class _RichMessagingDetailPageState extends State<RichMessagingDetailPage>
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: highlights.map((h) => _buildHighlightRow(h)).toList(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 600;
+          return Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
+            children: highlights.map((h) => SizedBox(
+              width: isWide ? (constraints.maxWidth - 16) / 2 : double.infinity,
+              child: _buildHighlightCard(h),
+            )).toList(),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildHighlightRow(_Highlight h) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
+  Widget _buildHighlightCard(_Highlight h) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppPallete.cardBg.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppPallete.divider.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppPallete.primaryOrange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(h.icon, size: 22, color: AppPallete.primaryOrange),
+            child: Icon(h.icon, size: 28, color: AppPallete.primaryOrange),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(h.title, style: const TextStyle(color: AppPallete.whiteColor, fontWeight: FontWeight.w600, fontSize: 15)),
-                Text(h.desc, style: TextStyle(color: AppPallete.greyText, fontSize: 13)),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: AppPallete.greyText, size: 20),
+          const SizedBox(height: 16),
+          Text(h.title, style: const TextStyle(color: AppPallete.whiteColor, fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 8),
+          Text(h.desc, style: TextStyle(color: AppPallete.greyText, fontSize: 14, height: 1.5)),
         ],
       ),
     );
   }
 
-  Widget _buildCTA() {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const SignUpPage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 200),
-        ),
-      ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [AppPallete.primaryOrange, AppPallete.lightOrange]),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: AppPallete.primaryOrange.withValues(alpha: 0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.chat_bubble_rounded, color: AppPallete.whiteColor, size: 20),
-            SizedBox(width: 10),
-            Text('Get Started', style: TextStyle(color: AppPallete.whiteColor, fontWeight: FontWeight.bold, fontSize: 17)),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _AnimatedBubble extends StatelessWidget {

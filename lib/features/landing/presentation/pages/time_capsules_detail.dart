@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:chat_application/core/theme/app_pallette.dart';
-import 'package:chat_application/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class TimeCapsulesDetailPage extends StatefulWidget {
   const TimeCapsulesDetailPage({super.key});
@@ -18,8 +18,7 @@ class _TimeCapsulesDetailPageState extends State<TimeCapsulesDetailPage>
   late AnimationController _card1Anim;
   late AnimationController _card2Anim;
   late AnimationController _card3Anim;
-  final ScrollController _scrollController = ScrollController();
-  bool _mockupTriggered = false;
+  final _focusNode = FocusNode();
 
   final DateTime _targetDate = DateTime.now().add(const Duration(days: 3, hours: 14, minutes: 30));
   Timer? _countdownTimer;
@@ -28,6 +27,7 @@ class _TimeCapsulesDetailPageState extends State<TimeCapsulesDetailPage>
   @override
   void initState() {
     super.initState();
+    _focusNode.requestFocus();
     _pageController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
     _capsulePulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2));
     _scheduleAnimController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
@@ -35,29 +35,25 @@ class _TimeCapsulesDetailPageState extends State<TimeCapsulesDetailPage>
     _card2Anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _card3Anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
 
-    _scrollController.addListener(_onScroll);
     _updateRemaining();
-  }
 
-  void _updateRemaining() {
-    _remaining = _targetDate.difference(DateTime.now());
-    if (_remaining.isNegative) _remaining = Duration.zero;
-  }
-
-  void _onScroll() {
-    if (!_mockupTriggered && _scrollController.position.pixels > 80) {
-      _mockupTriggered = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _pageController.forward();
       _capsulePulseController.repeat(reverse: true);
-      Future.delayed(const Duration(milliseconds: 300), () => _card1Anim.forward());
-      Future.delayed(const Duration(milliseconds: 600), () => _card2Anim.forward());
-      Future.delayed(const Duration(milliseconds: 900), () => _card3Anim.forward());
+      _card1Anim.forward();
+      _card2Anim.forward();
+      _card3Anim.forward();
 
       _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         _updateRemaining();
         if (mounted) setState(() {});
       });
-    }
+    });
+  }
+
+  void _updateRemaining() {
+    _remaining = _targetDate.difference(DateTime.now());
+    if (_remaining.isNegative) _remaining = Duration.zero;
   }
 
   void _showScheduleAnimation() {
@@ -77,7 +73,7 @@ class _TimeCapsulesDetailPageState extends State<TimeCapsulesDetailPage>
     _card2Anim.dispose();
     _card3Anim.dispose();
     _countdownTimer?.cancel();
-    _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -85,30 +81,34 @@ class _TimeCapsulesDetailPageState extends State<TimeCapsulesDetailPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppPallete.darkBg, AppPallete.darkSecondary, AppPallete.darkBg],
-            stops: [0.0, 0.5, 1.0],
+      body: KeyboardListener(
+        focusNode: _focusNode,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.pop(context);
+          }
+        },
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppPallete.darkBg, AppPallete.darkSecondary, AppPallete.darkBg],
+              stops: [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              children: [
-                _buildTopBar(),
-                _buildMockupSection(),
-                const SizedBox(height: 40),
-                _buildTitleSection(),
-                const SizedBox(height: 32),
-                _buildHighlights(),
-                const SizedBox(height: 40),
-                _buildCTA(),
-                const SizedBox(height: 40),
-              ],
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildTopBar(),
+                  _buildMockupSection(),
+                  const SizedBox(height: 40),
+                  _buildTitleSection(),
+                  const SizedBox(height: 32),
+                  _buildHighlights(),
+                ],
+              ),
             ),
           ),
         ),
@@ -416,78 +416,51 @@ class _TimeCapsulesDetailPageState extends State<TimeCapsulesDetailPage>
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: highlights.map((h) => _buildHighlightRow(h)).toList(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 600;
+          return Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
+            children: highlights.map((h) => SizedBox(
+              width: isWide ? (constraints.maxWidth - 16) / 2 : double.infinity,
+              child: _buildHighlightCard(h),
+            )).toList(),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildHighlightRow(_Highlight h) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
+  Widget _buildHighlightCard(_Highlight h) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppPallete.cardBg.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppPallete.divider.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppPallete.primaryOrange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(h.icon, size: 22, color: AppPallete.primaryOrange),
+            child: Icon(h.icon, size: 28, color: AppPallete.primaryOrange),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(h.title, style: const TextStyle(color: AppPallete.whiteColor, fontWeight: FontWeight.w600, fontSize: 15)),
-                Text(h.desc, style: TextStyle(color: AppPallete.greyText, fontSize: 13)),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: AppPallete.greyText, size: 20),
+          const SizedBox(height: 16),
+          Text(h.title, style: const TextStyle(color: AppPallete.whiteColor, fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 8),
+          Text(h.desc, style: TextStyle(color: AppPallete.greyText, fontSize: 14, height: 1.5)),
         ],
       ),
     );
   }
 
-  Widget _buildCTA() {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const SignUpPage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 200),
-        ),
-      ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [AppPallete.primaryOrange, AppPallete.lightOrange]),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: AppPallete.primaryOrange.withValues(alpha: 0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lock_clock_rounded, color: AppPallete.whiteColor, size: 20),
-            SizedBox(width: 10),
-            Text('Get Started', style: TextStyle(color: AppPallete.whiteColor, fontWeight: FontWeight.bold, fontSize: 17)),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ScheduledCapsule {
