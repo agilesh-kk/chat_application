@@ -1,6 +1,7 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_application/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_dropdown_selector.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
@@ -55,14 +56,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
 
 @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          Navigator.pop(context);
-        }
-      },
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: AppPallete.darkBg,
         body: KeyboardListener(
           focusNode: _focusNode,
@@ -73,11 +67,17 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
           },
           child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: BlocConsumer<AuthBloc, AuthState>(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: BlocConsumer<AuthBloc, AuthState>(
               listener: (context, state) {
                 if(state is AuthFailure){
                 showSnackbar(context, state.message);
+              } else if (state is AuthSuccess) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
               }
               },
               builder: (context, state) {
@@ -95,7 +95,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 100),
+                        const SizedBox(height: 60),
                         _buildHeader(),
                         const SizedBox(height: 28),
                         _buildInputFields(),
@@ -114,10 +114,13 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             ),
           ),
         ),
-        ),
       ),
-    );
+      ),
+    ),
+    ),
+  );
   }
+
 
   Widget _buildHeader() {
     return Column(
@@ -291,7 +294,22 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
         ),
         GestureDetector(
           onTap: () {
-            Navigator.pop(context);
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const SignInPage(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
+                transitionDuration: const Duration(milliseconds: 200),
+                reverseTransitionDuration: const Duration(milliseconds: 150),
+              ),
+            );
           },
           child: Text(
             'Sign In',

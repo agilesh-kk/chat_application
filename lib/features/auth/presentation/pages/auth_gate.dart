@@ -1,4 +1,4 @@
-import 'package:chat_application/core/common/widgets/nav_page.dart';
+import 'package:chat_application/core/common/widgets/Nav_page.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_application/features/landing/presentation/pages/landing_page.dart';
 import 'package:chat_application/features/chats/presentation/pages/home_page.dart';

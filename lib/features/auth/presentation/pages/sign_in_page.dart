@@ -61,6 +61,8 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
           listener: (context, state) {
             if(state is AuthFailure){
               showSnackbar(context, state.message);
+            } else if (state is AuthSuccess) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
             }
           },
           builder: (context, state) {
@@ -72,15 +74,19 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
               );
             }
             return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 220),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 120),
                       _buildHeader(),
                       const SizedBox(height: 32),
                       _buildInputFields(),
@@ -89,11 +95,14 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
                       const SizedBox(height: 32),
                       _buildSignUpLink(),
                       const SizedBox(height: 40),
-                    ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
+                  ),
+                );
           },
         ),
       ),
