@@ -1,6 +1,12 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:chat_application/features/auth/presentation/pages/sign_up_page.dart';
+import 'package:chat_application/features/landing/presentation/pages/friends_discovery_detail.dart';
+import 'package:chat_application/features/landing/presentation/pages/rich_messaging_detail.dart';
+import 'package:chat_application/features/landing/presentation/pages/shared_timeline_detail.dart';
+import 'package:chat_application/features/landing/presentation/pages/status_stories_detail.dart';
+import 'package:chat_application/features/landing/presentation/pages/time_capsules_detail.dart';
+import 'package:chat_application/features/landing/presentation/widgets/testimonial_carousel.dart';
 import 'package:flutter/material.dart';
 
 class LandingPage extends StatefulWidget {
@@ -150,6 +156,19 @@ class _LandingPageState extends State<LandingPage>
     _featureCardStates.add(state);
   }
 
+  void _navigateToFeature(Widget page) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => page,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 250),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -187,7 +206,13 @@ class _LandingPageState extends State<LandingPage>
                     const SizedBox(height: 32),
                     _buildFeaturesSection(),
                     const SizedBox(height: 80),
-                    _buildStatsSection(),
+                    _buildSectionHeader('What users say'),
+                    const SizedBox(height: 8),
+                    _buildSectionSubtitle(
+                      'Join thousands of happy users',
+                    ),
+                    const SizedBox(height: 32),
+                    _buildTestimonialsSection(),
                     const SizedBox(height: 80),
                     _buildFooter(),
                   ],
@@ -558,6 +583,7 @@ class _LandingPageState extends State<LandingPage>
                           'Send text and images with reactions, replies, editing, and real-time typing indicators. Every conversation feels alive.',
                       delay: 0,
                       onRegister: _registerFeatureCard,
+                      onTap: () => _navigateToFeature(const RichMessagingDetailPage()),
                     ),
                   ),
                   SizedBox(
@@ -569,6 +595,7 @@ class _LandingPageState extends State<LandingPage>
                           'Share ephemeral moments that disappear. View friends stories with likes, replies, and a seamless full-screen experience.',
                       delay: 100,
                       onRegister: _registerFeatureCard,
+                      onTap: () => _navigateToFeature(const StatusStoriesDetailPage()),
                     ),
                   ),
                   SizedBox(
@@ -580,6 +607,7 @@ class _LandingPageState extends State<LandingPage>
                           'Schedule messages to be delivered at a future time. Perfect for birthday wishes, reminders, or surprise messages.',
                       delay: 200,
                       onRegister: _registerFeatureCard,
+                      onTap: () => _navigateToFeature(const TimeCapsulesDetailPage()),
                     ),
                   ),
                   SizedBox(
@@ -591,6 +619,7 @@ class _LandingPageState extends State<LandingPage>
                           'Build a shared timeline of memories with friends. Long-press messages to save them, and create milestone events together.',
                       delay: 300,
                       onRegister: _registerFeatureCard,
+                      onTap: () => _navigateToFeature(const SharedTimelineDetailPage()),
                     ),
                   ),
                   SizedBox(
@@ -602,6 +631,7 @@ class _LandingPageState extends State<LandingPage>
                           'Find friends, send requests, and build your circle. See who is online and start conversations instantly.',
                       delay: 400,
                       onRegister: _registerFeatureCard,
+                      onTap: () => _navigateToFeature(const FriendsDiscoveryDetailPage()),
                     ),
                   ),
                 ],
@@ -613,101 +643,16 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  Widget _buildStatsSection() {
+  Widget _buildTestimonialsSection() {
     return FadeTransition(
       opacity: _statsFade,
       child: SlideTransition(
         position: _statsSlide,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: AppPallete.cardBg.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: AppPallete.divider.withValues(alpha: 0.5),
-              ),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 500;
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildStatItem(
-                      icon: Icons.flash_on,
-                      value: 'Real-time',
-                      label: 'Instant Delivery',
-                    ),
-                    if (isWide) _buildStatDivider(),
-                    _buildStatItem(
-                      icon: Icons.shield_outlined,
-                      value: 'Secure',
-                      label: 'Encrypted',
-                    ),
-                    if (isWide) _buildStatDivider(),
-                    _buildStatItem(
-                      icon: Icons.auto_awesome,
-                      value: 'Rich',
-                      label: 'Feature Packed',
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24),
+          child: TestimonialCarousel(),
         ),
       ),
-    );
-  }
-
-  Widget _buildStatItem({
-    required IconData icon,
-    required String value,
-    required String label,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppPallete.primaryOrange.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(
-            icon,
-            color: AppPallete.primaryOrange,
-            size: 28,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppPallete.whiteColor,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: AppPallete.greyText,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatDivider() {
-    return Container(
-      width: 1,
-      height: 60,
-      color: AppPallete.divider,
     );
   }
 
@@ -779,6 +724,7 @@ class _FeatureCard extends StatefulWidget {
   final String description;
   final int delay;
   final void Function(_FeatureCardState) onRegister;
+  final VoidCallback? onTap;
 
   const _FeatureCard({
     required this.icon,
@@ -786,6 +732,7 @@ class _FeatureCard extends StatefulWidget {
     required this.description,
     required this.delay,
     required this.onRegister,
+    this.onTap,
   });
 
   @override
@@ -848,65 +795,67 @@ class _FeatureCardState extends State<_FeatureCard>
         position: _slideAnimation,
         child: ScaleTransition(
           scale: _scaleAnimation,
-          child: MouseRegion(
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppPallete.cardBg.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _hovered
-                      ? AppPallete.primaryOrange.withValues(alpha: 0.6)
-                      : AppPallete.divider.withValues(alpha: 0.5),
+          child: GestureDetector(
+            onTap: widget.onTap,
+            child: MouseRegion(
+              onEnter: (_) => setState(() => _hovered = true),
+              onExit: (_) => setState(() => _hovered = false),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppPallete.cardBg.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _hovered
+                        ? AppPallete.primaryOrange.withValues(alpha: 0.6)
+                        : AppPallete.divider.withValues(alpha: 0.5),
+                  ),
+                  boxShadow: _hovered
+                      ? [
+                          BoxShadow(
+                            color: AppPallete.primaryOrange.withValues(alpha: 0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ]
+                      : [],
                 ),
-                boxShadow: _hovered
-                    ? [
-                        BoxShadow(
-                          color:
-                              AppPallete.primaryOrange.withValues(alpha: 0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ]
-                    : [],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppPallete.primaryOrange.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppPallete.primaryOrange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        widget.icon,
+                        size: 28,
+                        color: AppPallete.primaryOrange,
+                      ),
                     ),
-                    child: Icon(
-                      widget.icon,
-                      size: 28,
-                      color: AppPallete.primaryOrange,
+                    const SizedBox(height: 20),
+                    Text(
+                      widget.title,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppPallete.whiteColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    widget.title,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppPallete.whiteColor,
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppPallete.greyText,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    widget.description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppPallete.greyText,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -915,3 +864,4 @@ class _FeatureCardState extends State<_FeatureCard>
     );
   }
 }
+
