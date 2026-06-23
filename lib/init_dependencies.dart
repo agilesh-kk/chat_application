@@ -11,6 +11,19 @@ import 'package:chat_application/features/achievement/domain/usecase/get_achieve
 import 'package:chat_application/features/achievement/domain/usecase/mark_achievement_seen.dart';
 import 'package:chat_application/features/achievement/presentation/bloc/achievement_bloc.dart';
 import 'package:chat_application/features/auth/data/datasources/auth_remote_data_sources.dart';
+import 'package:chat_application/features/watch2gether/data/datasources/w2g_remote_data_source.dart';
+import 'package:chat_application/features/watch2gether/data/repository/w2g_repository_impl.dart';
+import 'package:chat_application/features/watch2gether/data/services/video_controller_service.dart';
+import 'package:chat_application/features/watch2gether/domain/repository/w2g_repository.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/add_to_queue.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/create_room.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/get_room_stream.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/join_room.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/leave_room.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/remove_from_queue.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/send_chat_message.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/update_player_state.dart';
+import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 import 'package:chat_application/features/auth/data/repository/auth_repository_impl.dart';
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
 import 'package:chat_application/features/auth/domain/usecase/current_user.dart';
@@ -108,6 +121,7 @@ Future<void> initDependencies() async {
   _initProfile();
   _initTimeline();
   _initAchievement();
+  _initWatch2Gether();
 
   //supabase initialization
   final supabase = await Supabase.initialize(
@@ -145,6 +159,72 @@ Future<void> initDependencies() async {
     () => DraftService(),
   );
 
+}
+
+void _initWatch2Gether() {
+  serviceLocator
+    //data source
+    ..registerFactory<W2GRemoteDataSource>(
+      () => W2GRemoteDataSourceImpl(
+        serviceLocator<FirebaseDatabase>(),
+        serviceLocator<SupabaseClient>(),
+      ),
+    )
+
+    //repository
+    ..registerFactory<W2GRepository>(
+      () => W2GRepositoryImpl(
+        serviceLocator<W2GRemoteDataSource>(),
+      ),
+    )
+
+    //usecases
+    ..registerFactory(
+      () => CreateRoom(serviceLocator<W2GRepository>()),
+    )
+    ..registerFactory(
+      () => GetRoomStream(serviceLocator<W2GRepository>()),
+    )
+    ..registerFactory(
+      () => JoinRoom(serviceLocator<W2GRepository>()),
+    )
+    ..registerFactory(
+      () => LeaveRoom(serviceLocator<W2GRepository>()),
+    )
+    ..registerFactory(
+      () => UpdatePlayerState(serviceLocator<W2GRepository>()),
+    )
+    ..registerFactory(
+      () => AddToQueue(serviceLocator<W2GRepository>()),
+    )
+    ..registerFactory(
+      () => RemoveFromQueue(serviceLocator<W2GRepository>()),
+    )
+    ..registerFactory(
+      () => SendChatMessage(serviceLocator<W2GRepository>()),
+    )
+
+    //service
+    ..registerLazySingleton(
+      () => VideoControllerService(),
+    )
+
+    //bloc
+    ..registerLazySingleton(
+      () => W2GBloc(
+        createRoom: serviceLocator<CreateRoom>(),
+        getRoomStream: serviceLocator<GetRoomStream>(),
+        joinRoom: serviceLocator<JoinRoom>(),
+        leaveRoom: serviceLocator<LeaveRoom>(),
+        updatePlayerState: serviceLocator<UpdatePlayerState>(),
+        addToQueue: serviceLocator<AddToQueue>(),
+        removeFromQueue: serviceLocator<RemoveFromQueue>(),
+        sendChatMessage: serviceLocator<SendChatMessage>(),
+        repository: serviceLocator<W2GRepository>(),
+        database: serviceLocator<FirebaseDatabase>(),
+        videoService: serviceLocator<VideoControllerService>(),
+      ),
+    );
 }
 
 void _initStatus() async{

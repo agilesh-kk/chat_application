@@ -7,6 +7,7 @@ import 'package:chat_application/core/keys/app_keys.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:chat_application/features/achievement/presentation/bloc/achievement_bloc.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart';
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
@@ -559,7 +560,12 @@ void main() async {
         //achivement bloc
         BlocProvider(
           create: (_) => serviceLocator<AchievementBloc>(),
-        )
+        ),
+
+        //watch2gether bloc
+        BlocProvider(
+          create: (_) => serviceLocator<W2GBloc>(),
+        ),
       ],
       child: MyApp(),
     ),
