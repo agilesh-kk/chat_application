@@ -31,11 +31,14 @@ class VideoControllerService {
   bool _isReady = false;
   bool _endedNotified = false;
   double? _seekTarget;
+  bool _changingVideo = false;
 
   final _videoChangedCtrl = StreamController<void>.broadcast();
   final _controllerReadyCtrl = StreamController<void>.broadcast();
+  final _errorCtrl = StreamController<String>.broadcast();
   Stream<void> get onVideoChanged => _videoChangedCtrl.stream;
   Stream<void> get onControllerReady => _controllerReadyCtrl.stream;
+  Stream<String> get onError => _errorCtrl.stream;
 
   VideoPlayerController? get controller => _controller;
   bool get isLoading => _isLoading;
@@ -76,18 +79,24 @@ class VideoControllerService {
   }
 
   Future<void> _onVideoChanged() async {
-    _disposeCurrent();
-    _isLoading = true;
-    _isReady = false;
-    _availableStreams = [];
-    _selectedStream = null;
-    _videoChangedCtrl.add(null);
+    if (_changingVideo) return;
+    _changingVideo = true;
+    try {
+      _disposeCurrent();
+      _isLoading = true;
+      _isReady = false;
+      _availableStreams = [];
+      _selectedStream = null;
+      _videoChangedCtrl.add(null);
 
-    if (latestVideoItem!.source == W2GVideoSource.youtube ||
-        _isYoutubeUrl(latestVideoItem!.url)) {
-      await _resolveYoutube();
-    } else {
-      await _createAndInit(latestVideoItem!.url);
+      if (latestVideoItem!.source == W2GVideoSource.youtube ||
+          _isYoutubeUrl(latestVideoItem!.url)) {
+        await _resolveYoutube();
+      } else {
+        await _createAndInit(latestVideoItem!.url);
+      }
+    } finally {
+      _changingVideo = false;
     }
   }
 
@@ -111,6 +120,7 @@ class VideoControllerService {
       _availableStreams = [];
       _selectedStream = null;
       _isLoading = false;
+      _errorCtrl.add('YouTube resolution failed: ${e.toString()}');
     }
   }
 
@@ -152,6 +162,7 @@ class VideoControllerService {
     } catch (e) {
       debugPrint('VideoControllerService init error: $e');
       _isLoading = false;
+      _errorCtrl.add('Failed to load video: ${e.toString()}');
     }
   }
 
@@ -256,6 +267,8 @@ class VideoControllerService {
 
   void dispose() {
     _blocSub?.cancel();
+    _subscribed = false;
+    latestVideoItem = null;
     _disposeCurrent();
     _ytExplode?.close();
     _ytExplode = null;
@@ -268,5 +281,6 @@ class VideoControllerService {
     _isReady = false;
     _endedNotified = false;
     _seekTarget = null;
+    _originalVideoUrl = null;
   }
 }

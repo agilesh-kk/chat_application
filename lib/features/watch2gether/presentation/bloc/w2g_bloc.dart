@@ -326,6 +326,17 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     if (current is W2GRoomLoaded && current.room.currentVideo == null) {
       await repository.setCurrentVideo(event.roomId, item);
       await repository.removeFromQueue(event.roomId, item.id);
+      await updatePlayerState(
+        UpdatePlayerStateParams(
+          roomId: event.roomId,
+          state: W2GPlayerState(
+            isPlaying: true,
+            position: 0,
+            updatedBy: event.addedBy,
+            lastUpdated: DateTime.now(),
+          ),
+        ),
+      );
     }
   }
 

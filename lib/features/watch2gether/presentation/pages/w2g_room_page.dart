@@ -27,19 +27,37 @@ class W2GRoomPage extends StatefulWidget {
   State<W2GRoomPage> createState() => _W2GRoomPageState();
 }
 
-class _W2GRoomPageState extends State<W2GRoomPage> {
+class _W2GRoomPageState extends State<W2GRoomPage> with WidgetsBindingObserver {
   W2GChatMessage? _replyToMessage;
   bool _chatExpanded = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     context.read<W2GBloc>().add(W2GLoadRoom(
       roomId: widget.roomId,
       currentUserId: widget.userId,
       currentUserName: widget.userName,
       currentUserProfilePic: widget.userProfilePic,
     ));
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      context.read<W2GBloc>().add(W2GLeaveRoom(
+        roomId: widget.roomId,
+        userId: widget.userId,
+        isHost: false,
+      ));
+    }
   }
 
   @override
