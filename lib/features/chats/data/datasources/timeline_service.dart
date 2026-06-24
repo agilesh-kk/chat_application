@@ -158,14 +158,14 @@ class TimelineService {
           .collection("Conversations")
           .doc(convoId);
 
-      final messageRef = convoRef
-          .collection("messages")
-          .doc(messageId);
+      //final messageRef = convoRef
+      //    .collection("messages")
+      //    .doc(messageId);
 
-      await messageRef.set(
-        {"inTimeline": true},
-        SetOptions(merge: true),
-      );
+      //await messageRef.set(
+      //  {"inTimeline": true},
+      //  SetOptions(merge: true),
+      //);
 
       serviceLocator<ChatLocalDataSource>().updateMessageTimeline(messageId, true);
 
