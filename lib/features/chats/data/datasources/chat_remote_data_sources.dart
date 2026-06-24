@@ -139,17 +139,37 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
   Future<List<Map<String, dynamic>>> fetchAllMessages({
     required String conversationId,
   }) async {
-    final snapshot = await firestore
-        .collection("Conversations")
-        .doc(conversationId)
-        .collection("messages")
-        .orderBy("createdAt", descending: true)
-        .get();
+    final result = await supabase.rpc('fetch_conversation_messages', params: {
+      'p_convo_id': conversationId,
+    });
 
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      data['_docId'] = doc.id;
-      return data;
+    final messages = result as List<dynamic>;
+    return messages.map((msg) {
+      final m = msg as Map<String, dynamic>;
+      return {
+        'id': m['id'],
+        'senderId': m['sender_id'],
+        'content': m['content'],
+        'type': m['type'],
+        'status': m['status'],
+        'createdAt': m['created_at'],
+        'isEdited': m['is_edited'],
+        'deletedfor': (m['deleted_for'] as List?)?.cast<String>() ?? <String>[],
+        'deletedForEveryone': m['deleted_for_everyone'] ?? false,
+        'reactions': (m['reactions'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{},
+        'replyToId': m['reply_to_id'],
+        'replyToContent': m['reply_to_content'],
+        'replyToSenderId': m['reply_to_sender_id'],
+        'replyToType': m['reply_to_type'],
+        'isScheduled': m['is_scheduled'] ?? false,
+        'sendAt': m['send_at'],
+        'inTimeline': m['in_timeline'] ?? false,
+        'name': m['name'],
+        'receiverId': m['receiver_id'],
+        'profile': m['profile'],
+        'convoId': conversationId,
+        '_docId': m['id'],
+      };
     }).toList();
   }
 

@@ -537,3 +537,32 @@ BEGIN
   WHERE id = p_convo_id;
 END;
 $$;
+
+-- ============================================================
+-- Fetch all messages for a conversation
+-- Used during initial download to populate local SQLite cache
+-- ============================================================
+CREATE OR REPLACE FUNCTION fetch_conversation_messages(p_convo_id TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  tbl_name TEXT;
+  result JSONB;
+BEGIN
+  tbl_name := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = tbl_name) THEN
+    EXECUTE format(
+      'SELECT COALESCE(jsonb_agg(row_to_json(t) ORDER BY t.created_at DESC), ''[]''::jsonb)
+       FROM (SELECT * FROM %I) t',
+      tbl_name
+    ) INTO result;
+  ELSE
+    result := '[]'::jsonb;
+  END IF;
+
+  RETURN result;
+END;
+$$;
