@@ -205,7 +205,7 @@ class _YouTubePlayerWidgetWebState extends State<YouTubePlayerWidgetWeb> {
     width: '100%',
     videoId: '$vid',
     playerVars: {
-      controls: 0, autoplay: 0, disablekb: 1, fs: 0,
+      controls: 0, autoplay: 1, mute: 1, disablekb: 1, fs: 0,
       modestbranding: 1, rel: 0, iv_load_policy: 3,
       cc_load_policy: 0, playsinline: 1
     },
