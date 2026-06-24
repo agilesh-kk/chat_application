@@ -37,7 +37,8 @@ dependencies:
   emoji_regex: ^0.0.5
   lottie: ^3.3.1
   video_player: ^2.9.3
-  youtube_explode_dart: ^2.3.10
+  webview_flutter: ^4.10.0
+  webview_flutter_web: ^0.2.3
 
 dev_dependencies:
   flutter_test:

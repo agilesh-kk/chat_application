@@ -1,26 +1,15 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_room.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_video_item.dart';
 import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 import 'package:chat_application/init_dependencies.dart';
 
-class StreamOption {
-  final String label;
-  final Uri url;
-  const StreamOption({required this.label, required this.url});
-}
-
 class VideoControllerService {
   StreamSubscription<W2GState>? _blocSub;
   bool _subscribed = false;
   W2GVideoItem? latestVideoItem;
-
-  yt.YoutubeExplode? _ytExplode;
-  List<StreamOption> _availableStreams = [];
-  StreamOption? _selectedStream;
 
   VideoPlayerController? _controller;
   String? _originalVideoUrl;
@@ -43,8 +32,6 @@ class VideoControllerService {
   VideoPlayerController? get controller => _controller;
   bool get isLoading => _isLoading;
   bool get isReady => _isReady;
-  List<StreamOption> get availableStreams => _availableStreams;
-  StreamOption? get selectedStream => _selectedStream;
 
   VoidCallback? onVideoEnded;
   void Function(double position)? onPositionUpdate;
@@ -85,63 +72,17 @@ class VideoControllerService {
       _disposeCurrent();
       _isLoading = true;
       _isReady = false;
-      _availableStreams = [];
-      _selectedStream = null;
       _videoChangedCtrl.add(null);
 
-      if (latestVideoItem!.source == W2GVideoSource.youtube ||
-          _isYoutubeUrl(latestVideoItem!.url)) {
-        await _resolveYoutube();
-      } else {
-        await _createAndInit(latestVideoItem!.url);
+      if (latestVideoItem?.source == W2GVideoSource.youtube) {
+        _isLoading = false;
+        return;
       }
+
+      await _createAndInit(latestVideoItem!.url);
     } finally {
       _changingVideo = false;
     }
-  }
-
-  Future<void> _resolveYoutube({StreamOption? preferred}) async {
-    _ytExplode ??= yt.YoutubeExplode();
-    try {
-      final videoId = yt.VideoId.parseVideoId(latestVideoItem!.url);
-      if (videoId == null) throw Exception('Invalid YouTube URL');
-      final manifest = await _ytExplode!.videos.streams.getManifest(videoId);
-      _availableStreams = manifest.muxed
-          .map((s) => StreamOption(
-                label: _qualityLabel(s.videoQuality),
-                url: Uri.parse(s.url.toString()),
-              ))
-          .toList();
-      _selectedStream = preferred ?? _availableStreams.last;
-      await _createAndInit(_selectedStream!.url.toString(),
-          originalUrl: latestVideoItem!.url);
-    } catch (e) {
-      debugPrint('YoutubeExplode error: $e');
-      _availableStreams = [];
-      _selectedStream = null;
-      _isLoading = false;
-      _errorCtrl.add('YouTube resolution failed: ${e.toString()}');
-    }
-  }
-
-  String _qualityLabel(yt.VideoQuality q) {
-    if (q == yt.VideoQuality.low144) return '144p';
-    if (q == yt.VideoQuality.low240) return '240p';
-    if (q == yt.VideoQuality.medium360) return '360p';
-    if (q == yt.VideoQuality.medium480) return '480p';
-    if (q == yt.VideoQuality.high720) return '720p';
-    if (q == yt.VideoQuality.high1080) return '1080p';
-    if (q == yt.VideoQuality.high1440) return '1440p';
-    if (q == yt.VideoQuality.high2160) return '2160p';
-    if (q == yt.VideoQuality.high2880) return '2880p';
-    if (q == yt.VideoQuality.high3072) return '3072p';
-    if (q == yt.VideoQuality.high4320) return '4320p';
-    return 'Auto';
-  }
-
-  bool _isYoutubeUrl(String url) {
-    final lower = url.toLowerCase();
-    return lower.contains('youtube.com') || lower.contains('youtu.be');
   }
 
   Future<void> _createAndInit(String url, {String? originalUrl}) async {
@@ -210,10 +151,6 @@ class VideoControllerService {
     _controller?.seekTo(d);
   }
 
-  void changeQuality(StreamOption option) {
-    if (latestVideoItem != null) _resolveYoutube(preferred: option);
-  }
-
   void syncFromRoom(W2GRoom room, String? myUserId) {
     final ctrl = _controller;
     if (ctrl == null || !ctrl.value.isInitialized) return;
@@ -242,36 +179,11 @@ class VideoControllerService {
     isSyncing = false;
   }
 
-  static Future<({String? title, String? thumbnailUrl})?> fetchYouTubeMeta(
-      String url) async {
-    final lower = url.toLowerCase();
-    if (!lower.contains('youtube.com') && !lower.contains('youtu.be')) {
-      return null;
-    }
-    final videoId = yt.VideoId.parseVideoId(url);
-    if (videoId == null) return null;
-    final client = yt.YoutubeExplode();
-    try {
-      final video = await client.videos.get(videoId);
-      return (
-        title: video.title,
-        thumbnailUrl: video.thumbnails.mediumResUrl,
-      );
-    } catch (e) {
-      debugPrint('fetchYouTubeMeta error: $e');
-      return null;
-    } finally {
-      client.close();
-    }
-  }
-
   void dispose() {
     _blocSub?.cancel();
     _subscribed = false;
     latestVideoItem = null;
     _disposeCurrent();
-    _ytExplode?.close();
-    _ytExplode = null;
   }
 
   void _disposeCurrent() {

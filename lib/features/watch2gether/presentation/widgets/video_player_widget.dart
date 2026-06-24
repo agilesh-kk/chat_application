@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/watch2gether/data/services/video_controller_service.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_video_item.dart';
+import 'package:chat_application/features/watch2gether/presentation/widgets/youtube_player_widget.dart';
 import 'package:chat_application/init_dependencies.dart';
 
 class VideoPlayerWidget extends StatefulWidget {
@@ -139,63 +140,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     _showControls();
   }
 
-  Future<void> _showQualitySelector() async {
-    if (_videoService.availableStreams.isEmpty) return;
-
-    final selected = await showModalBottomSheet<StreamOption>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: AppPallete.cardBg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.only(top: 12, bottom: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppPallete.greyText,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text('Video Quality',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(height: 8),
-            ..._videoService.availableStreams.map((s) => ListTile(
-                  leading: Icon(
-                    s.url == _videoService.selectedStream?.url
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_unchecked,
-                    color: AppPallete.primaryOrange,
-                  ),
-                  title: Text(s.label,
-                      style: const TextStyle(color: Colors.white)),
-                  onTap: () => Navigator.pop(ctx, s),
-                )),
-          ],
-        ),
-      ),
-    );
-
-    if (selected != null &&
-        selected.url != _videoService.selectedStream?.url) {
-      _videoService.changeQuality(selected);
-    }
-  }
-
   void _enterFullscreen() {
     final ctrl = _controller;
     if (ctrl == null || !ctrl.value.isInitialized) return;
@@ -235,6 +179,42 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                     style: TextStyle(
                         color: AppPallete.greyText.withValues(alpha: 0.7),
                         fontSize: 16)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (widget.video?.source == W2GVideoSource.youtube) {
+      return YouTubePlayerWidget(
+        video: widget.video,
+        isPlaying: widget.isPlaying,
+        position: widget.position,
+        onPlayPause: widget.onPlayPause,
+        onSeek: widget.onSeek,
+        onPositionUpdate: widget.onPositionUpdate,
+        onVideoEnded: widget.onVideoEnded,
+        canControl: widget.canControl,
+      );
+    }
+
+    if (widget.video?.source == W2GVideoSource.direct) {
+      // fall through to existing player
+    } else if (widget.video != null) {
+      return AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          color: AppPallete.darkBg,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline,
+                    size: 48, color: AppPallete.greyText.withValues(alpha: 0.5)),
+                const SizedBox(height: 12),
+                const Text('Unsupported video source',
+                    style: TextStyle(color: AppPallete.greyText, fontSize: 14)),
               ],
             ),
           ),
@@ -310,25 +290,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (_videoService.selectedStream != null)
-                                GestureDetector(
-                                  onTap: _showQualitySelector,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppPallete.darkTertiary,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      _videoService.selectedStream!.label,
-                                      style: const TextStyle(
-                                          color: AppPallete.primaryOrange,
-                                          fontSize: 12),
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(width: 4),
                               GestureDetector(
                                 onTap: _enterFullscreen,
                                 child: Container(

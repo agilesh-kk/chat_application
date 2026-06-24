@@ -303,10 +303,9 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
     String videoTitle = event.title;
     String? videoThumbnail = event.thumbnailUrl;
     if (W2GVideoItem.detectSource(event.url) == W2GVideoSource.youtube) {
-      final meta = await VideoControllerService.fetchYouTubeMeta(event.url);
-      if (meta != null) {
-        videoTitle = meta.title ?? videoTitle;
-        videoThumbnail = meta.thumbnailUrl ?? videoThumbnail;
+      final videoId = _parseYoutubeVideoId(event.url);
+      if (videoId != null) {
+        videoThumbnail ??= 'https://img.youtube.com/vi/$videoId/mqdefault.jpg';
       }
     }
     final item = W2GVideoItem(
@@ -532,6 +531,25 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
         typingUserIds: event.typingUserIds,
       ));
     }
+  }
+
+  String? _parseYoutubeVideoId(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+    final host = uri.host.toLowerCase();
+    if (host.contains('youtu.be')) {
+      final segs = uri.pathSegments;
+      if (segs.isNotEmpty) return segs.first;
+    }
+    if (host.contains('youtube.com')) {
+      if (uri.path.contains('/embed/') || uri.path.contains('/shorts/')) {
+        final segs = uri.pathSegments;
+        if (segs.length >= 2) return segs[1];
+      }
+      final v = uri.queryParameters['v'];
+      if (v != null && v.isNotEmpty) return v;
+    }
+    return null;
   }
 
   @override
