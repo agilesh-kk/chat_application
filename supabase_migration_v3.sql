@@ -80,12 +80,13 @@ $$;
 
 -- ============================================================
 -- Edit the last message preview in conversation metadata
--- (used when the edited message is the current lastMessage)
+-- Only updates for users whose lastMessageId matches p_message_id
 -- ============================================================
 CREATE OR REPLACE FUNCTION edit_conversation_last_message(
   p_convo_id TEXT,
   p_user_id TEXT,
   p_receiver_id TEXT,
+  p_message_id TEXT,
   p_new_content TEXT
 )
 RETURNS void
@@ -98,92 +99,258 @@ BEGIN
   SELECT user_data INTO existing FROM conversations WHERE id = p_convo_id;
   IF existing IS NULL THEN RETURN; END IF;
 
-  UPDATE conversations SET
-    last_update_time = now(),
-    user_data = existing
-      || jsonb_build_object(p_user_id,
-           COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object('lastMessage', p_new_content))
-      || jsonb_build_object(p_receiver_id,
-           COALESCE(existing->p_receiver_id, '{}'::jsonb) || jsonb_build_object('lastMessage', p_new_content))
-  WHERE id = p_convo_id;
+  IF existing->p_user_id->>'lastMessageId' = p_message_id THEN
+    existing := existing || jsonb_build_object(p_user_id,
+      COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object('lastMessage', p_new_content));
+  END IF;
+
+  IF existing->p_receiver_id->>'lastMessageId' = p_message_id THEN
+    existing := existing || jsonb_build_object(p_receiver_id,
+      COALESCE(existing->p_receiver_id, '{}'::jsonb) || jsonb_build_object('lastMessage', p_new_content));
+  END IF;
+
+  UPDATE conversations SET last_update_time = now(), user_data = existing WHERE id = p_convo_id;
 END;
 $$;
 
 -- ============================================================
--- Delete / replace last message in conversation metadata
+-- Delete message + update conversation metadata
 -- Handles both "delete for me" and "delete for everyone"
+-- Does NOT depend on any Firestore reads — only DB params
 -- ============================================================
-CREATE OR REPLACE FUNCTION delete_conversation_last_message(
+CREATE OR REPLACE FUNCTION delete_message_and_update_conversation(
   p_convo_id TEXT,
-  p_target_user TEXT,
-  p_last_message TEXT DEFAULT '',
-  p_last_message_id TEXT DEFAULT '',
-  p_last_sender TEXT DEFAULT '',
-  p_last_update_time TIMESTAMPTZ DEFAULT now(),
-  -- Delete-for-everyone: also update the other user's fields
-  p_other_user TEXT DEFAULT NULL,
-  p_other_last_message TEXT DEFAULT NULL,
-  p_other_last_sender TEXT DEFAULT NULL,
-  -- Negative delta when decrementing unread (delete-for-everyone)
-  p_unread_delta INT DEFAULT 0
-)
-RETURNS void
+  p_user_id TEXT,
+  p_receiver_id TEXT,
+  p_deleted_message_id TEXT,
+  p_delete_for_everyone BOOLEAN DEFAULT false
+) RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
+  table_name TEXT;
   existing JSONB;
+  msg_sender TEXT;
+  new_last_id TEXT;
+  new_last_content TEXT;
+  new_last_sender TEXT;
+  new_last_time TIMESTAMPTZ;
+  new_last_type TEXT;
+  receiver_unread INT;
 BEGIN
-  SELECT user_data INTO existing FROM conversations WHERE id = p_convo_id;
-  IF existing IS NULL THEN RETURN; END IF;
+  table_name := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
 
-  UPDATE conversations SET
-    last_update_time = now(),
-    user_data = existing
-      || jsonb_build_object(p_target_user,
-           COALESCE(existing->p_target_user, '{}'::jsonb) || jsonb_build_object(
-             'lastMessage', p_last_message,
-             'lastMessageId', p_last_message_id,
-             'lastSender', p_last_sender,
-             'lastupdateTime', p_last_update_time
-           ))
-      || CASE WHEN p_other_user IS NOT NULL THEN
-           jsonb_build_object(p_other_user,
-             COALESCE(existing->p_other_user, '{}'::jsonb) || jsonb_build_object(
-               'lastMessage', COALESCE(p_other_last_message, p_last_message),
-               'lastSender', COALESCE(p_other_last_sender, p_last_sender),
-               'unread', GREATEST(COALESCE((existing->p_other_user->>'unread')::int, 0) + p_unread_delta, 0)
-             ))
-         ELSE
-           '{}'::jsonb
-         END
-  WHERE id = p_convo_id;
+  IF p_delete_for_everyone THEN
+    -- 1. Mark message as deleted for everyone
+    EXECUTE format('UPDATE %I SET deleted_for_everyone = TRUE WHERE id = $1', table_name)
+    USING p_deleted_message_id;
+
+    -- 2. Get message sender
+    EXECUTE format('SELECT sender_id FROM %I WHERE id = $1', table_name)
+    INTO msg_sender
+    USING p_deleted_message_id;
+
+    -- 3. Read conversation data
+    SELECT user_data INTO existing FROM conversations WHERE id = p_convo_id;
+    IF existing IS NULL THEN RETURN; END IF;
+
+    receiver_unread := COALESCE((existing->p_receiver_id->>'unread')::int, 0);
+
+    -- 4. Update preview only for users where this was the last message
+    IF existing->p_user_id->>'lastMessageId' = p_deleted_message_id THEN
+      existing := existing || jsonb_build_object(p_user_id,
+        COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object(
+          'lastMessage', 'This message was deleted',
+          'lastSender', msg_sender
+        ));
+    END IF;
+
+    IF existing->p_receiver_id->>'lastMessageId' = p_deleted_message_id THEN
+      existing := existing || jsonb_build_object(p_receiver_id,
+        COALESCE(existing->p_receiver_id, '{}'::jsonb) || jsonb_build_object(
+          'lastMessage', 'This message was deleted',
+          'lastSender', msg_sender
+        ));
+    END IF;
+
+    -- 5. If sender is deleting, decrement receiver's unread
+    IF msg_sender = p_user_id AND receiver_unread > 0 THEN
+      existing := jsonb_set(existing, ARRAY[p_receiver_id, 'unread'], to_jsonb(receiver_unread - 1));
+    END IF;
+
+    UPDATE conversations SET last_update_time = now(), user_data = existing WHERE id = p_convo_id;
+
+  ELSE
+    -- Delete for me: append user to deleted_for
+    EXECUTE format(
+      'UPDATE %I SET deleted_for = array_append(COALESCE(deleted_for, ''{}''::text[]), $1) WHERE id = $2',
+      table_name
+    ) USING p_user_id, p_deleted_message_id;
+
+    -- Check if this was the last message for the user; if not, done
+    SELECT user_data INTO existing FROM conversations WHERE id = p_convo_id;
+    IF existing IS NULL THEN RETURN; END IF;
+    IF existing->p_user_id->>'lastMessageId' != p_deleted_message_id THEN RETURN; END IF;
+
+    -- Find the most recent non-deleted message for this user
+    EXECUTE format(
+      'SELECT id, content, sender_id, created_at, type FROM %I
+       WHERE id != $1
+         AND (deleted_for IS NULL OR NOT ($2 = ANY(deleted_for)))
+         AND deleted_for_everyone = FALSE
+       ORDER BY created_at DESC LIMIT 1',
+      table_name
+    ) INTO new_last_id, new_last_content, new_last_sender, new_last_time, new_last_type
+    USING p_deleted_message_id, p_user_id;
+
+    IF new_last_id IS NOT NULL THEN
+      existing := existing || jsonb_build_object(p_user_id,
+        COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object(
+          'lastMessage', CASE WHEN COALESCE(new_last_type, 'text') = 'text' THEN COALESCE(new_last_content, '') ELSE '📷 Image' END,
+          'lastMessageId', new_last_id,
+          'lastSender', new_last_sender,
+          'lastupdateTime', new_last_time
+        ));
+    ELSE
+      existing := existing || jsonb_build_object(p_user_id,
+        COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object(
+          'lastMessage', '',
+          'lastMessageId', '',
+          'lastSender', '',
+          'lastupdateTime', now()
+        ));
+    END IF;
+
+    UPDATE conversations SET last_update_time = now(), user_data = existing WHERE id = p_convo_id;
+  END IF;
 END;
 $$;
 
 -- ============================================================
 -- Update conversation preview when a reaction is toggled on
--- the last message
+-- the last message (only updates if message is the lastMessage)
 -- ============================================================
 CREATE OR REPLACE FUNCTION update_reaction_preview(
   p_convo_id TEXT,
   p_target_user TEXT,
   p_preview TEXT,
-  p_sender_id TEXT
+  p_sender_id TEXT,
+  p_message_id TEXT
 )
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+  IF EXISTS (
+    SELECT 1 FROM conversations
+    WHERE id = p_convo_id AND user_data->p_target_user->>'lastMessageId' = p_message_id
+  ) THEN
+    UPDATE conversations SET
+      user_data = COALESCE(user_data, '{}'::jsonb)
+        || jsonb_build_object(p_target_user,
+             COALESCE(user_data->p_target_user, '{}'::jsonb) || jsonb_build_object(
+               'lastMessage', p_preview,
+               'lastSender', p_sender_id
+             ))
+    WHERE id = p_convo_id;
+  END IF;
+END;
+$$;
+
+-- ============================================================
+-- Mark all sent messages from receiver as seen, reset unread
+-- ============================================================
+CREATE OR REPLACE FUNCTION mark_messages_seen(
+  p_convo_id TEXT,
+  p_user_id TEXT,
+  p_receiver_id TEXT
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  table_name TEXT;
+BEGIN
+  table_name := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
+
+  EXECUTE format('UPDATE %I SET status = ''seen'' WHERE sender_id = $1 AND status = ''sent''', table_name)
+  USING p_receiver_id;
+
   UPDATE conversations SET
-    user_data = COALESCE(user_data, '{}'::jsonb)
-      || jsonb_build_object(p_target_user,
-           COALESCE(user_data->p_target_user, '{}'::jsonb) || jsonb_build_object(
-             'lastMessage', p_preview,
-             'lastSender', p_sender_id
-           ))
+    user_data = jsonb_set(COALESCE(user_data, '{}'::jsonb), ARRAY[p_user_id, 'unread'], '0')
   WHERE id = p_convo_id;
+END;
+$$;
+
+-- ============================================================
+-- Toggle a reaction on a message + update conversation preview
+-- Does NOT depend on any Firestore reads — only DB params
+-- ============================================================
+CREATE OR REPLACE FUNCTION toggle_message_reaction(
+  p_convo_id TEXT,
+  p_message_id TEXT,
+  p_user_id TEXT,
+  p_emoji TEXT,
+  p_receiver_id TEXT
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  table_name TEXT;
+  current_reactions JSONB;
+  current_emoji TEXT;
+  msg_content TEXT;
+  msg_sender TEXT;
+BEGIN
+  table_name := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
+
+  EXECUTE format('SELECT reactions, content, sender_id FROM %I WHERE id = $1', table_name)
+  INTO current_reactions, msg_content, msg_sender
+  USING p_message_id;
+
+  IF current_reactions IS NULL THEN
+    current_reactions := '{}'::jsonb;
+  END IF;
+
+  current_emoji := current_reactions->>p_user_id;
+
+  IF current_emoji = p_emoji THEN
+    current_reactions := current_reactions - p_user_id;
+  ELSE
+    current_reactions := jsonb_set(COALESCE(current_reactions, '{}'::jsonb), ARRAY[p_user_id], to_jsonb(p_emoji));
+  END IF;
+
+  EXECUTE format('UPDATE %I SET reactions = $1 WHERE id = $2', table_name)
+  USING current_reactions, p_message_id;
+
+  -- Only update preview if this is the receiver's last message
+  IF EXISTS (
+    SELECT 1 FROM conversations
+    WHERE id = p_convo_id AND user_data->p_receiver_id->>'lastMessageId' = p_message_id
+  ) THEN
+    IF current_emoji = p_emoji THEN
+      UPDATE conversations SET
+        user_data = COALESCE(user_data, '{}'::jsonb)
+          || jsonb_build_object(p_receiver_id,
+               COALESCE(user_data->p_receiver_id, '{}'::jsonb) || jsonb_build_object(
+                 'lastMessage', COALESCE(msg_content, '📷 Image'),
+                 'lastSender', msg_sender
+               ))
+      WHERE id = p_convo_id;
+    ELSE
+      UPDATE conversations SET
+        user_data = COALESCE(user_data, '{}'::jsonb)
+          || jsonb_build_object(p_receiver_id,
+               COALESCE(user_data->p_receiver_id, '{}'::jsonb) || jsonb_build_object(
+                 'lastMessage', 'Reacted ' || p_emoji || ' to a message',
+                 'lastSender', p_user_id
+               ))
+      WHERE id = p_convo_id;
+    END IF;
+  END IF;
 END;
 $$;
 
@@ -340,5 +507,33 @@ BEGIN
   table_name := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
   EXECUTE format('UPDATE %I SET in_timeline = $1 WHERE id = $2', table_name)
   USING p_in_timeline, p_message_id;
+END;
+$$;
+
+-- ============================================================
+-- Update isFriend flag for both users in conversation metadata
+-- ============================================================
+CREATE OR REPLACE FUNCTION update_conversation_friend_status(
+  p_convo_id TEXT,
+  p_user_id TEXT,
+  p_friend_id TEXT,
+  p_is_friend BOOLEAN
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  existing JSONB;
+BEGIN
+  SELECT user_data INTO existing FROM conversations WHERE id = p_convo_id;
+  IF existing IS NULL THEN RETURN; END IF;
+
+  UPDATE conversations SET
+    user_data = existing
+      || jsonb_build_object(p_user_id,
+           COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object('isFriend', p_is_friend))
+      || jsonb_build_object(p_friend_id,
+           COALESCE(existing->p_friend_id, '{}'::jsonb) || jsonb_build_object('isFriend', p_is_friend))
+  WHERE id = p_convo_id;
 END;
 $$;
