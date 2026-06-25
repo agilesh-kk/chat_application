@@ -95,9 +95,12 @@ class _RoomChatOverlayState extends State<RoomChatOverlay> {
         .where((id) => id != widget.currentUserId)
         .toSet();
 
-    return Container(
-      color: AppPallete.cardBg.withValues(alpha: 0.85),
-      child: Column(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: Container(
+          color: AppPallete.cardBg.withValues(alpha: 0.85),
+          child: Column(
         children: [
           Expanded(
             child: Stack(
@@ -162,6 +165,8 @@ class _RoomChatOverlayState extends State<RoomChatOverlay> {
             ),
           _buildInputBar(),
         ],
+      ),
+      ),
       ),
     );
   }

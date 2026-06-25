@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_room.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_video_item.dart';
@@ -35,6 +37,22 @@ class VideoControllerService {
 
   VoidCallback? onVideoEnded;
   void Function(double position)? onPositionUpdate;
+
+  static Future<Map<String, String?>> fetchYouTubeMeta(String videoId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=$videoId&format=json'),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return {
+          'title': data['title'] as String?,
+          'thumbnailUrl': data['thumbnail_url'] as String?,
+        };
+      }
+    } catch (_) {}
+    return {'title': null, 'thumbnailUrl': null};
+  }
 
   void startListening() {
     if (_subscribed) return;

@@ -20,7 +20,6 @@ import 'package:chat_application/features/status/presentation/pages/view_status_
 import 'package:chat_application/features/timeline/presentation/pages/timeline_page.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
-import 'package:chat_application/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -31,7 +30,6 @@ import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:chat_application/features/chats/presentation/cubit/sticky_header_cubit.dart';
-import 'package:chat_application/notification_storage.dart';
 import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
 import 'package:chat_application/features/chats/presentation/widgets/typing_indicator.dart';
 import 'package:chat_application/features/chats/data/datasources/draft_data_source.dart';
@@ -138,13 +136,6 @@ class _ChatPageState extends State<ChatPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.convoId != null) {
-      removeChatMessages(widget.convoId!);
-      flutterLocalNotificationsPlugin.cancel(
-        widget.convoId.hashCode,
-        tag: widget.convoId,
-      );
-    }
     _stickyHeaderCubit = StickyHeaderCubit();
     widget.cacheService = CacheService();
     cb =

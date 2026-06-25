@@ -23,16 +23,12 @@ dependencies:
   path_provider: ^2.1.5
   dio: ^5.9.2
   scrollable_positioned_list: ^0.3.8
-  hive: ^2.2.3
   http: ^1.6.0
-  hive_flutter: ^1.1.0
   equatable: ^2.0.8
   rxdart: ^0.28.0
   cached_network_image: ^3.4.1
   firebase_messaging: ^16.2.0
   firebase_database: ^12.3.0
-  flutter_local_notifications: ^18.0.1
-  flutter_shortcut_plus: ^1.0.1
   shared_preferences: ^2.5.3
   emoji_regex: ^0.0.5
   lottie: ^3.3.1
@@ -58,5 +54,5 @@ flutter_icons:
   android: true
   ios: true
   image_path: "assets/logo/logo1.png"
-  adaptive_icon_background: "#FFFFFF" # or transparent
+  adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/logo/logo1.png"

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
@@ -123,16 +122,6 @@ class _ImageMessageTileState extends State<ImageMessageTile>
 
       isLoading = false;
       if (mounted) setState(() {});
-      return;
-    }
-
-    if (msg.localPath != null) {
-      final bytes = await File(msg.localPath!).readAsBytes();
-      widget.cacheService.cache[msg.id] = bytes;
-      imageBytes = bytes;
-      isLoading = false;
-      if (mounted) setState(() {});
-      _cacheImageSize(msg.id, bytes);
       return;
     }
 

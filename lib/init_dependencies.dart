@@ -13,6 +13,8 @@ import 'package:chat_application/features/achievement/presentation/bloc/achievem
 import 'package:chat_application/features/auth/data/datasources/auth_remote_data_sources.dart';
 import 'package:chat_application/features/watch2gether/data/datasources/w2g_remote_data_source.dart';
 import 'package:chat_application/features/watch2gether/data/repository/w2g_repository_impl.dart';
+import 'package:chat_application/features/watch2gether/data/repository/youtube_player_repository.dart';
+import 'package:chat_application/features/watch2gether/data/repository/youtube_player_repository_impl.dart';
 import 'package:chat_application/features/watch2gether/data/services/video_controller_service.dart';
 import 'package:chat_application/features/watch2gether/domain/repository/w2g_repository.dart';
 import 'package:chat_application/features/watch2gether/domain/usecase/add_to_queue.dart';
@@ -20,10 +22,12 @@ import 'package:chat_application/features/watch2gether/domain/usecase/create_roo
 import 'package:chat_application/features/watch2gether/domain/usecase/get_room_stream.dart';
 import 'package:chat_application/features/watch2gether/domain/usecase/join_room.dart';
 import 'package:chat_application/features/watch2gether/domain/usecase/leave_room.dart';
+import 'package:chat_application/features/watch2gether/domain/usecase/load_youtube_video.dart';
 import 'package:chat_application/features/watch2gether/domain/usecase/remove_from_queue.dart';
 import 'package:chat_application/features/watch2gether/domain/usecase/send_chat_message.dart';
 import 'package:chat_application/features/watch2gether/domain/usecase/update_player_state.dart';
 import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
+import 'package:chat_application/features/watch2gether/presentation/bloc/youtube_player_bloc.dart';
 import 'package:chat_application/features/auth/data/repository/auth_repository_impl.dart';
 import 'package:chat_application/features/auth/domain/repository/auth_repository.dart';
 import 'package:chat_application/features/auth/domain/usecase/current_user.dart';
@@ -31,7 +35,6 @@ import 'package:chat_application/features/auth/domain/usecase/user_sign_in.dart'
 import 'package:chat_application/features/auth/domain/usecase/user_sign_out.dart';
 import 'package:chat_application/features/auth/domain/usecase/user_sign_up.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources_web.dart';
 import 'package:chat_application/features/chats/data/repository/chat_repository_impl.dart';
@@ -53,7 +56,6 @@ import 'package:chat_application/features/chats/presentation/bloc/search/search_
 import 'package:chat_application/features/chats/data/datasources/draft_data_source.dart';
 import 'package:chat_application/features/chats/data/datasources/typing_remote_data_source.dart';
 import 'package:chat_application/features/chats/presentation/cubit/convo_typing_cubit.dart';
-import 'package:chat_application/features/chats/presentation/cubit/notification_details_cubit.dart';
 import 'package:chat_application/features/friends/data/friends_remote_data_sources.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
@@ -163,7 +165,6 @@ Future<void> initDependencies() async {
 
 void _initWatch2Gether() {
   serviceLocator
-    //data source
     ..registerFactory<W2GRemoteDataSource>(
       () => W2GRemoteDataSourceImpl(
         serviceLocator<FirebaseDatabase>(),
@@ -171,14 +172,12 @@ void _initWatch2Gether() {
       ),
     )
 
-    //repository
     ..registerFactory<W2GRepository>(
       () => W2GRepositoryImpl(
         serviceLocator<W2GRemoteDataSource>(),
       ),
     )
 
-    //usecases
     ..registerFactory(
       () => CreateRoom(serviceLocator<W2GRepository>()),
     )
@@ -203,13 +202,22 @@ void _initWatch2Gether() {
     ..registerFactory(
       () => SendChatMessage(serviceLocator<W2GRepository>()),
     )
+    ..registerFactory(
+      () => LoadYoutubeVideo(),
+    )
+    ..registerFactory<YoutubePlayerRepository>(
+      () => YoutubePlayerRepositoryImpl(),
+    )
 
-    //service
     ..registerLazySingleton(
       () => VideoControllerService(),
     )
 
-    //bloc
+    ..registerLazySingleton(
+      () => YoutubePlayerBloc(
+        loadYoutubeVideo: serviceLocator<LoadYoutubeVideo>(),
+      ),
+    )
     ..registerLazySingleton(
       () => W2GBloc(
         createRoom: serviceLocator<CreateRoom>(),
@@ -235,14 +243,12 @@ void _initStatus() async{
       ),
     )
 
-    //repository
     ..registerFactory<StatusRepository>(
       () => StatusRepositoryImpl(
         statusRemoteDataSource: serviceLocator<StatusRemoteDataSource>(),
       )
     )
 
-    //usecase
     ..registerFactory(
       () => UploadStatus(
         serviceLocator<StatusRepository>()
@@ -274,7 +280,6 @@ void _initStatus() async{
       )
     )
 
-    //bloc
     ..registerLazySingleton(
       () => StatusBloc(
         friends_cubit: serviceLocator<FriendsCubit>(),
@@ -286,7 +291,6 @@ void _initStatus() async{
         chatRepository: serviceLocator<ChatRepository>(),
       )
     )
-    //status views bloc
     ..registerLazySingleton(
       () => StatusviewBloc(
         getViews: serviceLocator<GetViews>(),
@@ -295,7 +299,6 @@ void _initStatus() async{
 }
 
 void _initAuth() {
-  //Data Source
   serviceLocator
   ..registerFactory<AuthRemoteDataSources>(
     () => AuthRemoteDataSourcesImpl(
@@ -304,14 +307,12 @@ void _initAuth() {
     ),
   )
 
-  //Repository
   ..registerFactory<AuthRepository>(
     () => AuthRepositoryImpl(
       serviceLocator<AuthRemoteDataSources>(),
     ),
   )
 
-  //UseCase
   ..registerFactory(
     () => UserSignUp(
       serviceLocator<AuthRepository>(),
@@ -333,7 +334,6 @@ void _initAuth() {
     )
   )
 
-  //Bloc
       ..registerLazySingleton(
         () => AuthBloc(
           userSignUp: serviceLocator<UserSignUp>(), 
@@ -348,12 +348,7 @@ void _initAuth() {
 }
 
 void _initChat()async {
-  //Data Source
   serviceLocator
-  ..registerFactory<ChatLocalDataSource>(
-    () => ChatLocalDataSourceImpl(),
-  )
-
   ..registerFactory<ChatRemoteDataSources>(
     () => kIsWeb
         ? ChatRemoteDataSourcesWebImpl(
@@ -369,11 +364,9 @@ void _initChat()async {
   ..registerLazySingleton<ChatRepository>(
     () => ChatRepositoryImpl(
       chatRemoteDataSources:  serviceLocator<ChatRemoteDataSources>(),
-      chatLocalDataSource: serviceLocator<ChatLocalDataSource>()
     ),
   )
 
-  //UseCase
   ..registerFactory(
     () => GetConversations(
       chatRepository:  serviceLocator<ChatRepository>(),
@@ -448,7 +441,7 @@ void _initChat()async {
       friendsCubit: serviceLocator<FriendsCubit>(),
       getConversations: serviceLocator(),
       draftService: serviceLocator<DraftService>(),
-      chatRepositoryImpl: serviceLocator<ChatRepository>(), // ChatRepository resolves to ChatRepositoryImpl
+      chatRepositoryImpl: serviceLocator<ChatRepository>(),
     )
   )
 
@@ -456,16 +449,11 @@ void _initChat()async {
     () => SearchBloc(
       searchUser: serviceLocator<SearchUser>()
     )
-  )
-  ..registerLazySingleton(
-    () => NotificationDetailsCubit(),
   );
 }
 
-//for profile feature
 void _initProfile() async{
   serviceLocator
-  //data source
   ..registerFactory<ProfileRemoteDataSource>(
     () =>ProfileRemoteDataSourceImpl(
       firebaseFirestore: serviceLocator<FirebaseFirestore>(),
@@ -473,14 +461,12 @@ void _initProfile() async{
     )
   )
 
-  //repository
   ..registerFactory<ProfileRepository>(
     () => ProfileRepositoryImpl(
       profileRemoteDataSource: serviceLocator<ProfileRemoteDataSource>()
     )
   )
 
-  //usecases
   ..registerFactory(
     () => UpdateProfile(
       profileRepository: serviceLocator<ProfileRepository>(),
@@ -497,7 +483,6 @@ void _initProfile() async{
     )
   )
 
-  //bloc for profile pic
   ..registerLazySingleton(
     () => ProfilePicBloc(
       updateProfile: serviceLocator<UpdateProfile>(),
@@ -505,7 +490,6 @@ void _initProfile() async{
     )
   )
 
-  //bloc for bio
   ..registerLazySingleton(
     () => BioBloc(
       updateBio: serviceLocator<UpdateBio>(),
@@ -515,7 +499,6 @@ void _initProfile() async{
 
 void _initTimeline(){
   serviceLocator
-  //data source
   ..registerFactory<TimelineRemoteDataSources>(
     () => TimelineRemoteDataSourcesImpl(
       firebaseFirestore: serviceLocator<FirebaseFirestore>(),
@@ -523,12 +506,10 @@ void _initTimeline(){
     )
   )
 
-  //repository
   ..registerFactory<TimelineRepository>(
     () => TimelineRepositoryImpl(timelineRemoteDataSources: serviceLocator<TimelineRemoteDataSources>())
   )
 
-  //usecases
   ..registerFactory(
     () => LoadEvents(timelineRepository: serviceLocator<TimelineRepository>())
   )
@@ -548,7 +529,6 @@ void _initTimeline(){
     () => RemovePersonalEvent(timelineRepository: serviceLocator<TimelineRepository>()),
   )
   
-  //bloc
   ..registerFactory(
     () => TimelineBloc(
       loadEvents: serviceLocator(),
@@ -567,17 +547,14 @@ void _initTimeline(){
 
 void _initAchievement() {
   serviceLocator
-  //data source
   ..registerFactory<AchievementRemoteDatasource>(
    () => AchievementRemoteDatasourceImpl(firestore: serviceLocator<FirebaseFirestore>())
   )
 
-  //repository
   ..registerFactory<AchievementRepository>(
     () => AchievementRepositoryImpl(achievementRemoteDatasource: serviceLocator<AchievementRemoteDatasource>())
   )
 
-  //usecase
   ..registerFactory(
     () => CollectAchievement(achievementRepository: serviceLocator<AchievementRepository>())
   )
@@ -588,7 +565,6 @@ void _initAchievement() {
     ()=> MarkAchievementSeen(serviceLocator<AchievementRepository>())
   )
 
-  //bloc
   ..registerLazySingleton(
     () => AchievementBloc(
       getAchievements: serviceLocator<GetAchievements>(), 

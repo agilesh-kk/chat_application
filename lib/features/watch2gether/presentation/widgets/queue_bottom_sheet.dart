@@ -38,7 +38,10 @@ class _QueueBottomSheetState extends State<QueueBottomSheet> {
         color: AppPallete.cardBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Column(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
@@ -165,10 +168,11 @@ class _QueueBottomSheetState extends State<QueueBottomSheet> {
                   },
                 );
               },
-            ),
-          ),
-        ],
+            ),)
+          ],
+        ),
       ),
+    ),
     );
   }
 }

@@ -203,135 +203,247 @@ class _W2GRoomPageState extends State<W2GRoomPage> with WidgetsBindingObserver {
     final room = state.room;
     final isHost = room.hostId == widget.userId;
 
-    return Column(
-      children: [
-        Expanded(
-          flex: _chatExpanded ? 3 : 5,
-          child: GestureDetector(
-            onTap: () => setState(() => _chatExpanded = false),
-            child: VideoPlayerWidget(
-              video: room.currentVideo,
-              isPlaying: room.playerState.isPlaying,
-              position: room.playerState.position,
-              onPlayPause: (playing) {
-                if (playing) {
-                  context.read<W2GBloc>().add(W2GPlay(
-                    roomId: widget.roomId,
-                    userId: widget.userId,
-                    position: room.playerState.position,
-                  ));
-                } else {
-                  context.read<W2GBloc>().add(W2GPause(
-                    roomId: widget.roomId,
-                    userId: widget.userId,
-                    position: room.playerState.position,
-                  ));
-                }
-              },
-              onSeek: (position) {
-                context.read<W2GBloc>().add(W2GSeek(
-                  roomId: widget.roomId,
-                  userId: widget.userId,
-                  position: position,
-                ));
-              },
-              onPositionUpdate: (position) {
-                context.read<W2GBloc>().add(W2GSyncPosition(
-                  roomId: widget.roomId,
-                  userId: widget.userId,
-                  position: position,
-                ));
-              },
-              onVideoEnded: () {
-                context.read<W2GBloc>().add(W2GNext(
-                  roomId: widget.roomId,
-                  userId: widget.userId,
-                ));
-              },
-              canControl: isHost || room.participants.length <= 1,
-              backgroundPlayback: false,
-            ),
-          ),
-        ),
-        GestureDetector(
-          onTap: () => setState(() => _chatExpanded = !_chatExpanded),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppPallete.cardBg,
-              border: Border(
-                top: BorderSide(color: AppPallete.divider.withValues(alpha: 0.3)),
-                bottom: BorderSide(color: AppPallete.divider.withValues(alpha: 0.3)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 900;
+
+        if (isWide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: VideoPlayerWidget(
+                        video: room.currentVideo,
+                        isPlaying: room.playerState.isPlaying,
+                        position: room.playerState.position,
+                        onPlayPause: (playing) {
+                          if (playing) {
+                            context.read<W2GBloc>().add(W2GPlay(
+                              roomId: widget.roomId,
+                              userId: widget.userId,
+                              position: room.playerState.position,
+                            ));
+                          } else {
+                            context.read<W2GBloc>().add(W2GPause(
+                              roomId: widget.roomId,
+                              userId: widget.userId,
+                              position: room.playerState.position,
+                            ));
+                          }
+                        },
+                        onSeek: (position) {
+                          context.read<W2GBloc>().add(W2GSeek(
+                            roomId: widget.roomId,
+                            userId: widget.userId,
+                            position: position,
+                          ));
+                        },
+                        onPositionUpdate: (position) {
+                          context.read<W2GBloc>().add(W2GSyncPosition(
+                            roomId: widget.roomId,
+                            userId: widget.userId,
+                            position: position,
+                          ));
+                        },
+                        onVideoEnded: () {
+                          context.read<W2GBloc>().add(W2GNext(
+                            roomId: widget.roomId,
+                            userId: widget.userId,
+                          ));
+                        },
+                        canControl: isHost || room.participants.length <= 1,
+                        backgroundPlayback: false,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 360,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: RoomChatOverlay(
+                        messages: state.messages,
+                        typingUserIds: state.typingUserIds,
+                        currentUserId: widget.userId,
+                        currentUserName: widget.userName,
+                        replyToMessage: _replyToMessage,
+                        onSend: (text) {
+                          context.read<W2GBloc>().add(W2GSendMessage(
+                            roomId: widget.roomId,
+                            senderId: widget.userId,
+                            senderName: widget.userName,
+                            text: text,
+                            replyToId: _replyToMessage?.id,
+                            replyToContent: _replyToMessage?.text,
+                            replyToSenderId: _replyToMessage?.senderId,
+                            replyToType: _replyToMessage?.type,
+                          ));
+                          setState(() => _replyToMessage = null);
+                        },
+                        onSendImage: () {},
+                        onReply: (message) => setState(() => _replyToMessage = message),
+                        onCancelReply: () => setState(() => _replyToMessage = null),
+                        onReact: (messageId, emoji) {
+                          context.read<W2GBloc>().add(W2GToggleReaction(
+                            roomId: widget.roomId,
+                            messageId: messageId,
+                            userId: widget.userId,
+                            emoji: emoji,
+                          ));
+                        },
+                        onTyping: (isTyping) {
+                          context.read<W2GBloc>().add(W2GSetTyping(
+                            roomId: widget.roomId,
+                            userId: widget.userId,
+                            isTyping: isTyping,
+                          ));
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            Expanded(
+              flex: _chatExpanded ? 3 : 5,
+              child: GestureDetector(
+                onTap: () => setState(() => _chatExpanded = false),
+                child: VideoPlayerWidget(
+                  video: room.currentVideo,
+                  isPlaying: room.playerState.isPlaying,
+                  position: room.playerState.position,
+                  onPlayPause: (playing) {
+                    if (playing) {
+                      context.read<W2GBloc>().add(W2GPlay(
+                        roomId: widget.roomId,
+                        userId: widget.userId,
+                        position: room.playerState.position,
+                      ));
+                    } else {
+                      context.read<W2GBloc>().add(W2GPause(
+                        roomId: widget.roomId,
+                        userId: widget.userId,
+                        position: room.playerState.position,
+                      ));
+                    }
+                  },
+                  onSeek: (position) {
+                    context.read<W2GBloc>().add(W2GSeek(
+                      roomId: widget.roomId,
+                      userId: widget.userId,
+                      position: position,
+                    ));
+                  },
+                  onPositionUpdate: (position) {
+                    context.read<W2GBloc>().add(W2GSyncPosition(
+                      roomId: widget.roomId,
+                      userId: widget.userId,
+                      position: position,
+                    ));
+                  },
+                  onVideoEnded: () {
+                    context.read<W2GBloc>().add(W2GNext(
+                      roomId: widget.roomId,
+                      userId: widget.userId,
+                    ));
+                  },
+                  canControl: isHost || room.participants.length <= 1,
+                  backgroundPlayback: false,
+                ),
               ),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  _chatExpanded ? Icons.expand_more : Icons.expand_less,
-                  color: AppPallete.primaryOrange,
-                  size: 20,
+            GestureDetector(
+              onTap: () => setState(() => _chatExpanded = !_chatExpanded),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppPallete.cardBg,
+                  border: Border(
+                    top: BorderSide(color: AppPallete.divider.withValues(alpha: 0.3)),
+                    bottom: BorderSide(color: AppPallete.divider.withValues(alpha: 0.3)),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Chat',
-                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                child: Row(
+                  children: [
+                    Icon(
+                      _chatExpanded ? Icons.expand_more : Icons.expand_less,
+                      color: AppPallete.primaryOrange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Chat',
+                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${room.participants.length} watching',
+                      style: TextStyle(color: AppPallete.greyText.withValues(alpha: 0.7), fontSize: 12),
+                    ),
+                    const SizedBox(width: 8),
+                    ParticipantAvatars(
+                      participants: room.participants.values.toList(),
+                      maxDisplay: 3,
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                Text(
-                  '${room.participants.length} watching',
-                  style: TextStyle(color: AppPallete.greyText.withValues(alpha: 0.7), fontSize: 12),
-                ),
-                const SizedBox(width: 8),
-                ParticipantAvatars(
-                  participants: room.participants.values.toList(),
-                  maxDisplay: 3,
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-        Expanded(
-          flex: _chatExpanded ? 5 : 3,
-          child: RoomChatOverlay(
-            messages: state.messages,
-            typingUserIds: state.typingUserIds,
-            currentUserId: widget.userId,
-            currentUserName: widget.userName,
-            replyToMessage: _replyToMessage,
-            onSend: (text) {
-              context.read<W2GBloc>().add(W2GSendMessage(
-                roomId: widget.roomId,
-                senderId: widget.userId,
-                senderName: widget.userName,
-                text: text,
-                replyToId: _replyToMessage?.id,
-                replyToContent: _replyToMessage?.text,
-                replyToSenderId: _replyToMessage?.senderId,
-                replyToType: _replyToMessage?.type,
-              ));
-              setState(() => _replyToMessage = null);
-            },
-            onSendImage: () {},
-            onReply: (message) => setState(() => _replyToMessage = message),
-            onCancelReply: () => setState(() => _replyToMessage = null),
-            onReact: (messageId, emoji) {
-              context.read<W2GBloc>().add(W2GToggleReaction(
-                roomId: widget.roomId,
-                messageId: messageId,
-                userId: widget.userId,
-                emoji: emoji,
-              ));
-            },
-            onTyping: (isTyping) {
-              context.read<W2GBloc>().add(W2GSetTyping(
-                roomId: widget.roomId,
-                userId: widget.userId,
-                isTyping: isTyping,
-              ));
-            },
-          ),
-        ),
-      ],
+            Expanded(
+              flex: _chatExpanded ? 5 : 3,
+              child: RoomChatOverlay(
+                messages: state.messages,
+                typingUserIds: state.typingUserIds,
+                currentUserId: widget.userId,
+                currentUserName: widget.userName,
+                replyToMessage: _replyToMessage,
+                onSend: (text) {
+                  context.read<W2GBloc>().add(W2GSendMessage(
+                    roomId: widget.roomId,
+                    senderId: widget.userId,
+                    senderName: widget.userName,
+                    text: text,
+                    replyToId: _replyToMessage?.id,
+                    replyToContent: _replyToMessage?.text,
+                    replyToSenderId: _replyToMessage?.senderId,
+                    replyToType: _replyToMessage?.type,
+                  ));
+                  setState(() => _replyToMessage = null);
+                },
+                onSendImage: () {},
+                onReply: (message) => setState(() => _replyToMessage = message),
+                onCancelReply: () => setState(() => _replyToMessage = null),
+                onReact: (messageId, emoji) {
+                  context.read<W2GBloc>().add(W2GToggleReaction(
+                    roomId: widget.roomId,
+                    messageId: messageId,
+                    userId: widget.userId,
+                    emoji: emoji,
+                  ));
+                },
+                onTyping: (isTyping) {
+                  context.read<W2GBloc>().add(W2GSetTyping(
+                    roomId: widget.roomId,
+                    userId: widget.userId,
+                    isTyping: isTyping,
+                  ));
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

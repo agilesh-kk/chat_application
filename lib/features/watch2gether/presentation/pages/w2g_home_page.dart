@@ -42,51 +42,60 @@ class _W2GHomePageState extends State<W2GHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: BlocConsumer<W2GBloc, W2GState>(
-        listenWhen: (previous, current) =>
-            current is W2GRoomCreated || (current is W2GError && previous is W2GLoading),
-        listener: (context, state) {
-          if (state is W2GRoomCreated) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => W2GRoomPage(
-                  roomId: state.roomId,
-                  userId: widget.userId,
-                  userName: widget.userName,
-                  userProfilePic: widget.userProfilePic,
-                ),
-              ),
-            );
-          }
-          if (state is W2GError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
-          }
-        },
-        buildWhen: (previous, current) =>
-            current is W2GHomeLoaded || current is W2GError,
-        builder: (context, state) {
-          if (state is W2GError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline, color: AppPallete.greyText, size: 48),
-                  const SizedBox(height: 16),
-                  Text(state.message, style: const TextStyle(color: AppPallete.greyText)),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => context.read<W2GBloc>().add(W2GLoadRooms(userId: widget.userId)),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppPallete.primaryOrange),
-                    child: const Text('Retry', style: TextStyle(color: Colors.white)),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return BlocConsumer<W2GBloc, W2GState>(
+            listenWhen: (previous, current) =>
+                current is W2GRoomCreated || (current is W2GError && previous is W2GLoading),
+            listener: (context, state) {
+              if (state is W2GRoomCreated) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => W2GRoomPage(
+                      roomId: state.roomId,
+                      userId: widget.userId,
+                      userName: widget.userName,
+                      userProfilePic: widget.userProfilePic,
+                    ),
                   ),
-                ],
-              ),
-            );
-          }
-          return _buildContent(state);
+                );
+              }
+              if (state is W2GError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message)),
+                );
+              }
+            },
+            buildWhen: (previous, current) =>
+                current is W2GHomeLoaded || current is W2GError,
+            builder: (context, state) {
+              if (state is W2GError) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, color: AppPallete.greyText, size: 48),
+                      const SizedBox(height: 16),
+                      Text(state.message, style: const TextStyle(color: AppPallete.greyText)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => context.read<W2GBloc>().add(W2GLoadRooms(userId: widget.userId)),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppPallete.primaryOrange),
+                        child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: _buildContent(state),
+                ),
+              );
+            },
+          );
         },
       ),
     );

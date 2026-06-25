@@ -514,7 +514,7 @@ class W2GBloc extends Bloc<W2GEvent, W2GState> {
       'isTyping': event.isTyping,
       'timestamp': ServerValue.timestamp,
     });
-    if (!event.isTyping) {
+    if (event.isTyping) {
       await _database
           .ref('watch2gether/rooms/${event.roomId}/typing/${event.userId}')
           .onDisconnect()

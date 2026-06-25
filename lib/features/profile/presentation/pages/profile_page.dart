@@ -20,7 +20,7 @@ import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_shortcut_plus/flutter_shortcut.dart';
+
 
 class ProfilePage extends StatefulWidget {
   final bool isUser;
@@ -593,7 +593,6 @@ class _ProfilePageState extends State<ProfilePage>
                     );
                     if (shouldLogout == true && context.mounted) {
                       context.read<AuthBloc>().add(AuthSignOut());
-                      await FlutterShortcut.clearShortcutItems();
                     }
                   },
                   color: AppPallete.errorColor,

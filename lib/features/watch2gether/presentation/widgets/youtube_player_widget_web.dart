@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/features/watch2gether/domain/entity/w2g_video_item.dart';
 
-class YouTubePlayerWidgetWeb extends StatefulWidget {
+class YouTubePlayerWidget extends StatefulWidget {
   final W2GVideoItem? video;
   final bool isPlaying;
   final double position;
@@ -16,7 +16,7 @@ class YouTubePlayerWidgetWeb extends StatefulWidget {
   final VoidCallback? onVideoEnded;
   final bool canControl;
 
-  const YouTubePlayerWidgetWeb({
+  const YouTubePlayerWidget({
     super.key,
     this.video,
     this.isPlaying = false,
@@ -29,14 +29,14 @@ class YouTubePlayerWidgetWeb extends StatefulWidget {
   });
 
   @override
-  State<YouTubePlayerWidgetWeb> createState() => _YouTubePlayerWidgetWebState();
+  State<YouTubePlayerWidget> createState() => _YouTubePlayerWidgetState();
 }
 
-class _YouTubePlayerWidgetWebState extends State<YouTubePlayerWidgetWeb> {
+class _YouTubePlayerWidgetState extends State<YouTubePlayerWidget> {
   static int _nextId = 0;
   static bool _apiLoaded = false;
   static bool _apiReady = false;
-  static final List<_YouTubePlayerWidgetWebState> _pendingPlayers = [];
+  static final List<_YouTubePlayerWidgetState> _pendingPlayers = [];
 
   late final int _instanceId = _nextId++;
   late final String _playerDivId = 'yt-player-$_instanceId';
@@ -283,7 +283,7 @@ class _YouTubePlayerWidgetWebState extends State<YouTubePlayerWidgetWeb> {
   }
 
   @override
-  void didUpdateWidget(YouTubePlayerWidgetWeb oldWidget) {
+  void didUpdateWidget(YouTubePlayerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     final oldId = _parseVideoId(oldWidget.video?.url ?? '');
     final newId = _videoId;

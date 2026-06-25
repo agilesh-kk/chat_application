@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/core/errors/failure.dart';
-import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
@@ -13,13 +12,11 @@ import 'package:image_picker/image_picker.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
-  final ChatLocalDataSource chatLocalDataSource;
   final Set<String> _recentlyDownloadedConvos = {};
   final Map<String, StreamSubscription<Map<String, dynamic>>> _opSub = {};
 
   ChatRepositoryImpl({
     required this.chatRemoteDataSources,
-    required this.chatLocalDataSource,
   });
 
   @override
@@ -250,7 +247,6 @@ class ChatRepositoryImpl implements ChatRepository {
     String? replyToType,
   }) async {
     try {
-      await chatLocalDataSource.saveImage(image, msgId);
       final imageUrl = await chatRemoteDataSources.uploadImage(
         image: image,
         msgId: msgId,
@@ -360,9 +356,6 @@ class ChatRepositoryImpl implements ChatRepository {
         deleteForEveryone: deleteForEveryone,
         opCollection: _getMyOpCollection(userId, receiverId),
       );
-      if (type == "image") {
-        await chatLocalDataSource.deleteImage(msgId);
-      }
     } catch (e) {
       throw ServerExceptions(e.toString());
     }

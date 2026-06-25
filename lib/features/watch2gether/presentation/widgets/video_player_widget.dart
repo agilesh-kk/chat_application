@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
@@ -405,10 +406,12 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
   void initState() {
     super.initState();
     _isPlaying = widget.controller.value.isPlaying;
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    if (!kIsWeb) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     widget.controller.addListener(_onPlayerUpdate);
     _showControls();
   }
@@ -440,7 +443,14 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
     _hideTimer?.cancel();
     _disposed = true;
     widget.controller.removeListener(_onPlayerUpdate);
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    if (!kIsWeb) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     if (mounted) Navigator.pop(context);
   }
 
@@ -449,7 +459,14 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
     _hideTimer?.cancel();
     _disposed = true;
     widget.controller.removeListener(_onPlayerUpdate);
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    if (!kIsWeb) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     super.dispose();
   }
 
