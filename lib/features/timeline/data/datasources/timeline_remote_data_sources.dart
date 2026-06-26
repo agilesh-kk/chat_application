@@ -132,9 +132,13 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
         .collection("messages")
         .doc(message.id);
 
-    await messageRef.update({
-      "inTimeline": true,
-    });
+    try {
+      await messageRef.update({
+        "inTimeline": true,
+      });
+    } catch (_) {
+      // On web, messages live in Supabase — the Firestore doc may not exist
+    }
 
     await supabaseClient.rpc('update_message_timeline', params: {
       'p_convo_id': convoId,

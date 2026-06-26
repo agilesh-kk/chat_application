@@ -294,7 +294,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         });
       }
     } catch (e) {
-      //print("Toggle reaction error: $e");
+      print("Toggle reaction error: $e");
     }
   }
   @override
@@ -340,7 +340,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         'p_new_content': newContent,
       });
     } catch (e) {
-      //print("Edit message error: $e");
+      print("Edit message error: $e");
     }
   }
 
@@ -522,6 +522,16 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             'p_message_id': msgId,
             'p_in_timeline': true,
           });
+
+          if (opCollection != null) {
+            final tlOpRef = convoRef.collection(opCollection).doc(msgId);
+            await tlOpRef.set({
+              "type": "timeline_update",
+              "messageId": msgId,
+              "inTimeline": true,
+              "timestamp": FieldValue.serverTimestamp(),
+            });
+          }
         }
       }
     } catch (e) {
@@ -1039,7 +1049,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
   String _getMessagesTableName(String convoId) {
     final hash = md5.convert(utf8.encode(convoId)).toString();
-    return 'msg_$hash';
+    return 'msg_${hash.substring(0, 16)}';
   }
 
   @override

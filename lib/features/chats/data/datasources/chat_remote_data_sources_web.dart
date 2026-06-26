@@ -292,21 +292,16 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
       final opCol = opCollection ?? _getMyOpCollection(userId, receiverId);
       final opRef = convoRef.collection(opCol).doc(messageId);
 
-      await firestore.runTransaction((tx) async {
-        final doc = await tx.get(convoRef.collection("messages").doc(messageId));
-        if (!doc.exists) return;
-
-        tx.set(opRef, {
-          "type": "reaction",
-          "messageId": messageId,
-          "userId": userId,
-          "emoji": emoji,
-          "reactions": updatedReactions ?? {},
-          "timestamp": FieldValue.serverTimestamp(),
-        });
+      await opRef.set({
+        "type": "reaction",
+        "messageId": messageId,
+        "userId": userId,
+        "emoji": emoji,
+        "reactions": updatedReactions ?? {},
+        "timestamp": FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      //print("Toggle reaction error: $e");
+      print("Toggle reaction error: $e");
     }
   }
 
@@ -323,22 +318,14 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
       final convoRef = firestore.collection("Conversations").doc(convoId);
 
       final opCol = opCollection ?? _getMyOpCollection(userId, receiverId);
-      final opRef = convoRef
-      .collection(opCol)
-      .doc();
-
-      await firestore.runTransaction((tx) async {
-        final doc = await tx.get(convoRef.collection("messages").doc(msgId));
-        if (!doc.exists) return;
-
-        tx.set(opRef, {
-          "type" : "edit_message",
-          "messageId" : msgId,
-          "senderId" : userId,
-          "new_content" : newContent,
-          "editedAt": FieldValue.serverTimestamp(),
-          "timestamp": FieldValue.serverTimestamp(),
-        });
+      final opRef = convoRef.collection(opCol).doc();
+      await opRef.set({
+        "type": "edit_message",
+        "messageId": msgId,
+        "senderId": userId,
+        "new_content": newContent,
+        "editedAt": FieldValue.serverTimestamp(),
+        "timestamp": FieldValue.serverTimestamp(),
       });
 
       await supabase.from(_getMessagesTableName(convoId))
@@ -353,7 +340,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
         'p_new_content': newContent,
       });
     } catch (e) {
-      //print("Edit message error: $e");
+      print("Edit message error: $e");
     }
   }
 
@@ -526,6 +513,14 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
             'p_message_id': msgId,
             'p_in_timeline': true,
           });
+
+          final tlOpRef = convoRef.collection(opColToUse).doc(msgId);
+          await tlOpRef.set({
+            "type": "timeline_update",
+            "messageId": msgId,
+            "inTimeline": true,
+            "timestamp": FieldValue.serverTimestamp(),
+          });
         }
       }
     } catch (e) {
@@ -575,214 +570,28 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
+      final convoRef = firestore.collection("Conversations").doc(convoId);
 
-      final convoRef =
-          firestore.collection("Conversations").doc(convoId);
-
-      final messageRef =
-          convoRef.collection("messages").doc(msgId);
-
-      final scheduledRef =
-          convoRef.collection("scheduled_messages").doc(msgId);
-
-      final messageSnap = await messageRef.get();
-      final scheduledSnap = await scheduledRef.get();
-
-      final isMessage = messageSnap.exists;
-      final isScheduled = scheduledSnap.exists;
-
-      if (!isMessage && !isScheduled) return;
-
-      final docRef = isMessage ? messageRef : scheduledRef;
-
-      final batch = firestore.batch();
-
-      // =========================================================
-      // 🔵 DELETE FOR ME
-      // =========================================================
-      if (!deleteForEveryone) {
-        batch.update(docRef, {
-          "deletedfor": FieldValue.arrayUnion([userId]),
-        });
-
-        // Write op doc for delete-for-me
-        final opCol = opCollection ?? _getMyOpCollection(userId, receiverId);
-        final opRef = convoRef.collection(opCol).doc(msgId);
-        batch.set(opRef, {
-          "type": "delete_message",
-          "messageId": msgId,
-          "timestamp": FieldValue.serverTimestamp(),
-          "deletedfor": [userId],
-          "deletedForEveryone": false,
-          "performedBy": userId,
-        });
-
-        if (isMessage) {
-          final convoSnap = await convoRef.get();
-          if (!convoSnap.exists) {
-            await batch.commit();
-            return;
-          }
-
-          final convoData = convoSnap.data()!;
-
-          final isLastMessage =
-              convoData[userId]?["lastMessageId"] == msgId;
-
-          if (isLastMessage) {
-            final messages = await convoRef
-                .collection("messages")
-                .orderBy("createdAt", descending: true)
-                .get();
-
-            MessageModel? newLast;
-
-            for (final doc in messages.docs) {
-              final msg =
-                  MessageModel.fromJson(doc.data(), doc.id);
-
-              if (!msg.deletedfor.contains(userId) &&
-                  msg.id != msgId) {
-                newLast = msg;
-                break;
-              }
-            }
-
-            if (newLast != null) {
-              batch.update(convoRef, {
-                "lastupdateTime": FieldValue.serverTimestamp(),
-                "$userId.lastMessage":
-                    newLast.type == "text"
-                        ? newLast.content
-                        : "📷Image",
-                "$userId.lastMessageId": newLast.id,
-                "$userId.lastSender": newLast.senderId,
-                "$userId.lastupdateTime":
-                    Timestamp.fromDate(newLast.createdAt),
-              });
-            } else {
-              batch.update(convoRef, {
-                "lastupdateTime": FieldValue.serverTimestamp(),
-                "$userId.lastMessage": "",
-                "$userId.lastMessageId": "",
-                "$userId.lastSender": "",
-                "$userId.lastupdateTime":
-                    FieldValue.serverTimestamp(),
-              });
-            }
-          }
-        }
-
-        await batch.commit();
-
-        await supabase.rpc('delete_message_and_update_conversation', params: {
-          'p_convo_id': convoId,
-          'p_user_id': userId,
-          'p_receiver_id': receiverId,
-          'p_deleted_message_id': msgId,
-          'p_delete_for_everyone': false,
-        });
-        return;
-      }
-
-      // =========================================================
-      // 🔴 DELETE FOR EVERYONE
-      // =========================================================
-      batch.update(docRef, {
-        "deletedForEveryone": true,
-      });
-
-      // Write operation doc
       final opCol = opCollection ?? _getMyOpCollection(userId, receiverId);
       final opRef = convoRef.collection(opCol).doc(msgId);
-      batch.set(opRef, {
+      await opRef.set({
         "type": "delete_message",
         "messageId": msgId,
         "timestamp": FieldValue.serverTimestamp(),
-        "deletedfor": [],
-        "deletedForEveryone": true,
+        "deletedfor": deleteForEveryone ? [] : [userId],
+        "deletedForEveryone": deleteForEveryone,
         "performedBy": userId,
       });
-
-      if (isMessage) {
-        final convoSnap = await convoRef.get();
-        if (!convoSnap.exists) {
-          await batch.commit();
-          return;
-        }
-
-        final convoData = convoSnap.data()!;
-        final messageData = messageSnap.data()!;
-
-        final isLastMessage =
-            convoData[userId]?["lastMessageId"] == msgId ||
-            convoData[receiverId]?["lastMessageId"] == msgId;
-
-        if (isLastMessage) {
-          final messages = await convoRef
-              .collection("messages")
-              .orderBy("createdAt", descending: true)
-              .get();
-
-          MessageModel? lastForUser;
-          MessageModel? lastForReceiver;
-
-          for (final doc in messages.docs) {
-            final msg = MessageModel.fromJson(doc.data(), doc.id);
-
-            if (lastForUser == null &&
-                !msg.deletedfor.contains(userId) &&
-                msg.id != msgId) {
-              lastForUser = msg;
-            }
-
-            if (lastForReceiver == null &&
-                !msg.deletedfor.contains(receiverId) &&
-                msg.id != msgId) {
-              lastForReceiver = msg;
-            }
-
-            if (lastForUser != null && lastForReceiver != null) break;
-          }
-
-          batch.update(convoRef, {
-            "lastupdateTime": FieldValue.serverTimestamp(),
-
-            "$userId.lastMessage": "This message was deleted",
-            "$userId.lastSender": messageData["senderId"],
-
-            "$receiverId.lastMessage": "This message was deleted",
-            "$receiverId.lastSender": messageData["senderId"],
-          });
-        }
-
-        batch.update(convoRef, {
-          "lastupdateTime": FieldValue.serverTimestamp(),
-        });
-
-        final isSender = messageData["senderId"] == userId;
-        final receiverUnread =
-            (convoData[receiverId]?["unread"] ?? 0);
-
-        if (isSender && receiverUnread > 0) {
-          batch.update(convoRef, {
-            "$receiverId.unread":
-                FieldValue.increment(-1),
-          });
-        }
-      }
-
-      await batch.commit();
 
       await supabase.rpc('delete_message_and_update_conversation', params: {
         'p_convo_id': convoId,
         'p_user_id': userId,
         'p_receiver_id': receiverId,
         'p_deleted_message_id': msgId,
-        'p_delete_for_everyone': true,
+        'p_delete_for_everyone': deleteForEveryone,
       });
     } catch (e) {
-      //print("Web delete message error: $e");
+      print("Web delete message error: $e");
     }
   }
 
@@ -858,7 +667,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
 
   String _getMessagesTableName(String convoId) {
     final hash = md5.convert(utf8.encode(convoId)).toString();
-    return 'msg_$hash';
+    return 'msg_${hash.substring(0, 16)}';
   }
 
   @override

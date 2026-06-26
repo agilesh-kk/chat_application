@@ -154,7 +154,7 @@ BEGIN
         'SELECT id, sender_id, content, type, status, is_edited, reactions,
                 created_at, reply_to_id, reply_to_content, reply_to_sender_id,
                 reply_to_type, deleted_for, deleted_for_everyone, name,
-                profile, is_scheduled, send_at,
+                profile, is_scheduled, send_at, in_timeline,
                 receiver_id
          FROM %I ORDER BY created_at DESC',
         msg_table
@@ -180,6 +180,7 @@ BEGIN
         'profile', msg_record.profile,
         'is_scheduled', msg_record.is_scheduled,
         'send_at', extract(epoch from msg_record.send_at)::bigint * 1000,
+        'in_timeline', msg_record.in_timeline,
         'receiver_id', msg_record.receiver_id
       ));
     END LOOP;
@@ -289,37 +290,39 @@ BEGIN
 
     SELECT user_data INTO existing FROM conversations WHERE id = p_convo_id;
     IF existing IS NULL THEN RETURN; END IF;
-    IF existing->p_user_id->>'lastMessageId' != p_deleted_message_id THEN RETURN; END IF;
+    IF existing->p_user_id->>'lastMessageId' = p_deleted_message_id THEN
+      EXECUTE format(
+        'SELECT id, content, sender_id, created_at, type FROM %I
+         WHERE id != $1
+           AND (deleted_for IS NULL OR NOT ($2 = ANY(deleted_for)))
+           AND deleted_for_everyone = FALSE
+         ORDER BY created_at DESC LIMIT 1',
+        table_name
+      ) INTO new_last_id, new_last_content, new_last_sender, new_last_time, new_last_type
+      USING p_deleted_message_id, p_user_id;
 
-    EXECUTE format(
-      'SELECT id, content, sender_id, created_at, type FROM %I
-       WHERE id != $1
-         AND (deleted_for IS NULL OR NOT ($2 = ANY(deleted_for)))
-         AND deleted_for_everyone = FALSE
-       ORDER BY created_at DESC LIMIT 1',
-      table_name
-    ) INTO new_last_id, new_last_content, new_last_sender, new_last_time, new_last_type
-    USING p_deleted_message_id, p_user_id;
+      IF new_last_id IS NOT NULL THEN
+        existing := existing || jsonb_build_object(p_user_id,
+          COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object(
+            'lastMessage', CASE WHEN COALESCE(new_last_type, 'text') = 'text' THEN COALESCE(new_last_content, '') ELSE '📷 Image' END,
+            'lastMessageId', new_last_id,
+            'lastSender', new_last_sender,
+            'lastupdateTime', new_last_time
+          ));
+      ELSE
+        existing := existing || jsonb_build_object(p_user_id,
+          COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object(
+            'lastMessage', '',
+            'lastMessageId', '',
+            'lastSender', '',
+            'lastupdateTime', now()
+          ));
+      END IF;
 
-    IF new_last_id IS NOT NULL THEN
-      existing := existing || jsonb_build_object(p_user_id,
-        COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object(
-          'lastMessage', CASE WHEN COALESCE(new_last_type, 'text') = 'text' THEN COALESCE(new_last_content, '') ELSE '📷 Image' END,
-          'lastMessageId', new_last_id,
-          'lastSender', new_last_sender,
-          'lastupdateTime', new_last_time
-        ));
+      UPDATE conversations SET last_update_time = now(), user_data = existing WHERE id = p_convo_id;
     ELSE
-      existing := existing || jsonb_build_object(p_user_id,
-        COALESCE(existing->p_user_id, '{}'::jsonb) || jsonb_build_object(
-          'lastMessage', '',
-          'lastMessageId', '',
-          'lastSender', '',
-          'lastupdateTime', now()
-        ));
+      UPDATE conversations SET last_update_time = now() WHERE id = p_convo_id;
     END IF;
-
-    UPDATE conversations SET last_update_time = now(), user_data = existing WHERE id = p_convo_id;
   END IF;
 END;
 $$;
@@ -445,6 +448,8 @@ BEGIN
       WHERE id = p_convo_id;
     END IF;
   END IF;
+
+  UPDATE conversations SET last_update_time = now() WHERE id = p_convo_id;
 
   RETURN current_reactions;
 END;
@@ -598,6 +603,7 @@ BEGIN
   table_name := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
   EXECUTE format('UPDATE %I SET in_timeline = $1 WHERE id = $2', table_name)
   USING p_in_timeline, p_message_id;
+  UPDATE conversations SET last_update_time = now() WHERE id = p_convo_id;
 END;
 $$;
 
