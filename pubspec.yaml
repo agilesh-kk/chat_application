@@ -32,6 +32,7 @@ dependencies:
   shared_preferences: ^2.5.3
   emoji_regex: ^0.0.5
   lottie: ^3.3.1
+  crypto: ^3.0.6
   video_player: ^2.9.3
   webview_flutter: ^4.10.0
   webview_flutter_web: ^0.2.3

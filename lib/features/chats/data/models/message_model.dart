@@ -55,6 +55,28 @@ class MessageModel extends Message {
     );
   }
 
+  Map<String, dynamic> toSupabaseMap() {
+    return {
+      'id': id,
+      'sender_id': senderId,
+      'content': content,
+      'type': type,
+      'status': status,
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'deleted_for': deletedfor,
+      'deleted_for_everyone': deletedForEveryone,
+      'is_edited': isEdited,
+      'reactions': reactions,
+      'reply_to_id': replyToId,
+      'reply_to_content': replyToContent,
+      'reply_to_sender_id': replyToSenderId,
+      'reply_to_type': replyToType,
+      'is_scheduled': isScheduled,
+      'send_at': sendAt?.toUtc().toIso8601String(),
+      'in_timeline': inTimeline,
+    };
+  }
+
   Map<String, dynamic> toMap() {
     final Map<String, dynamic> data = {
       "senderId": senderId,

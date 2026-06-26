@@ -29,7 +29,7 @@ class TimelineService {
   // =========================
   // 🔥 MAIN ENTRY FUNCTION
   // =========================
-  Future<void> handleMessage({
+  Future<bool> handleMessage({
     required String messageId,
     required String senderId,
     required String receiverId,
@@ -38,7 +38,7 @@ class TimelineService {
     required Timestamp createdAt,
     bool isFromScheduler = false,
   }) async {
-    if (isFromScheduler) return;
+    if (isFromScheduler) return false;
     await _loadRules();
 
     final convoId = _generateConversationId(senderId, receiverId);
@@ -147,21 +147,7 @@ class TimelineService {
       }
     });
 
-    // =========================
-    // 🔥 MARK MESSAGE (OPTIONAL)
-    // =========================
-    if (triggeredEvents.isNotEmpty) {
-      final messageRef = firestore
-          .collection("Conversations")
-          .doc(convoId)
-          .collection("messages")
-          .doc(messageId);
-
-      await messageRef.set(
-        {"inTimeline": true},
-        SetOptions(merge: true),
-      );
-    }
+    return triggeredEvents.isNotEmpty;
   }
 
   // =========================

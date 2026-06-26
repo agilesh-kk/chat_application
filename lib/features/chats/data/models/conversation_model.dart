@@ -57,6 +57,20 @@ class ConversationModel extends Conversation {
     }
   }
 
+  static Map<String, dynamic> toSupabaseRow({
+    required String convoId,
+    required List<String> participantsId,
+    required Map<String, dynamic> userData,
+    String? lastUpdateTime,
+  }) {
+    return {
+      'id': convoId,
+      'participants_id': participantsId,
+      'last_update_time': lastUpdateTime,
+      'user_data': userData,
+    };
+  }
+
   Map<String,dynamic> toMap(String userId){
     return {
       userId: {

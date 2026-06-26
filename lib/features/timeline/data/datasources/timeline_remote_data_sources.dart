@@ -133,7 +133,13 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
         .doc(message.id);
 
     await messageRef.update({
-      "inTimeline": true, // 🔥 NEW FIELD
+      "inTimeline": true,
+    });
+
+    await supabaseClient.rpc('update_message_timeline', params: {
+      'p_convo_id': convoId,
+      'p_message_id': message.id,
+      'p_in_timeline': true,
     });
   }
 
@@ -155,28 +161,35 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
 
       final messageRef = convoRef.collection("messages").doc(messageId);
 
-      await firebaseFirestore.runTransaction((transaction) async {
-        //Delete timeline event
-        final eventSnap = await transaction.get(timelineRef);
+      bool shouldSetInTimelineFalse = false;
 
+      await firebaseFirestore.runTransaction((transaction) async {
+        final eventSnap = await transaction.get(timelineRef);
         if (!eventSnap.exists) return;
 
         transaction.delete(timelineRef);
 
-        //Checking if message still has OTHER timeline events
         final timelineQuery =
             await convoRef
                 .collection("timeline")
                 .where("messageId", isEqualTo: messageId)
                 .get();
 
-        // ❗ If only 1 event existed → now removed → set false
         if (timelineQuery.docs.length <= 1) {
           transaction.set(messageRef, {
             "inTimeline": false,
           }, SetOptions(merge: true));
+          shouldSetInTimelineFalse = true;
         }
       });
+
+      if (shouldSetInTimelineFalse) {
+        await supabaseClient.rpc('update_message_timeline', params: {
+          'p_convo_id': convoId,
+          'p_message_id': messageId,
+          'p_in_timeline': false,
+        });
+      }
     } catch (e) {
       throw ServerExceptions(e.toString());
     }

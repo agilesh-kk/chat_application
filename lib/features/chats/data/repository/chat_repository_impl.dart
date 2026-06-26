@@ -129,13 +129,53 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<void> updateConversationFriendStatus(
     String convoId,
     bool isFriend,
-  ) async {}
+  ) async {
+    try {
+      final parts = convoId.split('_');
+      if (parts.length >= 2) {
+        final user1 = parts[0];
+        final user2 = parts[1];
+        await chatRemoteDataSources.updateFriendStatus(
+          convoId: convoId,
+          userId: user1,
+          friendId: user2,
+          isFriend: isFriend,
+        );
+        await chatRemoteDataSources.updateFriendStatus(
+          convoId: convoId,
+          userId: user2,
+          friendId: user1,
+          isFriend: isFriend,
+        );
+      }
+    } catch (e) {
+      //print("Update conversation friend status error: $e");
+    }
+  }
 
   @override
   Future<void> markConversationNotFriend(
     String userId,
     String friendId,
-  ) async {}
+  ) async {
+    try {
+      final convoId = generateConversationId(userId, friendId);
+      await chatRemoteDataSources.updateFriendStatus(
+        convoId: convoId,
+        userId: userId,
+        friendId: friendId,
+        isFriend: false,
+      );
+      await chatRemoteDataSources.updateFriendStatus(
+        convoId: convoId,
+        userId: friendId,
+        friendId: userId,
+        isFriend: false,
+      );
+    } catch (e) {
+      //print("Mark conversation not friend error: $e");
+    }
+  }
 
   @override
   Future<List<Conversation>> queryAllLocalConversations() async {

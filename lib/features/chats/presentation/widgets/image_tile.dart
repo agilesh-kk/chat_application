@@ -50,10 +50,7 @@ class ImageMessageTile extends StatefulWidget {
   State<ImageMessageTile> createState() => _ImageMessageTileState();
 }
 
-class _ImageMessageTileState extends State<ImageMessageTile>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
+class _ImageMessageTileState extends State<ImageMessageTile> {
 
   Uint8List? imageBytes;
   bool isLoading = true;
@@ -162,8 +159,6 @@ class _ImageMessageTileState extends State<ImageMessageTile>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-
     return GestureDetector(
       onLongPressStart: (details) {
         final currentEmoji = widget.message.reactions[widget.currentUserId];
