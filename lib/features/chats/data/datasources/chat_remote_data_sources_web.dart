@@ -21,16 +21,39 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
   Future<Stream<List<ConversationModel>>> getConversations({
     required String userId,
   }) async {
-    return firestore
-        .collection("Conversations")
-        .where("participantsId", arrayContains: userId)
-        .orderBy("lastupdateTime", descending: true)
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            return ConversationModel.fromJson(doc.data(), doc.id, userId);
-          }).toList();
+    final controller = StreamController<List<ConversationModel>>();
+
+    Future<void> fetchAndEmit() async {
+      try {
+        final raw = await supabase.rpc('get_conversations_for_user', params: {
+          'p_user_id': userId,
         });
+        final rows = (raw as List).cast<Map<String, dynamic>>();
+        final convos = rows
+            .map((r) => ConversationModel.fromSupabaseRow(r, userId))
+            .toList();
+        if (!controller.isClosed) controller.add(convos);
+      } catch (e) {
+        print("getConversations error: $e");
+        if (!controller.isClosed) controller.add([]);
+      }
+    }
+
+    await fetchAndEmit();
+
+    final channel = supabase.channel('conversations');
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'conversations',
+      callback: (_) => fetchAndEmit(),
+    ).subscribe((status, error) {
+      if (error != null) print("Realtime error (conversations): $error");
+    });
+
+    controller.onCancel = () => channel.unsubscribe();
+
+    return controller.stream;
   }
 
   @override
@@ -39,22 +62,58 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
     required String userId,
     int? limit,
   }) async {
-    var query = firestore
-        .collection("Conversations")
-        .doc(generateConversationId(userId, receiverId))
-        .collection("messages")
-        .orderBy("createdAt", descending: true);
+    print("fetching messages");
+    final convoId = generateConversationId(userId, receiverId);
+    final controller = StreamController<List<MessageModel>>();
 
-    if (limit != null) {
-      query = query.limit(limit);
+    Future<void> fetchAndEmit() async {
+      try {
+        final raw = await supabase.rpc('fetch_conversation_messages', params: {
+          'p_convo_id': convoId,
+        });
+        final rows = (raw as List).cast<Map<String, dynamic>>();
+        final msgs = <MessageModel>[];
+        for (final m in rows) {
+          try {
+            final msg = MessageModel.fromJson(
+                _transformMessageRow(m), m['id'] as String);
+            if (!msg.deletedfor.contains(userId)) {
+              msgs.add(msg);
+            }
+          } catch (e) {
+            print("Skipping bad message row: $e");
+          }
+        }
+        if (limit != null && msgs.length > limit) {
+          msgs.removeRange(limit, msgs.length);
+        }
+        if (!controller.isClosed) controller.add(msgs);
+      } catch (e) {
+        print("getMessages error: $e");
+        if (!controller.isClosed) controller.add([]);
+      }
     }
 
-    return query.snapshots().map((snapshot) {
-      return snapshot.docs
-        .map((doc) => MessageModel.fromJson(doc.data(), doc.id))
-        .where((msg) => !msg.deletedfor.contains(userId))
-        .toList();
+    await fetchAndEmit();
+
+    final channel = supabase.channel('messages_$convoId');
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'conversations',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'id',
+        value: convoId,
+      ),
+      callback: (_) => fetchAndEmit(),
+    ).subscribe((status, error) {
+      if (error != null) print("Realtime error (messages): $error");
     });
+
+    controller.onCancel = () => channel.unsubscribe();
+
+    return controller.stream;
   }
 
   @override
@@ -64,19 +123,24 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
     required DateTime oldestTimestamp,
     int limit = 50,
   }) async {
-    final snapshot = await firestore
-        .collection("Conversations")
-        .doc(generateConversationId(userId, receiverId))
-        .collection("messages")
-        .orderBy("createdAt", descending: true)
-        .startAfter([Timestamp.fromDate(oldestTimestamp)])
-        .limit(limit)
-        .get();
-
-    return snapshot.docs
-        .map((doc) => MessageModel.fromJson(doc.data(), doc.id))
-        .where((msg) => !msg.deletedfor.contains(userId))
-        .toList();
+    print("get older messages");
+    final convoId = generateConversationId(userId, receiverId);
+    try {
+      final raw = await supabase.rpc('fetch_conversation_messages', params: {
+        'p_convo_id': convoId,
+      });
+      final rows = (raw as List).cast<Map<String, dynamic>>();
+      return rows
+          .map((m) => MessageModel.fromJson(
+              _transformMessageRow(m), m['id'] as String))
+          .where((msg) => !msg.deletedfor.contains(userId))
+          .where((msg) => msg.createdAt.isBefore(oldestTimestamp))
+          .take(limit)
+          .toList();
+    } catch (e) {
+      print("getOlderMessages error: $e");
+      return [];
+    }
   }
 
   @override
@@ -85,8 +149,10 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
   }) async {
     try {
       final response = await supabase.rpc('fetch_conversation_messages', params: {
-        'p_conversation_id': conversationId,
+        'p_convo_id': conversationId,
       });
+
+      print("fetching all messages");
 
       final List<dynamic> data = response as List<dynamic>;
       return data.map((msg) {
@@ -139,16 +205,40 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
     return 0;
   }
 
+  Map<String, dynamic> _transformMessageRow(Map<String, dynamic> m) {
+    return {
+      'senderId': m['sender_id'],
+      'content': m['content'],
+      'type': m['type'],
+      'status': m['status'],
+      'isEdited': m['is_edited'] ?? false,
+      'reactions': m['reactions'] is Map
+          ? Map<String, dynamic>.from(m['reactions'] as Map)
+          : <String, dynamic>{},
+      'createdAt': m['created_at'] != null
+          ? Timestamp.fromMillisecondsSinceEpoch(_parseMillis(m['created_at']))
+          : Timestamp.now(),
+      'replyToId': m['reply_to_id'],
+      'replyToContent': m['reply_to_content'],
+      'replyToSenderId': m['reply_to_sender_id'],
+      'replyToType': m['reply_to_type'],
+      'deletedfor': (m['deleted_for'] as List?)?.cast<String>() ?? <String>[],
+      'deletedForEveryone': m['deleted_for_everyone'] ?? false,
+      'isScheduled': m['is_scheduled'] ?? false,
+      'sendAt': m['send_at'] != null
+          ? Timestamp.fromMillisecondsSinceEpoch(_parseMillis(m['send_at']))
+          : null,
+      'inTimeline': m['in_timeline'] ?? false,
+    };
+  }
+
   @override
   Future<void> markMessagesDelivered({
     required String userId, 
     required String receiverId
   }) async {
     final convoId = generateConversationId(userId, receiverId);
-    final convoRef = firestore
-        .collection("Conversations")
-        .doc(convoId)
-      ..update({"$userId.unread": 0});
+    final convoRef = firestore.collection("Conversations").doc(convoId);
 
     try {
       final msgIds = await supabase.rpc('get_sent_unseen_message_ids', params: {
@@ -164,35 +254,19 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
           'p_receiver_id': receiverId,
         });
       }
+
+      final opCollection = _getMyOpCollection(userId, receiverId);
+      final opRef = convoRef.collection(opCollection).doc();
+      await opRef.set({
+        "type": "seen",
+        "messageIds": msgIds is List
+            ? List<String>.from(msgIds.map((e) => e.toString()))
+            : <String>[],
+        "seenByUserId": userId,
+        "timestamp": FieldValue.serverTimestamp(),
+      });
     } catch (_) {
     }
-
-    final snapshot = 
-        await convoRef
-            .collection("messages")
-            .where("senderId", isEqualTo: receiverId)
-            .where("status", isEqualTo: "sent")
-            .get();
-
-    if (snapshot.docs.isEmpty) return;
-
-    final batch = firestore.batch();
-    final seenMsgIds = <String>[];
-    for (final doc in snapshot.docs) {
-      batch.update(doc.reference, {"status": "seen"});
-      seenMsgIds.add(doc.id);
-    }
-
-    final opCollection = _getMyOpCollection(userId, receiverId);
-    final opRef = convoRef.collection(opCollection).doc();
-    batch.set(opRef, {
-      "type": "seen",
-      "messageIds": seenMsgIds,
-      "seenByUserId": userId,
-      "timestamp": FieldValue.serverTimestamp(),
-    });
-
-    await batch.commit();
   }
 
   @override
@@ -455,7 +529,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
         }
       }
     } catch (e) {
-      //print("Web send message error: $e");
+      print("Web send message error: $e");
     }
   }
 

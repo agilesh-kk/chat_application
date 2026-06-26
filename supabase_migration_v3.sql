@@ -3,6 +3,19 @@
 -- Moves message writes from Firestore to Supabase while keeping Firestore for reads/listeners
 
 -- ============================================================
+-- Create conversations table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS conversations (
+  id TEXT PRIMARY KEY,
+  participants_id TEXT[] NOT NULL,
+  last_update_time TIMESTAMPTZ DEFAULT now(),
+  user_data JSONB DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_participants
+  ON conversations USING GIN (participants_id);
+
+-- ============================================================
 -- Upsert conversation metadata (used internally and on first message)
 -- ============================================================
 CREATE OR REPLACE FUNCTION upsert_conversation(
@@ -119,32 +132,32 @@ $$;
 -- ============================================================
 -- Fetch all messages for a conversation from the sharded table
 -- ============================================================
-CREATE OR REPLACE FUNCTION fetch_conversation_messages(p_conversation_id TEXT)
+CREATE OR REPLACE FUNCTION fetch_conversation_messages(p_convo_id TEXT)
 RETURNS JSONB[]
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  table_name TEXT;
+  msg_table TEXT;
   result JSONB[];
   msg_record RECORD;
 BEGIN
-  table_name := 'msg_' || substring(md5(p_conversation_id) from 1 for 16);
+  msg_table := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
 
   -- Check if table exists
   IF EXISTS (
     SELECT 1 FROM information_schema.tables
-    WHERE table_name = table_name
+    WHERE table_name = msg_table
   ) THEN
     FOR msg_record IN
       EXECUTE format(
         'SELECT id, sender_id, content, type, status, is_edited, reactions,
                 created_at, reply_to_id, reply_to_content, reply_to_sender_id,
                 reply_to_type, deleted_for, deleted_for_everyone, name,
-                convo_id, profile, is_scheduled, send_at,
+                profile, is_scheduled, send_at,
                 receiver_id
          FROM %I ORDER BY created_at DESC',
-        table_name
+        msg_table
       )
     LOOP
       result := array_append(result, jsonb_build_object(
@@ -163,7 +176,7 @@ BEGIN
         'deleted_for', COALESCE(msg_record.deleted_for, '{}'),
         'deleted_for_everyone', msg_record.deleted_for_everyone,
         'name', msg_record.name,
-        'convo_id', p_conversation_id,
+        'convo_id', p_convo_id,
         'profile', msg_record.profile,
         'is_scheduled', msg_record.is_scheduled,
         'send_at', extract(epoch from msg_record.send_at)::bigint * 1000,
@@ -189,17 +202,17 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  table_name TEXT;
+  msg_table TEXT;
   result TEXT[];
 BEGIN
-  table_name := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
+  msg_table := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
 
   IF EXISTS (
-    SELECT 1 FROM information_schema.tables WHERE table_name = table_name
+    SELECT 1 FROM information_schema.tables WHERE table_name = msg_table
   ) THEN
     EXECUTE format(
       'SELECT array_agg(id) FROM %I WHERE sender_id = $1 AND status = ''sent''',
-      table_name
+      msg_table
     ) INTO result USING p_sender_id;
   END IF;
 
@@ -613,5 +626,145 @@ BEGIN
       || jsonb_build_object(p_friend_id,
            COALESCE(existing->p_friend_id, '{}'::jsonb) || jsonb_build_object('isFriend', p_is_friend))
   WHERE id = p_convo_id;
+END;
+$$;
+
+-- ============================================================
+-- Enable realtime on conversations table
+-- ============================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'conversations'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
+  END IF;
+END;
+$$;
+
+-- ============================================================
+-- One-time migration: insert a Firestore conversation row
+-- Called from Dart after reading Firestore
+-- ============================================================
+CREATE OR REPLACE FUNCTION migrate_conversation(
+  p_id TEXT,
+  p_participants_id TEXT[],
+  p_last_update_time TIMESTAMPTZ,
+  p_user_data JSONB
+) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO conversations (id, participants_id, last_update_time, user_data)
+  VALUES (p_id, p_participants_id, p_last_update_time, p_user_data)
+  ON CONFLICT (id) DO NOTHING;
+END;
+$$;
+
+-- ============================================================
+-- One-time migration: insert a single message into its sharded table
+-- Called from Dart migration script
+-- ============================================================
+CREATE OR REPLACE FUNCTION migrate_message(
+  p_convo_id TEXT,
+  p_id TEXT,
+  p_sender_id TEXT,
+  p_content TEXT,
+  p_type TEXT DEFAULT 'text',
+  p_status TEXT DEFAULT 'sent',
+  p_created_at BIGINT DEFAULT 0,
+  p_deleted_for TEXT[] DEFAULT '{}',
+  p_deleted_for_everyone BOOLEAN DEFAULT false,
+  p_is_edited BOOLEAN DEFAULT false,
+  p_reactions JSONB DEFAULT '{}',
+  p_reply_to_id TEXT DEFAULT NULL,
+  p_reply_to_content TEXT DEFAULT NULL,
+  p_reply_to_sender_id TEXT DEFAULT NULL,
+  p_reply_to_type TEXT DEFAULT NULL,
+  p_is_scheduled BOOLEAN DEFAULT false,
+  p_send_at BIGINT DEFAULT NULL,
+  p_in_timeline BOOLEAN DEFAULT false,
+  p_name TEXT DEFAULT NULL,
+  p_receiver_id TEXT DEFAULT NULL,
+  p_profile TEXT DEFAULT NULL
+) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  table_name TEXT;
+BEGIN
+  table_name := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
+
+  EXECUTE format(
+    'CREATE TABLE IF NOT EXISTS %I (
+      id TEXT PRIMARY KEY,
+      sender_id TEXT NOT NULL,
+      content TEXT,
+      type TEXT DEFAULT ''text'',
+      status TEXT DEFAULT ''sent'',
+      created_at TIMESTAMPTZ,
+      deleted_for TEXT[] DEFAULT ''{}'',
+      deleted_for_everyone BOOLEAN DEFAULT FALSE,
+      is_edited BOOLEAN DEFAULT FALSE,
+      reactions JSONB DEFAULT ''{}'',
+      reply_to_id TEXT,
+      reply_to_content TEXT,
+      reply_to_sender_id TEXT,
+      reply_to_type TEXT,
+      is_scheduled BOOLEAN DEFAULT FALSE,
+      send_at TIMESTAMPTZ,
+      in_timeline BOOLEAN DEFAULT FALSE,
+      name TEXT,
+      receiver_id TEXT,
+      profile TEXT
+    )',
+    table_name
+  );
+
+  EXECUTE format(
+    'INSERT INTO %I (id, sender_id, content, type, status, created_at,
+      deleted_for, deleted_for_everyone, is_edited, reactions,
+      reply_to_id, reply_to_content, reply_to_sender_id, reply_to_type,
+      is_scheduled, send_at, in_timeline, name, receiver_id, profile)
+     VALUES ($1, $2, $3, $4, $5, to_timestamp($6::double precision / 1000),
+             $7, $8, $9, $10, $11, $12, $13, $14, $15,
+             CASE WHEN $16 IS NOT NULL THEN to_timestamp($16::double precision / 1000) ELSE NULL END,
+             $17, $18, $19, $20)
+     ON CONFLICT (id) DO NOTHING',
+    table_name
+  )
+  USING
+    p_id, p_sender_id, p_content, p_type, p_status, p_created_at,
+    p_deleted_for, p_deleted_for_everyone, p_is_edited, p_reactions,
+    p_reply_to_id, p_reply_to_content, p_reply_to_sender_id, p_reply_to_type,
+    p_is_scheduled, p_send_at, p_in_timeline, p_name, p_receiver_id, p_profile;
+END;
+$$;
+
+-- ============================================================
+-- Fetch conversations for a user (server-filtered + ordered)
+-- ============================================================
+CREATE OR REPLACE FUNCTION get_conversations_for_user(p_user_id TEXT)
+RETURNS JSONB[]
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  result JSONB[];
+  rec RECORD;
+BEGIN
+  FOR rec IN
+    SELECT * FROM conversations
+    WHERE p_user_id = ANY(participants_id)
+    ORDER BY last_update_time DESC
+  LOOP
+    result := array_append(result, jsonb_build_object(
+      'id', rec.id,
+      'participants_id', rec.participants_id,
+      'last_update_time', extract(epoch from rec.last_update_time)::bigint * 1000,
+      'user_data', rec.user_data
+    ));
+  END LOOP;
+  RETURN COALESCE(result, ARRAY[]::JSONB[]);
 END;
 $$;
