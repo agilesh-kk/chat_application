@@ -43,6 +43,7 @@ abstract interface class ChatLocalDataSource {
   Future<void> updateConversationFriendStatus(String convoId, bool isFriend);
   Future<String?> getConvoIdByReceiverId(String receiverId);
   Future<List<Conversation>> queryAllConversations();
+  Future<bool> hasConversation(String convoId);
 
   void dispose();
 }
@@ -677,6 +678,17 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       _notify(convoId,MarkSeenOperation(msgIds));
       _notifyConvo();
     }
+  }
+
+  @override
+  Future<bool> hasConversation(String convoId) async {
+    if (_db == null || kIsWeb) return false;
+    final result = await _db!.query('conversations',
+      where: 'convoId = ?',
+      whereArgs: [convoId],
+      limit: 1,
+    );
+    return result.isNotEmpty;
   }
 
   @override

@@ -43,6 +43,8 @@ abstract interface class ChatRemoteDataSources {
 
     //operation sync
     String? opCollection,
+
+    bool isNewConvo = false,
   });
 
   Future<String> uploadImage({required XFile image, required String msgId});
@@ -201,19 +203,21 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     //  seenMsgIds.add(doc.id);
     //}
 
-    final seenMsgIds = await supabase.rpc('get_sent_unseen_message_ids', params: {
+    final unreadIds = await supabase.rpc('get_sent_unseen_message_ids', params: {
       'p_convo_id': convoId,
-      'p_receiver_id': receiverId,
-    }) as List<dynamic>;
+      'p_user_id': receiverId,
+    });
 
-    // Write seen operation
+    final ids = (unreadIds as List<dynamic>).cast<String>();
+    if (ids.isEmpty) return;
+
     final opCollection = _getMyOpCollection(userId, receiverId);
     final convoRef = firestore.collection("Conversations").doc(convoId);
     final opRef = convoRef.collection(opCollection).doc();
     await opRef.set({
       "type": "seen",
-      "messageIds": seenMsgIds,
       "seenByUserId": userId,
+      "seenMsgIds": ids,
       "timestamp": FieldValue.serverTimestamp(),
     });
 
@@ -432,6 +436,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
     //operation sync
     String? opCollection,
+
+    bool isNewConvo = false,
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
@@ -543,12 +549,14 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         //  },
         //}, SetOptions(merge: true));
 
-        batch.set(firestore.collection('users').doc(userId), {
-          'convoList': FieldValue.arrayUnion([convoId]),
-        }, SetOptions(merge: true));
-        batch.set(firestore.collection('users').doc(receiverId), {
-          'convoList': FieldValue.arrayUnion([convoId]),
-        }, SetOptions(merge: true));
+        if (isNewConvo) {
+          batch.set(firestore.collection('users').doc(userId), {
+            'convoList': FieldValue.arrayUnion([convoId]),
+          }, SetOptions(merge: true));
+          batch.set(firestore.collection('users').doc(receiverId), {
+            'convoList': FieldValue.arrayUnion([convoId]),
+          }, SetOptions(merge: true));
+        }
       }
 
       await batch.commit();

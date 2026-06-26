@@ -284,15 +284,9 @@ class ChatRepositoryImpl implements ChatRepository {
           break;
 
         case 'seen':
-          final msgIds = List<String>.from(opData['messageIds'] ?? []);
+          final seenMsgIds = List<String>.from(opData['seenMsgIds'] as List? ?? []);
           final seenByUserId = opData['seenByUserId'] as String? ?? '';
-          if (msgIds.isNotEmpty) {
-            await chatLocalDataSource.markMessagesSeen(
-              msgIds,
-              seenByUserId,
-              convoId,
-            );
-          }
+          await chatLocalDataSource.markMessagesSeen(seenMsgIds, seenByUserId, convoId);
           break;
 
         case 'timeline':
@@ -337,8 +331,9 @@ class ChatRepositoryImpl implements ChatRepository {
     try {
       final opCollection = _getMyOpCollection(userId, receiverId);
 
+      final convoId = generateConversationId(userId, receiverId);
+
       if (!isScheduled) {
-        final convoId = generateConversationId(userId, receiverId);
         await chatLocalDataSource.initDatabase();
         await chatLocalDataSource.confirmLocalMessage(msgId, {
           'senderId': userId,
@@ -371,6 +366,7 @@ class ChatRepositoryImpl implements ChatRepository {
         );
       }
 
+      final isNewConvo = !isScheduled && !await chatLocalDataSource.hasConversation(convoId);
       await chatRemoteDataSources.sendMessage(
         receiverId: receiverId,
         userId: userId,
@@ -384,6 +380,7 @@ class ChatRepositoryImpl implements ChatRepository {
         replyToSenderId: replyToSenderId,
         replyToType: replyToType,
         opCollection: isScheduled ? null : opCollection,
+        isNewConvo: isNewConvo,
       );
 
       return right(null);
@@ -446,6 +443,7 @@ class ChatRepositoryImpl implements ChatRepository {
         userId,
       );
 
+      final isNewConvo = !await chatLocalDataSource.hasConversation(convoId);
       await chatRemoteDataSources.sendMessage(
         type: "image",
         receiverId: receiverId,
@@ -459,6 +457,7 @@ class ChatRepositoryImpl implements ChatRepository {
         replyToSenderId: replyToSenderId,
         replyToType: replyToType,
         opCollection: _getMyOpCollection(userId, receiverId),
+        isNewConvo: isNewConvo,
       );
 
       return right(null);
