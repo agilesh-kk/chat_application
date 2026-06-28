@@ -203,21 +203,19 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     //  seenMsgIds.add(doc.id);
     //}
 
-    final unreadIds = await supabase.rpc('get_sent_unseen_message_ids', params: {
+    final seenMsgIds = await supabase.rpc('get_sent_unseen_message_ids', params: {
       'p_convo_id': convoId,
-      'p_user_id': receiverId,
-    });
+      'p_receiver_id': receiverId,
+    }) as List<dynamic>;
 
-    final ids = (unreadIds as List<dynamic>).cast<String>();
-    if (ids.isEmpty) return;
-
+    // Write seen operation
     final opCollection = _getMyOpCollection(userId, receiverId);
     final convoRef = firestore.collection("Conversations").doc(convoId);
     final opRef = convoRef.collection(opCollection).doc();
     await opRef.set({
       "type": "seen",
+      "messageIds": seenMsgIds,
       "seenByUserId": userId,
-      "seenMsgIds": ids,
       "timestamp": FieldValue.serverTimestamp(),
     });
 

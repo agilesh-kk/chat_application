@@ -94,6 +94,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
   final ItemPositionsListener _positionsListener = ItemPositionsListener.create();
   late final StickyHeaderCubit _stickyHeaderCubit;
   bool _showScrollToBottom = false;
+  Timer? _autoSendTimer;
+  bool _isAutoSending = false;
+  int _autoSendCount = 0;
 
   @override
   void initState() {
@@ -153,6 +156,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     inChat.setInChat(_conversationId, widget.currentUserId, false);
     inChat.unsubscribeFromInChat(_conversationId);
+    _autoSendTimer?.cancel();
     cb.add(Closechat());
     super.dispose();
   }
@@ -322,6 +326,32 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
     controller.clear();
     _clearDraft();
     _clearReply();
+  }
+
+  void _toggleAutoSend() {
+    if (_isAutoSending) {
+      _autoSendTimer?.cancel();
+      _autoSendTimer = null;
+      _isAutoSending = false;
+    } else {
+      _autoSendCount = 0;
+      _isAutoSending = true;
+      _autoSendTimer = Timer.periodic(const Duration(milliseconds: 100), (_) => _sendAutoMessage());
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _sendAutoMessage() {
+    _autoSendCount++;
+    final user = context.read<AppUserCubit>().state;
+    final userData = user is AppUserIsSignedin ? user.user : null;
+    context.read<ChatBloc>().add(SendMessageEvent(
+      userId: widget.currentUserId,
+      receiverId: widget.receiverId,
+      content: _autoSendCount.toString(),
+      userName: userData?.name,
+      userProfile: userData?.profilePic,
+    ));
   }
 
   void _clearReply() {
@@ -973,6 +1003,24 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
+          if (!_isEditing)
+            GestureDetector(
+              onTap: _toggleAutoSend,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _isAutoSending ? AppPallete.primaryOrange.withValues(alpha: 0.2) : AppPallete.cardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _isAutoSending ? AppPallete.primaryOrange : AppPallete.divider),
+                ),
+                child: Icon(
+                  _isAutoSending ? Icons.stop : Icons.play_arrow,
+                  color: _isAutoSending ? AppPallete.primaryOrange : AppPallete.greyText,
+                  size: 22,
+                ),
+              ),
+            ),
+          if (!_isEditing) const SizedBox(width: 12),
           if (!_isEditing)
             GestureDetector(
               onTap: _pickImage,

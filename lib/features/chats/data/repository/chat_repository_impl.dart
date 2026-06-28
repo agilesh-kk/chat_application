@@ -284,7 +284,7 @@ class ChatRepositoryImpl implements ChatRepository {
           break;
 
         case 'seen':
-          final seenMsgIds = List<String>.from(opData['seenMsgIds'] as List? ?? []);
+          final seenMsgIds = List<String>.from(opData['messageIds'] as List? ?? []);
           final seenByUserId = opData['seenByUserId'] as String? ?? '';
           await chatLocalDataSource.markMessagesSeen(seenMsgIds, seenByUserId, convoId);
           break;
