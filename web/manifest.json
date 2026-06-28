@@ -1,6 +1,6 @@
 {
-    "name": "chat_application",
-    "short_name": "chat_application",
+    "name": "Memento",
+    "short_name": "Memento",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
