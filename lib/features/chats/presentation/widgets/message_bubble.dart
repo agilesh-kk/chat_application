@@ -383,6 +383,8 @@ return Align(
   Widget _buildReceiptStatus(String status, bool isMe) {
     if (!isMe) return const SizedBox();
     switch (status) {
+      case "loading":
+        return Icon(Icons.access_time, size: 14, color: AppPallete.greyText);
       case "sent":
         return Icon(Icons.check, size: 14, color: AppPallete.whiteColor.withValues(alpha: 0.7));
       case "delivered":

@@ -83,7 +83,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         type: "image",
         localPath: event.image.path,
         isLocal: true,
-        status: "sending",
+        status: "loading",
         replyToId: event.replyToId,
         replyToContent: event.replyToContent,
         replyToSenderId: event.replyToSenderId,
@@ -95,9 +95,10 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       await _chatLocalDataSource.upsertMessageFromFirestore({
         'senderId': event.userId,
         'content': '',
+        'localPath': event.image.path,
         'type': 'image',
         'messageType': 'image',
-        'status': 'sending',
+        'status': 'loading',
         'createdAt': DateTime.now(),
         'deletedfor': <String>[],
         'deletedForEveryone': false,
@@ -189,7 +190,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       // 1. Create temp message
       final tempMessage = Message(
         id: msgId,
-        status: "sent",
+        status: "loading",
         senderId: event.userId,
         content: event.content,
         createdAt: DateTime.now(),
@@ -209,7 +210,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           'content': event.content,
           'type': 'text',
           'messageType': 'text',
-          'status': 'sent',
+          'status': 'loading',
           'createdAt': DateTime.now(),
           'deletedfor': <String>[],
           'deletedForEveryone': false,
@@ -384,4 +385,8 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
     emit(ChatLoaded(received,ids));
     }
-    }
+
+  void retryPendingMessages() {
+    _chatRepository.retryPendingMessages();
+  }
+  }

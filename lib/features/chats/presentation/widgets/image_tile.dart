@@ -529,7 +529,7 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
     Color color;
 
     switch (status) {
-      case "sending":
+      case "loading":
         icon = Icons.access_time;
         color = AppPallete.whiteColor;
         break;

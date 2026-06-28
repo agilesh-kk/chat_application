@@ -117,4 +117,6 @@ abstract interface class ChatRepository{
   Future<void> markConversationNotFriend(String userId, String friendId);
   Future<List<Conversation>> queryAllLocalConversations();
   String generateConversationId(String user1, String user2);
+
+  Future<void> retryPendingMessages();
 }

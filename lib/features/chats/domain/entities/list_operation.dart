@@ -71,10 +71,11 @@ class EditMessageOperation implements ListOperation<Message> {
 
 class MarkSeenOperation implements ListOperation<Message> {
   final List<String> ids;
-  MarkSeenOperation(this.ids);
-  @override void performOperation(List<String> ids,Map<String, Message> items) {
+  final String status;
+  MarkSeenOperation(this.ids,this.status);
+  @override void performOperation(List<String> idss,Map<String, Message> items) {
     for(String id in ids){
-      items[id] = items[id]!.copyWith(status: "seen");
+      items[id] = items[id]!.copyWith(status: status);
     }
   }
 }

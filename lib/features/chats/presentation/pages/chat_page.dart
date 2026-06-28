@@ -167,6 +167,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
       inChat.setInChat(_conversationId, widget.currentUserId, false);
     } else if (state == AppLifecycleState.resumed) {
       inChat.setInChat(_conversationId, widget.currentUserId, true);
+      context.read<ChatBloc>().retryPendingMessages();
     }
   }
 
