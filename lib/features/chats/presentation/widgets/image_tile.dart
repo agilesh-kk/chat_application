@@ -85,13 +85,12 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
       final cached = _imageSizeCache[msg.id];
       if (cached != null) {
         _displayW = cached;
+      } else if (imageBytes != null) {
+        final w = await _cacheImageSize(msg.id, imageBytes!);
+        if (w != null) _displayW = w;
       }
 
       if (mounted) setState(() {});
-
-      if (cached == null) {
-        _cacheImageSize(msg.id, imageBytes!);
-      }
       return;
     }
 
@@ -128,8 +127,9 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
       widget.cacheService.cache[msg.id] = bytes;
       imageBytes = bytes;
       isLoading = false;
+      final w = await _cacheImageSize(msg.id, bytes);
+      if (w != null) _displayW = w;
       if (mounted) setState(() {});
-      _cacheImageSize(msg.id, bytes);
       return;
     }
 
@@ -137,15 +137,16 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
       await widget.cacheService.getOrDownload(msg.content, msg.id);
       imageBytes = widget.cacheService.cache[msg.id];
       isLoading = false;
-      if (mounted) setState(() {});
       if (imageBytes != null) {
-        _cacheImageSize(msg.id, imageBytes!);
+        final w = await _cacheImageSize(msg.id, imageBytes!);
+        if (w != null) _displayW = w;
       }
+      if (mounted) setState(() {});
     }
   }
 
-  Future<void> _cacheImageSize(String id, Uint8List bytes) async {
-    if (_imageSizeCache.containsKey(id)) return;
+  Future<double?> _cacheImageSize(String id, Uint8List bytes) async {
+    if (_imageSizeCache.containsKey(id)) return _imageSizeCache[id];
     try {
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
@@ -162,10 +163,9 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
         w *= 292 / h;
       }
       _imageSizeCache[id] = w;
-      if (mounted && widget.message.id == id) {
-        setState(() { _displayW = w; });
-      }
+      return w;
     } catch (_) {}
+    return null;
   }
 
   @override
@@ -437,10 +437,10 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
     final msg = widget.message;
 
     if (isLoading) {
-      return const SizedBox(
-        height: 200,
-        child: Center(
-          child: CircularProgressIndicator(color: AppPallete.primaryOrange),
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 242, maxHeight: 292),
+        child: const Center(
+          child: CircularProgressIndicator(),
         ),
       );
     }

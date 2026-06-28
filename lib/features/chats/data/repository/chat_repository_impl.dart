@@ -687,7 +687,6 @@ class ChatRepositoryImpl implements ChatRepository {
               msgId: msgId,
             );
             content = newUrl;
-            await chatLocalDataSource.updateMessageContent(msgId, newUrl);
           }
         }
 
