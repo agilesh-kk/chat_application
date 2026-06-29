@@ -64,6 +64,13 @@ abstract interface class ChatRepository{
     required String userId,
   });
 
+  Future<Either<Failure, List<Message>>> getOlderMessages({
+    required String receiverId,
+    required String userId,
+    required DateTime oldestCreatedAt,
+    int pageSize = 100,
+  });
+
   //marking the messages has viewed
   Future<void> markMessagesDelivered({
     required String userId,

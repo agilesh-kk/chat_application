@@ -98,6 +98,17 @@ class DeleteMessageEvent extends ChatEvent{
   });
 }
 
+class LoadOlderMessagesEvent extends ChatEvent {
+  final String receiverId;
+  final String userId;
+  final DateTime oldestCreatedAt;
+  LoadOlderMessagesEvent({
+    required this.receiverId,
+    required this.userId,
+    required this.oldestCreatedAt,
+  });
+}
+
 class Closechat extends ChatEvent{}
 
 class ToggleReactionEvent extends ChatEvent {

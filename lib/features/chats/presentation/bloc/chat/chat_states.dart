@@ -10,7 +10,8 @@ class ChatLoading extends ChatState {}
 class ChatLoaded extends ChatState {
   final Map<String,Message> messages;
   final List<String> ids;
-  ChatLoaded(this.messages,this.ids);
+  final bool hasMore;
+  ChatLoaded(this.messages,this.ids, {this.hasMore = true});
 
 }
 

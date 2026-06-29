@@ -384,7 +384,7 @@ return Align(
     if (!isMe) return const SizedBox();
     switch (status) {
       case "loading":
-        return Icon(Icons.access_time, size: 14, color: AppPallete.greyText);
+        return const SizedBox();
       case "sent":
         return Icon(Icons.check, size: 14, color: AppPallete.whiteColor.withValues(alpha: 0.7));
       case "delivered":

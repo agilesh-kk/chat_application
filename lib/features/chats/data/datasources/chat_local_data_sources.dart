@@ -33,6 +33,7 @@ abstract interface class ChatLocalDataSource {
   Future<void> deleteMessageLocally(String msgId);
   Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds, String receiverId);
   Stream<ListOperation<Message>> getMessagesStream(String conversationId);
+  Future<List<Message>> getOlderMessages(String conversationId, DateTime before, {int limit = 100});
   Stream<List<Conversation>> getConversationsStream();
 
   Future<bool> ischeckUserChanged(String userId);
@@ -202,7 +203,6 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
     if(rows.isNotEmpty){
       final first = rows[0];
-      print(first['content']);
       updateConvo(convoId, first['id'] as String, first['content'] as String, DateTime.fromMillisecondsSinceEpoch(first['createdAt'] as int), receiverId, first['senderId'] as String);
     }
   }
@@ -469,7 +469,6 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     if (_convoController == null || _convoController!.isClosed) return;
     _queryConversations().then((convos) {
       if (!_convoController!.isClosed){
-        print("added");
          _convoController!.add(convos);}
     });
   }
@@ -490,6 +489,29 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       whereArgs: [conversationId],
       orderBy: 'createdAt DESC',
     );
+    return rows.map(_dbToMessage).toList();
+  }
+
+  Future<List<Message>> _queryMessagesPage(String conversationId, {int limit = 100, DateTime? before}) async {
+    if (_db == null) return [];
+    List<Map<String, dynamic>> rows;
+    if (before != null) {
+      rows = await _db!.query(
+        'messages',
+        where: 'conversationId = ? AND createdAt < ?',
+        whereArgs: [conversationId, before.millisecondsSinceEpoch],
+        orderBy: 'createdAt DESC',
+        limit: limit,
+      );
+    } else {
+      rows = await _db!.query(
+        'messages',
+        where: 'conversationId = ?',
+        whereArgs: [conversationId],
+        orderBy: 'createdAt DESC',
+        limit: limit,
+      );
+    }
     return rows.map(_dbToMessage).toList();
   }
 
@@ -692,17 +714,14 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
           'UPDATE conversations SET unread = unread + $incUnread WHERE convoId = ?',
           [convoId],
           );
-          print("updatinnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn");
         }
       });
     
     
 
     }catch(e){
-      print(e);
     }finally{
       final unread = await _db!.query("conversations",where: "convoId = ?",whereArgs: [convoId]);
-      print(unread.first['unread']);
     }
     
 
@@ -796,17 +815,18 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   @override
   Future<void> updateMessageStatus(String msgId, String status) async {
     if (_db == null || kIsWeb) return;
+    final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
+    if (rows.isEmpty) return;
+    final currentStatus = rows.first['status'] as String? ?? '';
+    if (currentStatus == 'seen') return;
     await _db!.update(
       'messages',
       {'status': status},
       where: 'id = ?',
       whereArgs: [msgId],
     );
-    final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
-    if (rows.isNotEmpty) {
-      final convoId = rows.first['conversationId'] as String;
-      _notify(convoId, MarkSeenOperation([msgId],"sent"));
-    }
+    final convoId = rows.first['conversationId'] as String;
+    _notify(convoId, MarkSeenOperation([msgId], status));
   }
 
   @override
@@ -844,7 +864,6 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
     if(rows.isNotEmpty){
       final first = rows[0];
-      print(first['content']);
       updateConvo(convoId!, first['id'] as String, first['content'] as String, DateTime.fromMillisecondsSinceEpoch(first['createdAt'] as int), receiverId, first['senderId'] as String,incUnread: unread);
     }
   }
@@ -854,7 +873,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     if (_controllers[conversationId] == null || _controllers[conversationId]!.isClosed) {
       _controllers[conversationId] = StreamController<ListOperation<Message>>.broadcast();
     }
-    _queryMessagesSafe(conversationId).then((messages) {
+    _queryMessagesPage(conversationId, limit: 400).then((messages) {
       if (!_controllers[conversationId]!.isClosed) {
         _controllers[conversationId]?.add(FirstFetch<Message>(messages));
       }
@@ -863,12 +882,16 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   }
 
   @override
+  Future<List<Message>> getOlderMessages(String conversationId, DateTime before, {int limit = 100}) async {
+    return _queryMessagesPage(conversationId, limit: limit, before: before);
+  }
+
+  @override
   Stream<List<Conversation>> getConversationsStream() {
     if (_convoController == null|| _convoController!.isClosed) {
       _convoController = StreamController<List<Conversation>>.broadcast();
     }
     _queryConversations().then((convos) {
-      print("convo lengthhhhhhhh ${convos.length}");
       _convoController!.add(convos);
     });
     return _convoController!.stream;

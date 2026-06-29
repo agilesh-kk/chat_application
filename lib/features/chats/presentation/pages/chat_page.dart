@@ -94,6 +94,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
   final ItemPositionsListener _positionsListener = ItemPositionsListener.create();
   late final StickyHeaderCubit _stickyHeaderCubit;
   bool _showScrollToBottom = false;
+  DateTime? _lastLoadTime;
   Timer? _autoSendTimer;
   bool _isAutoSending = false;
   int _autoSendCount = 0;
@@ -201,6 +202,22 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
     final shouldShow = !isIndexZeroVisible;
     if (shouldShow != _showScrollToBottom) {
       setState(() => _showScrollToBottom = shouldShow);
+    }
+
+    if (state is ChatLoaded && state.hasMore) {
+      final canLoad = _lastLoadTime == null || DateTime.now().difference(_lastLoadTime!).inSeconds > 3;
+      if (canLoad) {
+        final oldestVisibleIndex = visibleItems.first.index;
+        final isNearTop = oldestVisibleIndex >= state.ids.length - 15;
+        if (isNearTop) {
+          _lastLoadTime = DateTime.now();
+          cb.add(LoadOlderMessagesEvent(
+            receiverId: widget.receiverId,
+            userId: widget.currentUserId,
+            oldestCreatedAt: state.messages[state.ids.last]!.createdAt,
+          ));
+        }
+      }
     }
     });
   }
@@ -485,7 +502,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
               stops: const [0.0, 0.5, 1.0],
             ),
           ),
-          child: SafeArea(
+            child: SafeArea(
             child: Column(
               children: [
                 _buildHeader(context),
@@ -909,7 +926,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
   Widget _buildStickyDateHeader(String label, Map<String, Message> messages, List<String> ids) {
     return GestureDetector(
       onLongPress: ()async{
-        print(messages[ids[0]]!.createdAt);
         DateTime? picked = await showDatePicker(context: context, firstDate: messages[ids[ids.length-1]]!.createdAt, lastDate: DateTime.now());
 
         if(picked != null){

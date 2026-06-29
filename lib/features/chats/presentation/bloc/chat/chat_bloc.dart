@@ -36,6 +36,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   String? _currentUserId;
   String? _currentReceiverId;
   bool _alreadyMarkedRecently = false;
+  int _pageSize = 100;
 
   ChatBloc({
     required GetMessages getMessages,
@@ -63,7 +64,6 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<Closechat>((event, emit) async {
       await _messageSub?.cancel();
       //await _chatRepository.stopOperationListener();
-      print("cancelled");
       emit(ChatClosed());
     });
 
@@ -294,6 +294,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<MarkMessagesDeliveredEvent>(_onMarkMessagesDeleiveredEvent);
     on<ToggleReactionEvent>(_onToggleReactionEvent);
     on<EditMessageEvent>(_onEditMessageEvent);
+    on<LoadOlderMessagesEvent>(_onLoadOlderMessagesEvent);
   }
   
 
@@ -357,14 +358,45 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     ));
   }
 
-  void _updateMessages(List<String> ids,Map<String,Message> received,Emitter<ChatState> emit) {
+  FutureOr<void> _onLoadOlderMessagesEvent(LoadOlderMessagesEvent event, Emitter<ChatState> emit) async {
+    final st = state;
+    if (st is! ChatLoaded) return;
 
+    final result = await _chatRepository.getOlderMessages(
+      receiverId: event.receiverId,
+      userId: event.userId,
+      oldestCreatedAt: event.oldestCreatedAt,
+      pageSize: _pageSize,
+    );
+
+    result.fold(
+      (_) {},
+      (olderMessages) {
+        if (olderMessages.isEmpty) {
+          emit(ChatLoaded(st.messages, st.ids, hasMore: false));
+          return;
+        }
+        final newIds = List<String>.from(st.ids);
+        final newMessages = Map<String, Message>.from(st.messages);
+        for (final msg in olderMessages) {
+          if (!newMessages.containsKey(msg.id)) {
+            newMessages[msg.id] = msg;
+            newIds.add(msg.id);
+          }
+        }
+        final hasMore = olderMessages.length >= _pageSize;
+        _pageSize *= 2;
+        emit(ChatLoaded(newMessages, newIds, hasMore: hasMore));
+      },
+    );
+  }
+
+  void _updateMessages(List<String> ids,Map<String,Message> received,Emitter<ChatState> emit) {
     final hasUnseen = ids.any(
       (msg) =>
           received[msg]!.status == "sent" &&
           !received[msg]!.isLocal,
     );
-
 
     if (hasUnseen &&
         _currentUserId != null &&
@@ -375,15 +407,10 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         userId: _currentUserId!,
         receiverId: _currentReceiverId!,
       ));
-
-      // Future.delayed(const Duration(milliseconds: 500), () {
-      //   _alreadyMarkedRecently = false;
-      // });
     }
 
-    //received.removeWhere((e)=>(e.deletedfor.contains(_currentUserId)&&!e.deletedForEveryone));
-
-    emit(ChatLoaded(received,ids));
+    final currentHasMore = state is ChatLoaded ? (state as ChatLoaded).hasMore : true;
+    emit(ChatLoaded(received, ids, hasMore: currentHasMore));
     }
 
   void retryPendingMessages() {
