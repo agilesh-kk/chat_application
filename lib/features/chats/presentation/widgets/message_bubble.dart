@@ -96,6 +96,8 @@ class _MessageBubbleState extends State<MessageBubble>
     }
   }
 
+  TapDownDetails? _doubleTapDetails;
+
   @override
   Widget build(BuildContext context) {
     final time = DateFormat('h:mm a').format(widget.message.createdAt);
@@ -103,12 +105,13 @@ class _MessageBubbleState extends State<MessageBubble>
     final bubble = _buildMessageContainer(time, false);
 
     return GestureDetector(
-      onLongPressStart: (details) {
-        if (widget.message.deletedForEveryone == true) return;
+      onDoubleTapDown: (details) => _doubleTapDetails = details,
+      onDoubleTap: () {
+        if (_doubleTapDetails == null || widget.message.deletedForEveryone) return;
         final currentEmoji = widget.message.reactions[widget.currentUserId];
         MessageOptionsTray.show(
           context: context,
-          position: details.globalPosition,
+          position: _doubleTapDetails!.globalPosition,
           messageId: widget.message.id,
           content: widget.message.content,
           isMe: widget.isMe,

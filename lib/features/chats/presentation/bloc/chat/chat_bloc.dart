@@ -64,7 +64,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
       final current = state as ChatLoaded;
 
-      final msgId = const Uuid().v4();
+      final msgId = const Uuid().v1();
 
       // ✅ 1. Create LOCAL MESSAGE
       final localMessage = Message(
@@ -269,7 +269,9 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       List<Message> updated = messageMap.values.toList();
 
       updated.sort((a, b) {
-        return b.createdAt.compareTo(a.createdAt);
+        final timeCompare = b.createdAt.compareTo(a.createdAt);
+        if (timeCompare != 0) return timeCompare;
+        return b.id.compareTo(a.id);
       });
 
       add(MessagesUpdatedEvent(updated));
@@ -376,7 +378,11 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         }
 
         List<Message> all = messageMap.values.toList();
-        all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        all.sort((a, b) {
+          final timeCompare = b.createdAt.compareTo(a.createdAt);
+          if (timeCompare != 0) return timeCompare;
+          return b.id.compareTo(a.id);
+        });
 
         emit(ChatLoaded(all, hasMore: _hasMore, isLoadingMore: false));
       },

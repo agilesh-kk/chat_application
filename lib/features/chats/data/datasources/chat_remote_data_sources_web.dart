@@ -496,6 +496,21 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
       }
 
       if (!isScheduled) {
+        print("sending notif");
+        try {
+           await supabase.from('messages').insert({
+            'chat_id': generateConversationId(userId, receiverId),
+            'sender_id': userId,
+            'receiver_id': receiverId,
+            'name': userName ?? 'Unknown',
+            'text': type == 'text' ? content : '📷 Photo',
+            'sender_profile': userProfile
+          }).select();
+        } catch (_) {
+        }
+      }
+
+      if (!isScheduled) {
         final timelineService = TimelineService(firestore);
 
         final inTimeline = await timelineService.handleMessage(

@@ -156,7 +156,7 @@ BEGIN
                 reply_to_type, deleted_for, deleted_for_everyone, name,
                 profile, is_scheduled, send_at, in_timeline,
                 receiver_id
-         FROM %I ORDER BY created_at DESC',
+         FROM %I ORDER BY created_at DESC, id DESC',
         msg_table
       )
     LOOP

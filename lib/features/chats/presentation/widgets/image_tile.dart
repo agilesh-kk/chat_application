@@ -56,6 +56,7 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
   bool isLoading = true;
   double _displayW = 242;
   static final Map<String, double> _imageSizeCache = {};
+  TapDownDetails? _doubleTapDetails;
 
   @override
   void initState() {
@@ -160,11 +161,13 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onLongPressStart: (details) {
+      onDoubleTapDown: (details) => _doubleTapDetails = details,
+      onDoubleTap: () {
+        if (_doubleTapDetails == null) return;
         final currentEmoji = widget.message.reactions[widget.currentUserId];
         MessageOptionsTray.show(
           context: context,
-          position: details.globalPosition,
+          position: _doubleTapDetails!.globalPosition,
           messageId: widget.message.id,
           content: widget.message.content,
           isMe: widget.isMe,
@@ -202,6 +205,18 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
               : null,
           onReply: widget.onReply,
           onEdit: widget.onEdit,
+        );
+      },
+      onTap: () {
+        if (imageBytes == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FullScreenImagePage(
+              bytes: imageBytes!,
+              tag: widget.message.id,
+            ),
+          ),
         );
       },
       child: Align(
@@ -448,25 +463,12 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
             constraints: const BoxConstraints(maxWidth: 242, maxHeight: 292),
             child: Stack(
               children: [
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FullScreenImagePage(
-                          bytes: imageBytes!,
-                          tag: msg.id,
-                        ),
-                      ),
-                    );
-                  },
-                  child: Hero(
-                    tag: msg.id,
-                    child: Image.memory(
-                      imageBytes!,
-                      fit: BoxFit.scaleDown,
-                      gaplessPlayback: true,
-                    ),
+                Hero(
+                  tag: msg.id,
+                  child: Image.memory(
+                    imageBytes!,
+                    fit: BoxFit.scaleDown,
+                    gaplessPlayback: true,
                   ),
                 ),
 
