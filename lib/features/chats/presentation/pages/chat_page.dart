@@ -90,9 +90,11 @@ class _ChatPageState extends State<ChatPage>
   final Set<String> _animatedMessageIds = {};
   bool _initialBuild = true;
   Message? _animMessage;
+  Message? _pendingAnimMessage;
   late final AnimationController _msgAnimController;
   Message? _replyToMessage;
   String? _editingMessageId;
+  bool _autoPlayLottieForNextBubble = false;
   bool _showTimelineCard = false;
   bool _showTimeCapsuleCard = false;
 
@@ -244,7 +246,24 @@ class _ChatPageState extends State<ChatPage>
     _msgAnimController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
     _msgAnimController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        if (mounted) setState(() => _animMessage = null);
+        if (mounted) {
+          setState(() {
+            _animMessage = null;
+            _autoPlayLottieForNextBubble = false;
+          });
+          if (_pendingAnimMessage != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _animMessage = _pendingAnimMessage;
+                  _pendingAnimMessage = null;
+                  _autoPlayLottieForNextBubble = true;
+                  _msgAnimController.forward(from: 0);
+                });
+              }
+            });
+          }
+        }
       }
     });
   }
@@ -914,16 +933,24 @@ class _ChatPageState extends State<ChatPage>
               }
 
               final ids = messages.map((m) => m.id).toList();
-              final isNewMessage = ids.isNotEmpty && !_animatedMessageIds.contains(ids[0]) && _animMessage == null;
+              final isNewMessage = ids.isNotEmpty && !_animatedMessageIds.contains(ids[0]);
               if (isNewMessage) {
                 _animatedMessageIds.add(ids[0]);
-                _animMessage = messages[0];
-                _msgAnimController.forward(from: 0);
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.isAttached) {
-                    _scrollController.jumpTo(index: 0);
-                  }
-                });
+                if (_animatedMessageIds.length > 500) {
+                  _animatedMessageIds.remove(_animatedMessageIds.first);
+                }
+                if (_animMessage != null) {
+                  _pendingAnimMessage = messages[0];
+                } else {
+                  _animMessage = messages[0];
+                  _autoPlayLottieForNextBubble = true;
+                  _msgAnimController.forward(from: 0);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_scrollController.isAttached) {
+                      _scrollController.jumpTo(index: 0);
+                    }
+                  });
+                }
               }
 
               final showDateHeader = List<bool>.generate(ids.length, (i) {
@@ -989,7 +1016,7 @@ class _ChatPageState extends State<ChatPage>
                                       isMe,
                                       isAnimate,
                                       highlightedIndex == index,
-                                      false,
+                                      _autoPlayLottieForNextBubble && index == 0,
                                     ),
                                     if (!message.deletedForEveryone &&
                                         message.reactions.isNotEmpty)

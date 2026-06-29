@@ -50,8 +50,8 @@ class MessageBubble extends StatefulWidget {
   State<MessageBubble> createState() => _MessageBubbleState();
 }
 
-class _MessageBubbleState extends State<MessageBubble>
-    with SingleTickerProviderStateMixin {
+class _MessageBubbleState extends State<MessageBubble> with SingleTickerProviderStateMixin {
+  static final _emojiRegExp = emojiRegex();
   late final AnimationController _controller;
   int _playCount = 0;
 
@@ -290,7 +290,7 @@ return Align(
   bool get _isEmojiOnly {
     if (widget.message.deletedForEveryone) return false;
     final cleaned = widget.message.content.replaceAll(RegExp(r'[\uFE0F\u200D]'), '');
-    final regex = emojiRegex();
+    final regex = _emojiRegExp;
     final emojiCount = regex.allMatches(cleaned).length;
     final onlyEmojis = cleaned.replaceAll(regex, '').trim().isEmpty;
     return onlyEmojis && emojiCount > 0;
@@ -305,18 +305,14 @@ return Align(
 
     return GestureDetector(
       onTap: () => setState(() => _playCount++),
-      child: Lottie.network(
-        Uri.base.resolve(config.bundledAsset).toString(),
+      child: Lottie.asset(
+        config.bundledAsset,
         key: ValueKey(_playCount),
         width: 120,
         height: 120,
         fit: BoxFit.contain,
         repeat: false,
         animate: _playCount > 0,
-        errorBuilder: (context, error, stackTrace) {
-          debugPrint('Lottie network error for ${config.bundledAsset}: $error');
-          return _buildEmojiText();
-        },
       ),
     );
   }
@@ -359,7 +355,7 @@ return Align(
 
   double _emojiFontSize(String text) {
     final cleaned = text.replaceAll(RegExp(r'[\uFE0F\u200D]'), '');
-    final regex = emojiRegex();
+    final regex = _emojiRegExp;
     final emojiCount = regex.allMatches(cleaned).length;
     final onlyEmojis = cleaned.replaceAll(regex, '').trim().isEmpty;
     if (!onlyEmojis || emojiCount == 0) return 15;
