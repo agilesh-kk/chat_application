@@ -180,13 +180,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       seenMsgIds.add(doc.id);
     }
 
-    // Write seen operation
     final opCollection = _getMyOpCollection(userId, receiverId);
     final opRef = convoRef.collection(opCollection).doc();
     batch.set(opRef, {
       "type": "seen",
-      "messageIds": seenMsgIds,
       "seenByUserId": userId,
+      "seenMsgIds": seenMsgIds,
       "timestamp": FieldValue.serverTimestamp(),
     });
 

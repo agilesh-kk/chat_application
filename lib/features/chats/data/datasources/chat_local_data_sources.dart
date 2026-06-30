@@ -33,7 +33,6 @@ abstract interface class ChatLocalDataSource {
   Future<void> deleteMessageLocally(String msgId);
   Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds, String receiverId);
   Stream<ListOperation<Message>> getMessagesStream(String conversationId);
-  Future<List<Message>> getOlderMessages(String conversationId, DateTime before, {int limit = 100});
   Stream<List<Conversation>> getConversationsStream();
 
   Future<bool> ischeckUserChanged(String userId);
@@ -492,29 +491,6 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     return rows.map(_dbToMessage).toList();
   }
 
-  Future<List<Message>> _queryMessagesPage(String conversationId, {int limit = 100, DateTime? before}) async {
-    if (_db == null) return [];
-    List<Map<String, dynamic>> rows;
-    if (before != null) {
-      rows = await _db!.query(
-        'messages',
-        where: 'conversationId = ? AND createdAt < ?',
-        whereArgs: [conversationId, before.millisecondsSinceEpoch],
-        orderBy: 'createdAt DESC',
-        limit: limit,
-      );
-    } else {
-      rows = await _db!.query(
-        'messages',
-        where: 'conversationId = ?',
-        whereArgs: [conversationId],
-        orderBy: 'createdAt DESC',
-        limit: limit,
-      );
-    }
-    return rows.map(_dbToMessage).toList();
-  }
-
   Future<List<Conversation>> _queryConversations() async {
     if (_db == null) return [];
     final rows = await _db!.query(
@@ -873,17 +849,17 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     if (_controllers[conversationId] == null || _controllers[conversationId]!.isClosed) {
       _controllers[conversationId] = StreamController<ListOperation<Message>>.broadcast();
     }
-    _queryMessagesPage(conversationId, limit: 400).then((messages) {
+    _db!.query('messages',
+      where: 'conversationId = ?',
+      whereArgs: [conversationId],
+      orderBy: 'createdAt DESC',
+    ).then((rows) {
+      final messages = rows.map(_dbToMessage).toList();
       if (!_controllers[conversationId]!.isClosed) {
         _controllers[conversationId]?.add(FirstFetch<Message>(messages));
       }
     });
     return _controllers[conversationId]!.stream;
-  }
-
-  @override
-  Future<List<Message>> getOlderMessages(String conversationId, DateTime before, {int limit = 100}) async {
-    return _queryMessagesPage(conversationId, limit: limit, before: before);
   }
 
   @override

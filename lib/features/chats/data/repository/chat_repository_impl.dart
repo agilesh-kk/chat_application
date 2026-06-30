@@ -138,22 +138,6 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, List<Message>>> getOlderMessages({
-    required String receiverId,
-    required String userId,
-    required DateTime oldestCreatedAt,
-    int pageSize = 100,
-  }) async {
-    try {
-      final convoId = generateConversationId(userId, receiverId);
-      final messages = await chatLocalDataSource.getOlderMessages(convoId, oldestCreatedAt, limit: pageSize);
-      return right(messages);
-    } catch (e) {
-      return left(Failure(e.toString()));
-    }
-  }
-
-  @override
   Future<void> startOperationListener({
     required String userId,
     required String receiverId,
@@ -310,7 +294,7 @@ class ChatRepositoryImpl implements ChatRepository {
           break;
 
         case 'seen':
-          final seenMsgIds = List<String>.from(opData['messageIds'] as List? ?? []);
+          final seenMsgIds = List<String>.from(opData['seenMsgIds'] as List? ?? []);
           final seenByUserId = opData['seenByUserId'] as String? ?? '';
           await chatLocalDataSource.markMessagesSeen(seenMsgIds, seenByUserId, convoId);
           break;
