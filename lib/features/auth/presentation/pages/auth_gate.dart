@@ -17,6 +17,45 @@ class AuthGate extends StatelessWidget {
     return BlocBuilder<AuthBloc, AuthState>(
       buildWhen: (prev,curr) => curr is AuthUnauthenticated || curr is AuthSuccess,
       builder: (context, state) {
+        if (state is AuthInitial || state is AuthLoading) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF0D0D0D),
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ClipOval(
+                    child: Image.asset(
+                      'assets/logo/logo1.png',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Memento',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B35)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         if(state is AuthSuccess){
           return InviteOverlay(
             currentUserId: state.user.id,
