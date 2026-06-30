@@ -193,9 +193,9 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
 
         // ❗ If only 1 event existed → now removed → set false
         if (timelineQuery.docs.length <= 1) {
-          //transaction.set(messageRef, {
-          //  "inTimeline": false,
-          //}, SetOptions(merge: true));
+          transaction.set(messageRef, {
+            "inTimeline": false,
+          }, SetOptions(merge: true));
 
 
         final operationRef = firebaseFirestore

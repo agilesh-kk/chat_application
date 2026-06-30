@@ -288,15 +288,13 @@ $$;
 -- Toggle a reaction on a message + update conversation preview
 -- Does NOT depend on any Firestore reads — only DB params
 -- ============================================================
-DROP FUNCTION IF EXISTS toggle_message_reaction(text,text,text,text,text);
-
 CREATE OR REPLACE FUNCTION toggle_message_reaction(
   p_convo_id TEXT,
   p_message_id TEXT,
   p_user_id TEXT,
   p_emoji TEXT,
   p_receiver_id TEXT
-) RETURNS JSONB
+) RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
@@ -353,8 +351,6 @@ BEGIN
       WHERE id = p_convo_id;
     END IF;
   END IF;
-
-  RETURN current_reactions;
 END;
 $$;
 
@@ -565,37 +561,6 @@ BEGIN
     ) INTO result;
   ELSE
     result := '[]'::jsonb;
-  END IF;
-
-  RETURN result;
-END;
-$$;
-
--- ============================================================
--- Get IDs of all sent (unseen) messages from a receiver
--- Used to populate operation sync with message IDs
--- ============================================================
-CREATE OR REPLACE FUNCTION get_sent_unseen_message_ids(
-  p_convo_id TEXT,
-  p_receiver_id TEXT
-) RETURNS TEXT[]
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  tbl_name TEXT;
-  result TEXT[];
-BEGIN
-  tbl_name := 'msg_' || substring(md5(p_convo_id) from 1 for 16);
-
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = tbl_name) THEN
-    EXECUTE format(
-      'SELECT COALESCE(array_agg(id ORDER BY created_at ASC), ''{}''::text[])
-       FROM %I WHERE sender_id = $1 AND status = ''sent''',
-      tbl_name
-    ) INTO result USING p_receiver_id;
-  ELSE
-    result := '{}'::text[];
   END IF;
 
   RETURN result;
