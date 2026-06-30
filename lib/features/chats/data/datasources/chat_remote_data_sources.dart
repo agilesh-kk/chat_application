@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:chat_application/core/common/entities/user.dart';
@@ -8,7 +6,6 @@ import 'package:chat_application/features/chats/data/datasources/timeline_servic
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
@@ -107,13 +104,6 @@ abstract interface class ChatRemoteDataSources {
 
   Future<List<String>> getUserConvoList(String userId);
 
-  Future<void> updateFriendStatus({
-    required String convoId,
-    required String userId,
-    required String friendId,
-    required bool isFriend,
-  });
-
   Future<void> editMessage({
     required String userId,
     required String receiverId,
@@ -195,37 +185,17 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
   Future<List<Map<String, dynamic>>> fetchAllMessages({
     required String conversationId,
   }) async {
-    final result = await supabase.rpc('fetch_conversation_messages', params: {
-      'p_convo_id': conversationId,
-    });
+    final snapshot = await firestore
+        .collection("Conversations")
+        .doc(conversationId)
+        .collection("messages")
+        .orderBy("createdAt", descending: true)
+        .get();
 
-    final messages = result as List<dynamic>;
-    return messages.map((msg) {
-      final m = msg as Map<String, dynamic>;
-      return {
-        'id': m['id'],
-        'senderId': m['sender_id'],
-        'content': m['content'],
-        'type': m['type'],
-        'status': m['status'],
-        'createdAt': m['created_at'],
-        'isEdited': m['is_edited'],
-        'deletedfor': (m['deleted_for'] as List?)?.cast<String>() ?? <String>[],
-        'deletedForEveryone': m['deleted_for_everyone'] ?? false,
-        'reactions': (m['reactions'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{},
-        'replyToId': m['reply_to_id'],
-        'replyToContent': m['reply_to_content'],
-        'replyToSenderId': m['reply_to_sender_id'],
-        'replyToType': m['reply_to_type'],
-        'isScheduled': m['is_scheduled'] ?? false,
-        'sendAt': m['send_at'],
-        'inTimeline': m['in_timeline'] ?? false,
-        'name': m['name'],
-        'receiverId': m['receiver_id'],
-        'profile': m['profile'],
-        'convoId': conversationId,
-        '_docId': m['id'],
-      };
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      data['_docId'] = doc.id;
+      return data;
     }).toList();
   }
 
@@ -235,31 +205,39 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     required String receiverId
   }) async {
     final convoId = generateConversationId(userId, receiverId);
+    final convoRef = firestore
+        .collection("Conversations")
+        .doc(convoId)
+      ..update({"$userId.unread": 0});
 
-    final seenMsgIds = await supabase.rpc('get_sent_unseen_message_ids', params: {
-      'p_convo_id': convoId,
-      'p_sender_id': receiverId,
-      'p_receiver_id': userId,
-    }) as List<dynamic>;
+    final snapshot = 
+        await convoRef
+            .collection("messages")
+            .where("senderId", isEqualTo: receiverId)
+            .where("status", isEqualTo: "sent")
+            .get();
 
-    if (seenMsgIds.isEmpty) return;
+    if (snapshot.docs.isEmpty) return;
+
+    final batch = firestore.batch();
+
+    final seenMsgIds = <String>[];
+    for (final doc in snapshot.docs) {
+      batch.update(doc.reference, {"status": "seen"});
+      seenMsgIds.add(doc.id);
+    }
 
     // Write seen operation
     final opCollection = _getMyOpCollection(userId, receiverId);
-    final convoRef = firestore.collection("Conversations").doc(convoId);
     final opRef = convoRef.collection(opCollection).doc();
-    await opRef.set({
+    batch.set(opRef, {
       "type": "seen",
-      "messageIds": seenMsgIds.map((e) => e.toString()).toList(),
+      "messageIds": seenMsgIds,
       "seenByUserId": userId,
       "timestamp": FieldValue.serverTimestamp(),
     });
 
-    await supabase.rpc('mark_messages_seen', params: {
-      'p_convo_id': convoId,
-      'p_user_id': userId,
-      'p_receiver_id': receiverId,
-    });
+    await batch.commit();
   }
 
   @override
@@ -272,31 +250,76 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
+      final convoRef = firestore.collection("Conversations").doc(convoId);
+      final msgRef = convoRef.collection("messages").doc(messageId);
 
-      final updatedReactions = await supabase.rpc('toggle_message_reaction', params: {
-        'p_convo_id': convoId,
-        'p_message_id': messageId,
-        'p_user_id': userId,
-        'p_emoji': emoji,
-        'p_receiver_id': receiverId,
+      await firestore.runTransaction((tx) async {
+        try{
+        final doc = await tx.get(msgRef);
+        final convoDoc = await tx.get(convoRef);
+        if (!doc.exists) return;
+
+        final data = doc.data()!;
+        final reactions = Map<String, dynamic>.from(data['reactions'] as Map? ?? {});
+        final currentReaction = reactions[userId];
+        final isAddOrChange = currentReaction != emoji;
+
+        if (currentReaction == emoji) {
+          reactions.remove(userId);
+        } else {
+          reactions[userId] = emoji;
+        }
+        tx.update(msgRef, {'reactions': reactions});
+
+        // Only update receiver's conversation preview
+        // and only if the reacted message is their current lastMessageId
+        
+        if (convoDoc.exists) {
+          final convoData = convoDoc.data()!;
+          if (convoData[receiverId]?["lastMessageId"] == messageId) {
+            if (isAddOrChange) {
+              tx.update(convoRef, {
+                "$receiverId.lastMessage": "Reacted $emoji to a message",
+                "$receiverId.lastSender": userId,
+              });
+            } else {
+              // Removal: restore receiver's fields from reactor's (userId) fields
+              final lastMessage = convoData[userId]?["lastMessage"] ?? "";
+              final lastMessageId = convoData[userId]?["lastMessageId"] ?? "";
+              final lastSender = convoData[userId]?["lastSender"] ?? "";
+              tx.update(convoRef, {
+                "$receiverId.lastMessage": lastMessage,
+                "$receiverId.lastMessageId": lastMessageId,
+                "$receiverId.lastSender": lastSender,
+              });
+            }
+          }
+        }
+
+        
+
+
+        // Write operation doc in same transaction with full reactions map
+        if (opCollection != null) {
+          final opRef = convoRef.collection(opCollection).doc(messageId);
+          tx.set(opRef, {
+            "type": "reaction",
+            "messageId": messageId,
+            "userId": userId,
+            "emoji": emoji,
+            "reactions": reactions,
+            "timestamp": FieldValue.serverTimestamp(),
+          });
+        }
+        }catch(e){
+          //print(e);
+        }
       });
-
-      if (opCollection != null) {
-        final convoRef = firestore.collection("Conversations").doc(convoId);
-        final opRef = convoRef.collection(opCollection).doc(messageId);
-        await opRef.set({
-          "type": "reaction",
-          "messageId": messageId,
-          "userId": userId,
-          "emoji": emoji,
-          "reactions": updatedReactions as Map<String, dynamic>,
-          "timestamp": FieldValue.serverTimestamp(),
-        });
-      }
     } catch (e) {
-      print("Toggle reaction error: $e");
+      //print("Toggle reaction error: $e");
     }
   }
+
   @override
   Future<void> editMessage({
     required String userId,
@@ -307,6 +330,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
+      final msgRef = firestore
+          .collection("Conversations")
+          .doc(convoId)
+          .collection("messages")
+          .doc(msgId);
+
       final convoRef = firestore.collection("Conversations").doc(convoId);
 
       final opCol = opCollection ?? _getMyOpCollection(userId, receiverId);
@@ -315,8 +344,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       .doc();
 
       await firestore.runTransaction((tx) async {
-        final doc = await tx.get(convoRef.collection("messages").doc(msgId));
+        final doc = await tx.get(msgRef);
         if (!doc.exists) return;
+
+        final convoDoc = await tx.get(convoRef);
 
         tx.set(opRef, {
           "type" : "edit_message",
@@ -326,23 +357,32 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           "editedAt": FieldValue.serverTimestamp(),
           "timestamp": FieldValue.serverTimestamp(),
         });
-      });
 
-      await supabase.from(_getMessagesTableName(convoId))
-        .update({'content': newContent, 'is_edited': true})
-        .eq('id', msgId);
+        tx.update(msgRef, {
+          "content": newContent,
+          "isEdited": true,
+          "editedAt": FieldValue.serverTimestamp(),
+        });
 
-      await supabase.rpc('edit_conversation_last_message', params: {
-        'p_convo_id': convoId,
-        'p_user_id': userId,
-        'p_receiver_id': receiverId,
-        'p_message_id': msgId,
-        'p_new_content': newContent,
+        if (convoDoc.exists) {
+          final convoData = convoDoc.data()!;
+          final isLastMessage =
+              convoData[userId]?["lastMessageId"] == msgId ||
+              convoData[receiverId]?["lastMessageId"] == msgId;
+
+          if (isLastMessage) {
+            tx.update(convoRef, {
+              "$userId.lastMessage": newContent,
+              "$receiverId.lastMessage": newContent,
+              "lastupdateTime": FieldValue.serverTimestamp(),
+            });
+          }
+        }
       });
     } catch (e) {
-      print("Edit message error: $e");
+      //print("Edit message error: $e");
     }
-  }
+    }
 
   @override
   Future<Stream<List<MessageModel>>> getScheduledMessages({
@@ -404,9 +444,15 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           .collection("Conversations")
           .doc(convoId);
 
+      //time capsule refactorings
       final collectionName = sendAt != null ? "scheduled_messages" : "messages";
-      final messageRef = convoRef.collection(collectionName).doc(msgId);
+
+      final messageRef = convoRef.collection(collectionName).doc(msgId);      
+      
+      //this can't be null
       final isScheduled = sendAt != null;
+
+      //skip operation for scheduled messages and when opCollection is not provided
       final shouldWriteOp = opCollection != null && !isScheduled;
 
       final message = MessageModel(
@@ -427,18 +473,18 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       WriteBatch batch = firestore.batch();
 
-      // Only write scheduled messages to Firestore (normal messages go to Supabase)
-      if (isScheduled) {
-        batch.set(messageRef, {
-          ...message.toMap(),
-          "name": userName ?? "Unknown",
-          "receiverId": receiverId,
-          "convoId": convoId,
-          "profile": userProfile ?? "assets/profile_images/pfp1.png",
-          "createdAt": Timestamp.fromDate(sendAt),
-          "index": null,
-        });
-      }
+      //saving message, refactored for time capsule
+      batch.set(messageRef, {
+        ...message.toMap(),
+        "name": userName ?? "Unknown",
+        "receiverId": receiverId,
+        "convoId": convoId,
+        "profile": userProfile ?? "assets/profile_images/pfp1.png",
+        "createdAt": isScheduled
+          ? Timestamp.fromDate(sendAt)
+          : FieldValue.serverTimestamp(), // server sync later
+        "index": null,
+      });
 
       // Write operation doc in same batch (only for non-scheduled messages)
       if (shouldWriteOp) {
@@ -468,6 +514,42 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         });
       }
 
+      // Updating conversation only if not scheduled
+      if (!isScheduled) {
+        batch.set(convoRef, {
+          "participantsId": [userId, receiverId],
+
+          // 🔥 ROOT (for sorting)
+          "lastupdateTime": FieldValue.serverTimestamp(),
+
+          //per-user conversation model
+          userId: {
+            "receiverId": receiverId,
+            //"receiverName": receiverData["name"],
+            //"receiverProfile": receiverData["profilePic"],
+            "unread": 0,
+
+            // ✅ per-user last message
+            "lastMessage": type == "text" ? content : "📷 Image",
+            "lastMessageId": msgId,
+            "lastSender": userId,
+            "lastupdateTime": FieldValue.serverTimestamp(),
+          },
+
+          receiverId: {
+            "receiverId": userId,
+            //"receiverName": userName,
+            //"receiverProfile": userProfile,
+            "unread": FieldValue.increment(1),
+
+            "lastMessage": type == "text" ? content : "📷 Image",
+            "lastMessageId": msgId,
+            "lastSender": userId,
+            "lastupdateTime": FieldValue.serverTimestamp(),
+          },
+        }, SetOptions(merge: true));
+      }
+
       final userRef = firestore.collection("users").doc(userId);
       final receiverRef = firestore.collection("users").doc(receiverId);
 
@@ -482,32 +564,32 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       await batch.commit();
 
       if (!isScheduled) {
-        final msgSupabase = message.toSupabaseMap();
-        msgSupabase['name'] = userName ?? 'Unknown';
-        msgSupabase['receiver_id'] = receiverId;
-        msgSupabase['profile'] = userProfile ?? 'assets/profile_images/pfp1.png';
-
-        final preview = type == 'text' ? content : '📷 Image';
-
-        final sendParams = <String, dynamic>{
-          'p_convo_id': convoId,
-          'p_participants_id': [userId, receiverId],
-          'p_user_id': userId,
-          'p_last_message': preview,
-          'p_last_message_id': msgId,
-          'p_last_sender': userId,
-          'p_is_friend': true,
-        };
-        for (final entry in msgSupabase.entries) {
-          sendParams['p_${entry.key}'] = entry.value;
+        try {
+           await supabase.from('messages').insert({
+            'chat_id': generateConversationId(userId, receiverId),
+            'sender_id': userId,
+            'receiver_id': receiverId,
+            'name': userName ?? 'Unknown',
+            'text': type == 'text' ? content : '📷 Photo',
+            'sender_profile': userProfile
+          }).select();
+        } catch (_) {
         }
-        await supabase.rpc('send_message_and_update_conversation', params: sendParams);
       }
 
       if (!isScheduled) {
+        // await processTimelineEvent(
+        //   messageId: msgId,
+        //   senderId: userId,
+        //   receiverId: receiverId,
+        //   type: type,
+        //   content: content,
+        //   createdAt: Timestamp.now(),
+        // );
+
         final timelineService = TimelineService(firestore);
 
-        final inTimeline = await timelineService.handleMessage(
+        await timelineService.handleMessage(
           messageId: msgId,
           senderId: userId,
           receiverId: receiverId,
@@ -515,25 +597,14 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           content: content,
           createdAt: Timestamp.now(),
         );
-
-        if (inTimeline) {
-          await supabase.rpc('update_message_timeline', params: {
-            'p_convo_id': convoId,
-            'p_message_id': msgId,
-            'p_in_timeline': true,
-          });
-
-          if (opCollection != null) {
-            final tlOpRef = convoRef.collection(opCollection).doc(msgId);
-            await tlOpRef.set({
-              "type": "timeline_update",
-              "messageId": msgId,
-              "inTimeline": true,
-              "timestamp": FieldValue.serverTimestamp(),
-            });
-          }
-        }
       }
+
+      // if (!isScheduled) {
+      //   await _updateAchievementStats(
+      //     userId: userId,
+      //     receiverId: receiverId,
+      //   );
+      // }
     } catch (e) {
       //print("Send message error: $e");
     }
@@ -838,14 +909,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }
 
         await batch.commit();
-
-        await supabase.rpc('delete_message_and_update_conversation', params: {
-          'p_convo_id': convoId,
-          'p_user_id': userId,
-          'p_receiver_id': receiverId,
-          'p_deleted_message_id': msgId,
-          'p_delete_for_everyone': false,
-        });
         return;
       }
 
@@ -974,14 +1037,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       }
 
       await batch.commit();
-
-      await supabase.rpc('delete_message_and_update_conversation', params: {
-        'p_convo_id': convoId,
-        'p_user_id': userId,
-        'p_receiver_id': receiverId,
-        'p_deleted_message_id': msgId,
-        'p_delete_for_everyone': true,
-      });
     } catch (e) {
       //print("Delete message error: $e");
     }
@@ -1045,29 +1100,5 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     final doc = await firestore.collection('users').doc(userId).get();
     final data = doc.data();
     return List<String>.from(data?['convoList'] ?? []);
-  }
-
-  String _getMessagesTableName(String convoId) {
-    final hash = md5.convert(utf8.encode(convoId)).toString();
-    return 'msg_${hash.substring(0, 16)}';
-  }
-
-  @override
-  Future<void> updateFriendStatus({
-    required String convoId,
-    required String userId,
-    required String friendId,
-    required bool isFriend,
-  }) async {
-    try {
-      await supabase.rpc('update_conversation_friend_status', params: {
-        'p_convo_id': convoId,
-        'p_user_id': userId,
-        'p_friend_id': friendId,
-        'p_is_friend': isFriend,
-      });
-    } catch (e) {
-      //print("Update friend status error: $e");
-    }
   }
 }

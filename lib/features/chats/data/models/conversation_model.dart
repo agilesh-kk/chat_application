@@ -16,37 +16,6 @@ class ConversationModel extends Conversation {
     super.isFriend,
   });
 
-  factory ConversationModel.fromSupabaseRow(Map<String, dynamic> row, String userId) {
-    final userData = row['user_data'] is Map
-        ? Map<String, dynamic>.from(row['user_data'] as Map)
-        : <String, dynamic>{};
-    final myData = userData[userId] is Map
-        ? Map<String, dynamic>.from(userData[userId] as Map)
-        : <String, dynamic>{};
-
-    final participants = (row['participants_id'] as List?)?.cast<String>() ?? [];
-    final receiverId = (myData['receiverId']?.toString() ?? '').isEmpty
-        ? participants.firstWhere((id) => id != userId, orElse: () => '')
-        : myData['receiverId']?.toString() ?? '';
-
-    final lastUpdateRaw = row['last_update_time'];
-    final lastUpdateStr = lastUpdateRaw is int
-        ? DateTime.fromMillisecondsSinceEpoch(lastUpdateRaw).toIso8601String()
-        : lastUpdateRaw?.toString() ?? '';
-
-    return ConversationModel(
-      convoId: row['id'] as String? ?? '',
-      receiverId: receiverId,
-      lastMessage: myData['lastMessage']?.toString() ?? '',
-      lastupdateTime: lastUpdateStr,
-      receiverName: myData['receiverName']?.toString() ?? 'unknown',
-      profilepicLink: myData['receiverProfile']?.toString() ?? '',
-      unread: (myData['unread'] as num?)?.toInt() ?? 0,
-      lastSender: myData['lastSender']?.toString() ?? '',
-      isFriend: myData['isFriend'] as bool? ?? true,
-    );
-  }
-
   factory ConversationModel.fromJson(
     Map<String, dynamic> map,
     String id,
@@ -86,20 +55,6 @@ class ConversationModel extends Conversation {
     } catch (_) {
       return "";
     }
-  }
-
-  static Map<String, dynamic> toSupabaseRow({
-    required String convoId,
-    required List<String> participantsId,
-    required Map<String, dynamic> userData,
-    String? lastUpdateTime,
-  }) {
-    return {
-      'id': convoId,
-      'participants_id': participantsId,
-      'last_update_time': lastUpdateTime,
-      'user_data': userData,
-    };
   }
 
   Map<String,dynamic> toMap(String userId){

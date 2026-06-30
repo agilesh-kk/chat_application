@@ -4,7 +4,6 @@ import 'package:chat_application/features/timeline/data/models/event_model.dart'
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract interface class TimelineRemoteDataSources {
@@ -133,22 +132,9 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
         .collection("messages")
         .doc(message.id);
 
-    try {
-      await messageRef.update({
-        "inTimeline": true,
-      });
-    } catch (_) {
-      // On web, messages live in Supabase — the Firestore doc may not exist
-    }
-
-    await supabaseClient.rpc(
-      kIsWeb ? 'web_update_message_timeline' : 'update_message_timeline',
-      params: {
-        'p_convo_id': convoId,
-        'p_message_id': message.id,
-        'p_in_timeline': true,
-      },
-    );
+    await messageRef.update({
+      "inTimeline": true, // 🔥 NEW FIELD
+    });
   }
 
   @override
@@ -169,38 +155,28 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
 
       final messageRef = convoRef.collection("messages").doc(messageId);
 
-      bool shouldSetInTimelineFalse = false;
-
       await firebaseFirestore.runTransaction((transaction) async {
+        //Delete timeline event
         final eventSnap = await transaction.get(timelineRef);
+
         if (!eventSnap.exists) return;
 
         transaction.delete(timelineRef);
 
+        //Checking if message still has OTHER timeline events
         final timelineQuery =
             await convoRef
                 .collection("timeline")
                 .where("messageId", isEqualTo: messageId)
                 .get();
 
+        // ❗ If only 1 event existed → now removed → set false
         if (timelineQuery.docs.length <= 1) {
           transaction.set(messageRef, {
             "inTimeline": false,
           }, SetOptions(merge: true));
-          shouldSetInTimelineFalse = true;
         }
       });
-
-      if (shouldSetInTimelineFalse) {
-        await supabaseClient.rpc(
-          kIsWeb ? 'web_update_message_timeline' : 'update_message_timeline',
-          params: {
-            'p_convo_id': convoId,
-            'p_message_id': messageId,
-            'p_in_timeline': false,
-          },
-        );
-      }
     } catch (e) {
       throw ServerExceptions(e.toString());
     }
