@@ -4,8 +4,6 @@ import 'package:chat_application/features/landing/presentation/pages/landing_pag
 import 'package:chat_application/features/chats/presentation/pages/home_page.dart';
 import 'package:chat_application/features/profile/presentation/pages/profile_page.dart';
 import 'package:chat_application/features/status/presentation/pages/status_page.dart';
-import 'package:chat_application/features/watch2gether/presentation/pages/w2g_home_page.dart';
-import 'package:chat_application/features/watch2gether/presentation/widgets/invite_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -57,23 +55,14 @@ class AuthGate extends StatelessWidget {
         }
 
         if(state is AuthSuccess){
-          return InviteOverlay(
-            currentUserId: state.user.id,
-            child: NavigationPage(
+          return NavigationPage(
             pages: [
               HomePage(userId: state.user.id),
               StatusPage(),
-              W2GHomePage(
-                userId: state.user.id,
-                userName: state.user.name,
-                userProfilePic: state.user.profilePic ?? '',
-              ),
               ProfilePage(
                 isUser: true,
-                //user: state.user,
               ),
-            ]
-          ),
+            ],
           );
         }
         return const LandingPage();

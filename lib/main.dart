@@ -1,9 +1,7 @@
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/common/cubit/nav_page_index_cubit.dart';
-import 'package:chat_application/features/watch2gether/presentation/bloc/youtube_player_bloc.dart';
 import 'package:chat_application/features/achievement/presentation/bloc/achievement_bloc.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:chat_application/features/watch2gether/presentation/bloc/w2g_bloc.dart';
 import 'package:chat_application/features/auth/presentation/pages/auth_gate.dart';
 import 'package:chat_application/features/chats/presentation/bloc/chat/chat_bloc.dart';
 import 'package:chat_application/features/chats/presentation/bloc/conversation/conversation_bloc.dart';
@@ -99,12 +97,6 @@ void main() async {
           create: (_) => serviceLocator<AchievementBloc>(),
         ),
 
-        BlocProvider(
-          create: (_) => serviceLocator<W2GBloc>(),
-        ),
-        BlocProvider(
-          create: (_) => serviceLocator<YoutubePlayerBloc>(),
-        )
       ],
       child: MyApp(),
     ),
