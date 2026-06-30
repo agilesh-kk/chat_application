@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:chat_application/core/common/entities/user.dart';
@@ -9,7 +7,6 @@ import 'package:chat_application/features/chats/data/datasources/timeline_servic
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
@@ -141,37 +138,17 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
   Future<List<Map<String, dynamic>>> fetchAllMessages({
     required String conversationId,
   }) async {
-    final result = await supabase.rpc('fetch_conversation_messages', params: {
-      'p_convo_id': conversationId,
-    });
+    final snapshot = await firestore
+        .collection("Conversations")
+        .doc(conversationId)
+        .collection("messages")
+        .orderBy("createdAt", descending: true)
+        .get();
 
-    final messages = result as List<dynamic>;
-    return messages.map((msg) {
-      final m = msg as Map<String, dynamic>;
-      return {
-        'id': m['id'],
-        'senderId': m['sender_id'],
-        'content': m['content'],
-        'type': m['type'],
-        'status': m['status'],
-        'createdAt': m['created_at'],
-        'isEdited': m['is_edited'],
-        'deletedfor': (m['deleted_for'] as List?)?.cast<String>() ?? <String>[],
-        'deletedForEveryone': m['deleted_for_everyone'] ?? false,
-        'reactions': (m['reactions'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{},
-        'replyToId': m['reply_to_id'],
-        'replyToContent': m['reply_to_content'],
-        'replyToSenderId': m['reply_to_sender_id'],
-        'replyToType': m['reply_to_type'],
-        'isScheduled': m['is_scheduled'] ?? false,
-        'sendAt': m['send_at'],
-        'inTimeline': m['in_timeline'] ?? false,
-        'name': m['name'],
-        'receiverId': m['receiver_id'],
-        'profile': m['profile'],
-        'convoId': conversationId,
-        '_docId': m['id'],
-      };
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      data['_docId'] = doc.id;
+      return data;
     }).toList();
   }
 
@@ -214,12 +191,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     });
 
     await batch.commit();
-
-    await supabase.rpc('mark_messages_seen', params: {
-      'p_convo_id': convoId,
-      'p_user_id': userId,
-      'p_receiver_id': receiverId,
-    });
   }
 
   @override
@@ -234,9 +205,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       final convoId = generateConversationId(userId, receiverId);
       final convoRef = firestore.collection("Conversations").doc(convoId);
       final msgRef = convoRef.collection("messages").doc(messageId);
-
-      String? reactionPreview;
-      String? reactionSender;
 
       await firestore.runTransaction((tx) async {
         try{
@@ -256,28 +224,35 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }
         tx.update(msgRef, {'reactions': reactions});
 
+        // Only update receiver's conversation preview
+        // and only if the reacted message is their current lastMessageId
+        
         if (convoDoc.exists) {
           final convoData = convoDoc.data()!;
           if (convoData[receiverId]?["lastMessageId"] == messageId) {
             if (isAddOrChange) {
-              reactionPreview = "Reacted $emoji to a message";
-              reactionSender = userId;
               tx.update(convoRef, {
-                "$receiverId.lastMessage": reactionPreview,
-                "$receiverId.lastSender": reactionSender,
+                "$receiverId.lastMessage": "Reacted $emoji to a message",
+                "$receiverId.lastSender": userId,
               });
             } else {
-              reactionPreview = convoData[userId]?["lastMessage"] ?? "";
-              reactionSender = convoData[userId]?["lastSender"] ?? "";
+              // Removal: restore receiver's fields from reactor's (userId) fields
+              final lastMessage = convoData[userId]?["lastMessage"] ?? "";
+              final lastMessageId = convoData[userId]?["lastMessageId"] ?? "";
+              final lastSender = convoData[userId]?["lastSender"] ?? "";
               tx.update(convoRef, {
-                "$receiverId.lastMessage": reactionPreview,
-                "$receiverId.lastMessageId": convoData[userId]?["lastMessageId"] ?? "",
-                "$receiverId.lastSender": reactionSender,
+                "$receiverId.lastMessage": lastMessage,
+                "$receiverId.lastMessageId": lastMessageId,
+                "$receiverId.lastSender": lastSender,
               });
             }
           }
         }
 
+        
+
+
+        // Write operation doc in same transaction with full reactions map
         if (opCollection != null) {
           final opRef = convoRef.collection(opCollection).doc(messageId);
           tx.set(opRef, {
@@ -292,14 +267,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }catch(e){
           //print(e);
         }
-      });
-
-      await supabase.rpc('toggle_message_reaction', params: {
-        'p_convo_id': convoId,
-        'p_message_id': messageId,
-        'p_user_id': userId,
-        'p_emoji': emoji,
-        'p_receiver_id': receiverId,
       });
     } catch (e) {
       //print("Toggle reaction error: $e");
@@ -332,6 +299,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         final doc = await tx.get(msgRef);
         if (!doc.exists) return;
 
+        final convoDoc = await tx.get(convoRef);
+
         tx.set(opRef, {
           "type" : "edit_message",
           "messageId" : msgId,
@@ -346,18 +315,21 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           "isEdited": true,
           "editedAt": FieldValue.serverTimestamp(),
         });
-      });
 
-      await supabase.from(_getMessagesTableName(convoId))
-        .update({'content': newContent, 'is_edited': true})
-        .eq('id', msgId);
+        if (convoDoc.exists) {
+          final convoData = convoDoc.data()!;
+          final isLastMessage =
+              convoData[userId]?["lastMessageId"] == msgId ||
+              convoData[receiverId]?["lastMessageId"] == msgId;
 
-      await supabase.rpc('edit_conversation_last_message', params: {
-        'p_convo_id': convoId,
-        'p_user_id': userId,
-        'p_receiver_id': receiverId,
-        'p_message_id': msgId,
-        'p_new_content': newContent,
+          if (isLastMessage) {
+            tx.update(convoRef, {
+              "$userId.lastMessage": newContent,
+              "$receiverId.lastMessage": newContent,
+              "lastupdateTime": FieldValue.serverTimestamp(),
+            });
+          }
+        }
       });
     } catch (e) {
       //print("Edit message error: $e");
@@ -549,29 +521,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       await batch.commit();
 
       if (!isScheduled) {
-        final msgSupabase = message.toSupabaseMap();
-        msgSupabase['name'] = userName ?? 'Unknown';
-        msgSupabase['receiver_id'] = receiverId;
-        msgSupabase['profile'] = userProfile ?? 'assets/profile_images/pfp1.png';
-
-        final preview = type == 'text' ? content : '📷 Image';
-
-        final sendParams = <String, dynamic>{
-          'p_convo_id': convoId,
-          'p_participants_id': [userId, receiverId],
-          'p_user_id': userId,
-          'p_last_message': preview,
-          'p_last_message_id': msgId,
-          'p_last_sender': userId,
-          'p_is_friend': true,
-        };
-        for (final entry in msgSupabase.entries) {
-          sendParams['p_${entry.key}'] = entry.value;
-        }
-        await supabase.rpc('send_message_and_update_conversation', params: sendParams);
-      }
-
-      if (!isScheduled) {
         try {
            await supabase.from('messages').insert({
             'chat_id': generateConversationId(userId, receiverId),
@@ -586,9 +535,18 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       }
 
       if (!isScheduled) {
+        // await processTimelineEvent(
+        //   messageId: msgId,
+        //   senderId: userId,
+        //   receiverId: receiverId,
+        //   type: type,
+        //   content: content,
+        //   createdAt: Timestamp.now(),
+        // );
+
         final timelineService = TimelineService(firestore,opCollection!);
 
-        final inTimeline = await timelineService.handleMessage(
+        await timelineService.handleMessage(
           messageId: msgId,
           senderId: userId,
           receiverId: receiverId,
@@ -596,14 +554,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           content: content,
           createdAt: Timestamp.now(),
         );
-
-        if (inTimeline) {
-          await supabase.rpc('update_message_timeline', params: {
-            'p_convo_id': convoId,
-            'p_message_id': msgId,
-            'p_in_timeline': true,
-          });
-        }
       }
 
       // if (!isScheduled) {
@@ -784,11 +734,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     return sorted[0] == userId ? "operation_1" : "operation_2";
   }
 
-  String _getMessagesTableName(String convoId) {
-    final hash = md5.convert(utf8.encode(convoId)).toString().substring(0, 16);
-    return 'msg_$hash';
-  }
-
   //refactored search user
   @override
   Future<List<User>> searchUser({
@@ -864,9 +809,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         });
 
         // Only normal messages affect conversation UI
-        var isLastMessageD4Me = false;
-        MessageModel? newLastD4Me;
-
         if (isMessage) {
           final convoSnap = await convoRef.get();
           if (!convoSnap.exists) {
@@ -876,14 +818,16 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
           final convoData = convoSnap.data()!;
 
-          isLastMessageD4Me =
+          final isLastMessage =
               convoData[userId]?["lastMessageId"] == msgId;
 
-          if (isLastMessageD4Me) {
+          if (isLastMessage) {
             final messages = await convoRef
                 .collection("messages")
                 .orderBy("createdAt", descending: true)
                 .get();
+
+            MessageModel? newLast;
 
             for (final doc in messages.docs) {
               final msg =
@@ -891,22 +835,22 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
               if (!msg.deletedfor.contains(userId) &&
                   msg.id != msgId) {
-                newLastD4Me = msg;
+                newLast = msg;
                 break;
               }
             }
 
-            if (newLastD4Me != null) {
+            if (newLast != null) {
               batch.update(convoRef, {
                 "lastupdateTime": FieldValue.serverTimestamp(),
                 "$userId.lastMessage":
-                    newLastD4Me.type == "text"
-                        ? newLastD4Me.content
+                    newLast.type == "text"
+                        ? newLast.content
                         : "📷Image",
-                "$userId.lastMessageId": newLastD4Me.id,
-                "$userId.lastSender": newLastD4Me.senderId,
+                "$userId.lastMessageId": newLast.id,
+                "$userId.lastSender": newLast.senderId,
                 "$userId.lastupdateTime":
-                    Timestamp.fromDate(newLastD4Me.createdAt),
+                    Timestamp.fromDate(newLast.createdAt),
               });
             } else {
               batch.update(convoRef, {
@@ -922,14 +866,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         }
 
         await batch.commit();
-
-        await supabase.rpc('delete_message_and_update_conversation', params: {
-          'p_convo_id': convoId,
-          'p_user_id': userId,
-          'p_receiver_id': receiverId,
-          'p_deleted_message_id': msgId,
-          'p_delete_for_everyone': false,
-        });
         return;
       }
 
@@ -953,10 +889,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         });
       }
 
-      var isLastMessageD4E = false;
-      var isSenderD4E = false;
-      var receiverUnreadD4E = 0;
-
       if (isMessage) {
         final convoSnap = await convoRef.get();
         if (!convoSnap.exists) {
@@ -967,11 +899,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         final convoData = convoSnap.data()!;
         final messageData = messageSnap.data()!;
 
-        isLastMessageD4E =
+        final isLastMessage =
             convoData[userId]?["lastMessageId"] == msgId ||
             convoData[receiverId]?["lastMessageId"] == msgId;
 
-        if (isLastMessageD4E) {
+        // ✅ Update last message for BOTH users
+        if (isLastMessage) {
           final messages = await convoRef
               .collection("messages")
               .orderBy("createdAt", descending: true)
@@ -983,12 +916,14 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           for (final doc in messages.docs) {
             final msg = MessageModel.fromJson(doc.data(), doc.id);
 
+            // 🔵 For current user
             if (lastForUser == null &&
                 !msg.deletedfor.contains(userId) &&
                 msg.id != msgId) {
               lastForUser = msg;
             }
 
+            // 🔴 For receiver
             if (lastForReceiver == null &&
                 !msg.deletedfor.contains(receiverId) &&
                 msg.id != msgId) {
@@ -998,24 +933,59 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             if (lastForUser != null && lastForReceiver != null) break;
           }
 
+          // 🔥 Update conversation correctly
           batch.update(convoRef, {
             "lastupdateTime": FieldValue.serverTimestamp(),
+
+            //these codes are before adding deletedForEveryone field
+            // // 🔵 USER VIEW
+            // "$userId.lastMessage":
+            //     lastForUser != null
+            //         ? (lastForUser.type == "text"
+            //             ? lastForUser.content
+            //             : "📷Image")
+            //         : "",
+            // "$userId.lastMessageId": lastForUser?.id ?? "",
+            // "$userId.lastSender": lastForUser?.senderId ?? "",
+            // "$userId.lastupdateTime":
+            //     lastForUser != null
+            //         ? Timestamp.fromDate(lastForUser.createdAt)
+            //         : FieldValue.serverTimestamp(),
+
+            // // 🔴 RECEIVER VIEW
+            // "$receiverId.lastMessage":
+            //     lastForReceiver != null
+            //         ? (lastForReceiver.type == "text"
+            //             ? lastForReceiver.content
+            //             : "📷Image")
+            //         : "",
+            // "$receiverId.lastMessageId": lastForReceiver?.id ?? "",
+            // "$receiverId.lastSender": lastForReceiver?.senderId ?? "",
+            // "$receiverId.lastupdateTime":
+            //     lastForReceiver != null
+            //         ? Timestamp.fromDate(lastForReceiver.createdAt)
+            //         : FieldValue.serverTimestamp(),
+
+            //after adding deletedForEveryone field
             "$userId.lastMessage": "This message was deleted",
             "$userId.lastSender": messageData["senderId"],
+
             "$receiverId.lastMessage": "This message was deleted",
             "$receiverId.lastSender": messageData["senderId"],
           });
         }
 
+        // 🔥 ADD THIS BLOCK HERE
         batch.update(convoRef, {
           "lastupdateTime": FieldValue.serverTimestamp(),
         });
 
-        isSenderD4E = messageData["senderId"] == userId;
-        receiverUnreadD4E =
+        // ✅ Fix unread count safely
+        final isSender = messageData["senderId"] == userId;
+        final receiverUnread =
             (convoData[receiverId]?["unread"] ?? 0);
 
-        if (isSenderD4E && receiverUnreadD4E > 0) {
+        if (isSender && receiverUnread > 0) {
           batch.update(convoRef, {
             "$receiverId.unread":
                 FieldValue.increment(-1),
@@ -1024,14 +994,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       }
 
       await batch.commit();
-
-      await supabase.rpc('delete_message_and_update_conversation', params: {
-        'p_convo_id': convoId,
-        'p_user_id': userId,
-        'p_receiver_id': receiverId,
-        'p_deleted_message_id': msgId,
-        'p_delete_for_everyone': true,
-      });
     } catch (e) {
       //print("Delete message error: $e");
     }
@@ -1099,12 +1061,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       await firestore.collection("Conversations").doc(convoId).update({
         '$userId.isFriend': isFriend,
         '$friendId.isFriend': isFriend,
-      });
-      await supabase.rpc('update_conversation_friend_status', params: {
-        'p_convo_id': convoId,
-        'p_user_id': userId,
-        'p_friend_id': friendId,
-        'p_is_friend': isFriend,
       });
     } catch (_) {}
   }

@@ -145,12 +145,6 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
       "addedToTimeline" : true,
       "timestamp": FieldValue.serverTimestamp(),
     });
-
-    await supabaseClient.rpc('update_message_timeline', params: {
-      'p_convo_id': convoId,
-      'p_message_id': message.id,
-      'p_in_timeline': true,
-    });
   }
 
   String _getMyOpCollection(String userId, String receiverId) {
@@ -211,12 +205,6 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
           "messageId" : messageId,
           "addedToTimeline" : false,
           "timestamp": FieldValue.serverTimestamp(),
-        });
-
-        await supabaseClient.rpc('update_message_timeline', params: {
-          'p_convo_id': convoId,
-          'p_message_id': messageId,
-          'p_in_timeline': false,
         });
         }
       });
