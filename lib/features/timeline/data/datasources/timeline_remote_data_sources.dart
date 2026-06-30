@@ -4,6 +4,7 @@ import 'package:chat_application/features/timeline/data/models/event_model.dart'
 import 'package:chat_application/features/timeline/domain/entities/event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract interface class TimelineRemoteDataSources {
@@ -140,11 +141,14 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
       // On web, messages live in Supabase — the Firestore doc may not exist
     }
 
-    await supabaseClient.rpc('update_message_timeline', params: {
-      'p_convo_id': convoId,
-      'p_message_id': message.id,
-      'p_in_timeline': true,
-    });
+    await supabaseClient.rpc(
+      kIsWeb ? 'web_update_message_timeline' : 'update_message_timeline',
+      params: {
+        'p_convo_id': convoId,
+        'p_message_id': message.id,
+        'p_in_timeline': true,
+      },
+    );
   }
 
   @override
@@ -188,11 +192,14 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
       });
 
       if (shouldSetInTimelineFalse) {
-        await supabaseClient.rpc('update_message_timeline', params: {
-          'p_convo_id': convoId,
-          'p_message_id': messageId,
-          'p_in_timeline': false,
-        });
+        await supabaseClient.rpc(
+          kIsWeb ? 'web_update_message_timeline' : 'update_message_timeline',
+          params: {
+            'p_convo_id': convoId,
+            'p_message_id': messageId,
+            'p_in_timeline': false,
+          },
+        );
       }
     } catch (e) {
       throw ServerExceptions(e.toString());

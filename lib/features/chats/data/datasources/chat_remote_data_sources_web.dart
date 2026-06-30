@@ -25,7 +25,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
 
     Future<void> fetchAndEmit() async {
       try {
-        final raw = await supabase.rpc('get_conversations_for_user', params: {
+        final raw = await supabase.rpc('web_get_conversations_for_user', params: {
           'p_user_id': userId,
         });
         final rows = (raw as List).cast<Map<String, dynamic>>();
@@ -68,7 +68,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
 
     Future<void> fetchAndEmit() async {
       try {
-        final raw = await supabase.rpc('fetch_conversation_messages', params: {
+        final raw = await supabase.rpc('web_fetch_conversation_messages', params: {
           'p_convo_id': convoId,
         });
         final rows = (raw as List).cast<Map<String, dynamic>>();
@@ -126,7 +126,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
     print("get older messages");
     final convoId = generateConversationId(userId, receiverId);
     try {
-      final raw = await supabase.rpc('fetch_conversation_messages', params: {
+      final raw = await supabase.rpc('web_fetch_conversation_messages', params: {
         'p_convo_id': convoId,
       });
       final rows = (raw as List).cast<Map<String, dynamic>>();
@@ -148,7 +148,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
     required String conversationId,
   }) async {
     try {
-      final response = await supabase.rpc('fetch_conversation_messages', params: {
+      final response = await supabase.rpc('web_fetch_conversation_messages', params: {
         'p_convo_id': conversationId,
       });
 
@@ -241,14 +241,14 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
     final convoRef = firestore.collection("Conversations").doc(convoId);
 
     try {
-      final msgIds = await supabase.rpc('get_sent_unseen_message_ids', params: {
+      final msgIds = await supabase.rpc('web_get_sent_unseen_message_ids', params: {
         'p_convo_id': convoId,
         'p_sender_id': receiverId,
         'p_receiver_id': userId,
       });
 
       if (msgIds is List && msgIds.isNotEmpty) {
-        await supabase.rpc('mark_messages_seen', params: {
+        await supabase.rpc('web_mark_messages_seen', params: {
           'p_convo_id': convoId,
           'p_user_id': userId,
           'p_receiver_id': receiverId,
@@ -281,7 +281,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
       final convoId = generateConversationId(userId, receiverId);
       final convoRef = firestore.collection("Conversations").doc(convoId);
 
-      final updatedReactions = await supabase.rpc('toggle_message_reaction', params: {
+      final updatedReactions = await supabase.rpc('web_toggle_message_reaction', params: {
         'p_convo_id': convoId,
         'p_message_id': messageId,
         'p_user_id': userId,
@@ -332,7 +332,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
         .update({'content': newContent, 'is_edited': true})
         .eq('id', msgId);
 
-      await supabase.rpc('edit_conversation_last_message', params: {
+      await supabase.rpc('web_edit_conversation_last_message', params: {
         'p_convo_id': convoId,
         'p_user_id': userId,
         'p_receiver_id': receiverId,
@@ -492,7 +492,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
         for (final entry in msgSupabase.entries) {
           sendParams['p_${entry.key}'] = entry.value;
         }
-        await supabase.rpc('send_message_and_update_conversation', params: sendParams);
+        await supabase.rpc('web_send_message_and_update_conversation', params: sendParams);
       }
 
       if (!isScheduled) {
@@ -523,7 +523,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
         );
 
         if (inTimeline) {
-          await supabase.rpc('update_message_timeline', params: {
+          await supabase.rpc('web_update_message_timeline', params: {
             'p_convo_id': convoId,
             'p_message_id': msgId,
             'p_in_timeline': true,
@@ -598,7 +598,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
         "performedBy": userId,
       });
 
-      await supabase.rpc('delete_message_and_update_conversation', params: {
+      await supabase.rpc('web_delete_message_and_update_conversation', params: {
         'p_convo_id': convoId,
         'p_user_id': userId,
         'p_receiver_id': receiverId,
@@ -693,7 +693,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
     required bool isFriend,
   }) async {
     try {
-      await supabase.rpc('update_conversation_friend_status', params: {
+      await supabase.rpc('web_update_conversation_friend_status', params: {
         'p_convo_id': convoId,
         'p_user_id': userId,
         'p_friend_id': friendId,
