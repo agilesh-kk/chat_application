@@ -126,17 +126,16 @@ class MessageOptionsTray {
                           if (onEdit != null) onEdit();
                         },
                       ),
-                    if (isMe)
-                      _buildMenuItem(
-                        context: ctx,
-                        icon: Icons.delete_outline,
-                        label: 'Delete',
-                        isDestructive: true,
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          if (onDelete != null) onDelete();
-                        },
-                      ),
+                    _buildMenuItem(
+                      context: ctx,
+                      icon: Icons.delete_outline,
+                      label: 'Delete',
+                      isDestructive: true,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        if (onDelete != null) onDelete();
+                      },
+                    ),
                     _buildMenuItem(
                       context: ctx,
                       icon: Icons.favorite,

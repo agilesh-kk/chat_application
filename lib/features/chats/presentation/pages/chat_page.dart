@@ -1539,6 +1539,7 @@ class _ChatPageState extends State<ChatPage>
             DeleteMessageConfirmationDialog.show(
               context,
               messageContent: msg.content,
+              isMe: isMe,
               onDeleteForMe: () {
                 context.read<ChatBloc>().add(
                   DeleteMessageEvent(
@@ -1550,17 +1551,19 @@ class _ChatPageState extends State<ChatPage>
                   ),
                 );
               },
-              onDeleteForEveryone: () {
-                context.read<ChatBloc>().add(
-                  DeleteMessageEvent(
-                    msgId: msg.id,
-                    userId: widget.currentUserId,
-                    type: msg.type,
-                    receiverId: widget.receiverId,
-                    deleteForEveryone: true,
-                  ),
-                );
-              },
+              onDeleteForEveryone: isMe
+                  ? () {
+                      context.read<ChatBloc>().add(
+                        DeleteMessageEvent(
+                          msgId: msg.id,
+                          userId: widget.currentUserId,
+                          type: msg.type,
+                          receiverId: widget.receiverId,
+                          deleteForEveryone: true,
+                        ),
+                      );
+                    }
+                  : null,
             );
           },
           onReply: () {
@@ -1586,6 +1589,7 @@ class _ChatPageState extends State<ChatPage>
             DeleteMessageConfirmationDialog.show(
               context,
               messageContent: "Image",
+              isMe: isMe,
               onDeleteForMe: () {
                 context.read<ChatBloc>().add(
                   DeleteMessageEvent(
@@ -1597,17 +1601,19 @@ class _ChatPageState extends State<ChatPage>
                   ),
                 );
               },
-              onDeleteForEveryone: () {
-                context.read<ChatBloc>().add(
-                  DeleteMessageEvent(
-                    msgId: msg.id,
-                    userId: widget.currentUserId,
-                    type: msg.type,
-                    receiverId: widget.receiverId,
-                    deleteForEveryone: true,
-                  ),
-                );
-              },
+              onDeleteForEveryone: isMe
+                  ? () {
+                      context.read<ChatBloc>().add(
+                        DeleteMessageEvent(
+                          msgId: msg.id,
+                          userId: widget.currentUserId,
+                          type: msg.type,
+                          receiverId: widget.receiverId,
+                          deleteForEveryone: true,
+                        ),
+                      );
+                    }
+                  : null,
             );
           },
           onReply: () {

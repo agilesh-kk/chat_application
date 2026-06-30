@@ -4,20 +4,23 @@ import 'package:flutter/material.dart';
 class DeleteMessageConfirmationDialog extends StatelessWidget {
   final String messageContent;
   final VoidCallback onDeleteForMe;
-  final VoidCallback onDeleteForEveryone;
+  final VoidCallback? onDeleteForEveryone;
+  final bool isMe;
 
   const DeleteMessageConfirmationDialog({
     super.key,
     required this.messageContent,
     required this.onDeleteForMe,
-    required this.onDeleteForEveryone,
+    this.onDeleteForEveryone,
+    this.isMe = true,
   });
 
   static Future<void> show(
     BuildContext context, {
     required String messageContent,
     required VoidCallback onDeleteForMe,
-    required VoidCallback onDeleteForEveryone,
+    VoidCallback? onDeleteForEveryone,
+    bool isMe = true,
   }) async {
     await showDialog<void>(
       context: context,
@@ -25,6 +28,7 @@ class DeleteMessageConfirmationDialog extends StatelessWidget {
         messageContent: messageContent,
         onDeleteForMe: onDeleteForMe,
         onDeleteForEveryone: onDeleteForEveryone,
+        isMe: isMe,
       ),
     );
   }
@@ -111,17 +115,20 @@ class DeleteMessageConfirmationDialog extends StatelessWidget {
               isDestructive: true,
               fullWidth: true,
             ),
-            const SizedBox(height: 12),
-            _buildButton(
-              label: 'Delete for everyone',
-              onTap: () {
-                Navigator.of(context).pop();
-                onDeleteForEveryone();
-              },
-              isPrimary: true,
-              isDestructive: true,
-              fullWidth: true,
-            ),
+            if (isMe)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: _buildButton(
+                  label: 'Delete for everyone',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    onDeleteForEveryone?.call();
+                  },
+                  isPrimary: true,
+                  isDestructive: true,
+                  fullWidth: true,
+                ),
+              ),
           ],
         ),
       ),

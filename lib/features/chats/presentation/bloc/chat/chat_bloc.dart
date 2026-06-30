@@ -256,8 +256,12 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
 
       final Map<String, Message> messageMap = {};
 
-      // Keep all existing messages (including older paginated ones)
+      // Keep all existing messages (including older paginated ones),
+      // but skip any the user has deleted for themselves
       for (var msg in currentState.messages) {
+        if (msg.deletedForEveryone || msg.deletedfor.contains(_currentUserId)) {
+          continue;
+        }
         messageMap[msg.id] = msg;
       }
 
@@ -368,10 +372,16 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         final Map<String, Message> messageMap = {};
 
         for (var msg in currentState.messages) {
+          if (msg.deletedForEveryone || msg.deletedfor.contains(_currentUserId)) {
+            continue;
+          }
           messageMap[msg.id] = msg;
         }
 
         for (var msg in olderMessages) {
+          if (msg.deletedForEveryone || msg.deletedfor.contains(_currentUserId)) {
+            continue;
+          }
           if (!messageMap.containsKey(msg.id)) {
             messageMap[msg.id] = msg;
           }
