@@ -55,7 +55,6 @@ class _MessageBubbleState extends State<MessageBubble>
   int _playCount = 0;
 
   late final Animation<double> fade;
-  late final Animation<double> scale;
   late final Animation<Offset> slide;
 
   @override
@@ -64,7 +63,7 @@ class _MessageBubbleState extends State<MessageBubble>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 250),
     );
 
     fade = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -74,19 +73,14 @@ class _MessageBubbleState extends State<MessageBubble>
       ),
     );
 
-    scale = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
-    );
-
-    slide = Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
-    );
+    final slideX = widget.isMe ? 0.5 : -0.5;
+    slide = Tween<Offset>(
+      begin: Offset(slideX, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
 
     if (widget.animate) {
       _controller.forward();
@@ -141,16 +135,15 @@ class _MessageBubbleState extends State<MessageBubble>
           onEdit: widget.onEdit,
         );
       },
-      child: SlideTransition(
-        position: slide,
-        child: FadeTransition(
-          opacity: fade,
-          child: ScaleTransition(
-            scale: scale,
-            child: bubble,
-          ),
-        ),
-      ),
+      child: widget.animate
+        ? FadeTransition(
+            opacity: fade,
+            child: SlideTransition(
+              position: slide,
+              child: bubble,
+            ),
+          )
+        : bubble,
     );
   }
 
