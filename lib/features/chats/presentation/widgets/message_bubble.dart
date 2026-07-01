@@ -408,99 +408,132 @@ return Align(
       userName = user.user.name;
     }
 
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: AppPallete.cardBg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: AppPallete.divider),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Add to Timeline",
-                style: TextStyle(
-                  color: AppPallete.whiteColor,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black54,
+      pageBuilder: (ctx, animation, secondaryAnimation) {
+        return Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            margin: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppPallete.cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppPallete.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppPallete.inputBg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppPallete.divider),
-                ),
-                child: TextField(
-                  controller: controller,
-                  style: TextStyle(color: AppPallete.whiteColor),
-                  decoration: InputDecoration(
-                    hintText: "Add a note (optional)",
-                    hintStyle: TextStyle(color: AppPallete.greyText),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.all(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Material(
+              color: Colors.transparent,
+              child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppPallete.darkTertiary,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppPallete.divider),
-                      ),
-                      child: Text(
-                        "Cancel",
-                        style: TextStyle(color: AppPallete.greyText, fontSize: 14, fontWeight: FontWeight.w600),
+                  Text(
+                    "Add to Timeline",
+                    style: TextStyle(
+                      color: AppPallete.whiteColor,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppPallete.inputBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppPallete.divider),
+                    ),
+                    child: TextField(
+                      controller: controller,
+                      style: TextStyle(color: AppPallete.whiteColor),
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) {
+                        Navigator.pop(ctx);
+                        context.read<TimelineBloc>().add(
+                          AddEvent(
+                            message: msg,
+                            userId: widget.currentUserId,
+                            receiverId: widget.receiverId,
+                            customTitle: controller.text.trim(),
+                            addedByName: userName,
+                          ),
+                        );
+                      },
+                      decoration: InputDecoration(
+                        hintText: "Add a note (optional)",
+                        hintStyle: TextStyle(color: AppPallete.greyText),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(12),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      dialogContext.read<TimelineBloc>().add(
-                        AddEvent(
-                          message: msg,
-                          userId: widget.currentUserId,
-                          receiverId: widget.receiverId,
-                          customTitle: controller.text.trim(),
-                          addedByName: userName,
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppPallete.darkTertiary,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppPallete.divider),
+                          ),
+                          child: Text(
+                            "Cancel",
+                            style: TextStyle(color: AppPallete.greyText, fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
                         ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+                      ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          context.read<TimelineBloc>().add(
+                            AddEvent(
+                              message: msg,
+                              userId: widget.currentUserId,
+                              receiverId: widget.receiverId,
+                              customTitle: controller.text.trim(),
+                              addedByName: userName,
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [AppPallete.primaryOrange, AppPallete.lightOrange],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            "Save",
+                            style: TextStyle(color: AppPallete.whiteColor, fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        "Save",
-                        style: TextStyle(color: AppPallete.whiteColor, fontSize: 14, fontWeight: FontWeight.w600),
-                      ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
+        );
+      },
     );
   }
 

@@ -369,11 +369,13 @@ class _PersonalTimelineContentState extends State<PersonalTimelineContent> {
   }
 
   Widget _bubble(Event event, bool isMe, BuildContext context) {
+    Offset? tapPos;
     return GestureDetector(
-      onLongPressStart: (details) {
+      onDoubleTapDown: (details) => tapPos = details.globalPosition,
+      onDoubleTap: () {
         TimelineOptionsTray.show(
           context: context,
-          position: details.globalPosition,
+          position: tapPos,
           onDelete: () {
             context.read<PersonalTimelineBloc>().add(
               RemovePersonalTimelineEvent(

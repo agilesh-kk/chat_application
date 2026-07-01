@@ -67,6 +67,11 @@ class _SearchPageState extends State<SearchPage>
     super.dispose();
   }
 
+  void _onBack() {
+    context.read<SearchBloc>().add(ResetSearch());
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -132,7 +137,7 @@ class _SearchPageState extends State<SearchPage>
                       onKeyEvent: (event) {
                         if (event is KeyDownEvent &&
                             event.logicalKey == LogicalKeyboardKey.escape) {
-                          Navigator.pop(context);
+                          _onBack();
                         }
                       },
                       child: Column(
@@ -184,7 +189,7 @@ class _SearchPageState extends State<SearchPage>
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: _onBack,
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
