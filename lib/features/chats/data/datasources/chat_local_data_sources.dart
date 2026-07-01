@@ -32,7 +32,7 @@ abstract interface class ChatLocalDataSource {
   Future<void> resetUnread(String convoId);
   Future<void> deleteMessageLocally(String msgId);
   Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds, String receiverId);
-  Stream<ListOperation<Message>> getMessagesStream(String conversationId);
+  Stream<ListOperation<Message>> getMessagesStream(String conversationId,String userId);
   Stream<List<Conversation>> getConversationsStream();
 
   Future<bool> ischeckUserChanged(String userId);
@@ -458,9 +458,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   void _notify(String conversationId, ListOperation<Message> lp) {
     final controller = _controllers[conversationId];
     if (controller == null || controller.isClosed) return;
-    _queryMessagesSafe(conversationId).then((messages) {
      if (!controller.isClosed) controller.add(lp);
-    });
   }
 
   void _notifyConvo() {
@@ -472,20 +470,20 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     });
   }
 
-  Future<List<Message>> _queryMessagesSafe(String conversationId) async {
+  Future<List<Message>> _queryMessagesSafe(String conversationId,String userId) async {
     try {
-      return await _queryMessages(conversationId);
+      return await _queryMessages(conversationId,userId);
     } catch (_) {
       return [];
     }
   }
 
-  Future<List<Message>> _queryMessages(String conversationId) async {
+  Future<List<Message>> _queryMessages(String conversationId,String userId) async {
     if (_db == null) return [];
     final rows = await _db!.query(
       'messages',
-      where: 'conversationId = ?',
-      whereArgs: [conversationId],
+      where: 'conversationId = ? and deletedForEveryone = ? and deletedFor NOT LIKE ?',
+      whereArgs: [conversationId,0,"%$userId%"],
       orderBy: 'createdAt DESC',
     );
     return rows.map(_dbToMessage).toList();
@@ -550,11 +548,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     final convo = await _db!.query("conversations",where: "convoId = ?",whereArgs: [convoId],limit: 1);
 
     if(convo.first['msgId'] == msgId){
-      if(deletedForEveryone){
-        await _db!.update("conversations", {"lastMessage":"this message was deleted","lastUpdateTime":_toMillis(DateTime.now())},where : "convoId = ?" , whereArgs: [convoId]);
-      }else if(deletedfor.contains(userId)){
         await changeLastMessageToPreviousMessage(convoId, userId, receiverId, 1);
-      }
       _notifyConvo();
     }
 
@@ -566,10 +560,12 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   }
 
   Future<void> changeLastMessageToPreviousMessage(String convoId,String userId,String receiverId, int place) async{
-    final row = await _db!.query("messages",where: "deletedfor NOT LIKE ? and conversationId = ?",whereArgs: ["%$userId%",convoId],limit: place,orderBy: "createdAt DESC");
+    final row = await _db!.query("messages",where: "deletedForEveryone = ? and deletedfor NOT LIKE ? and conversationId = ?",whereArgs: [0,"%$userId%",convoId],limit: place,orderBy: "createdAt DESC");
     if(row.isNotEmpty){
       final prev = row[place-1];
       await updateConvo(convoId, prev['id'] as String, prev['content'] as String, DateTime.fromMillisecondsSinceEpoch(prev['createdAt'] as int), receiverId, prev['senderId'] as String);
+    }else{
+      await updateConvo(convoId, "", "","", receiverId, "");
     }
   }
 
@@ -591,7 +587,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
         {
           final row = await _db!.query("messages",where: "id = ?",whereArgs: [msgId],limit: 1);
         if(row.isNotEmpty){
-          await updateConvo(row.first['conversationId'] as String, msgId, "Reacted $emoji to \"${row.first["content"] as String}\"", DateTime.now(), receiverId, reacterId);
+          await updateConvo(row.first['conversationId'] as String, msgId, "Reacted $emoji to \"${row.first["content"] as String}\"", DateTime.now(), receiverId, reacterId,incUnread: 0);
           _notifyConvo();
 
         }
@@ -845,18 +841,13 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   }
 
   @override
-  Stream<ListOperation<Message>> getMessagesStream(String conversationId) {
+  Stream<ListOperation<Message>> getMessagesStream(String conversationId,String userId) {
     if (_controllers[conversationId] == null || _controllers[conversationId]!.isClosed) {
       _controllers[conversationId] = StreamController<ListOperation<Message>>.broadcast();
     }
-    _db!.query('messages',
-      where: 'conversationId = ?',
-      whereArgs: [conversationId],
-      orderBy: 'createdAt DESC',
-    ).then((rows) {
-      final messages = rows.map(_dbToMessage).toList();
+    _queryMessages(conversationId,userId).then((rows) {
       if (!_controllers[conversationId]!.isClosed) {
-        _controllers[conversationId]?.add(FirstFetch<Message>(messages));
+        _controllers[conversationId]?.add(FirstFetch<Message>(rows));
       }
     });
     return _controllers[conversationId]!.stream;

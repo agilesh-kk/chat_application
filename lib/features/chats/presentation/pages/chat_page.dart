@@ -737,6 +737,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemBuilder: (context, index) {
                       final message = messages[ids[index]]!;
+                      
                       final isMe = message.senderId == widget.currentUserId;
                       final isAnimate = isNewMessage && index == 0;
 

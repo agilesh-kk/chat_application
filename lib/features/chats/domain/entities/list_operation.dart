@@ -45,7 +45,8 @@ class DeleteMessageOperation implements ListOperation<Message> {
   DeleteMessageOperation(this.msgId, this.deletedfor,
       {this.deleteForEveryone = false});
   @override performOperation(List<String> ids,Map<String, Message> items) {
-    items[msgId] = items[msgId]!.copyWith(deletedForEveryone: deleteForEveryone,deletedfor: deletedfor);
+    items.remove(msgId);
+    ids.remove(msgId);
   }
 }
 

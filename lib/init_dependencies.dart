@@ -130,7 +130,6 @@ Future<void> initDependencies() async {
   _initAchievement();
   _initW2G();
 
-  //supabase initialization
   final supabase = await Supabase.initialize(
     url: AppKeys.supabaseUrl,
     anonKey: AppKeys.anonKey,

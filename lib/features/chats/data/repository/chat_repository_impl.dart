@@ -131,7 +131,7 @@ class ChatRepositoryImpl implements ChatRepository {
         // }
       }
 
-      return right(chatLocalDataSource.getMessagesStream(convoId));
+      return right(chatLocalDataSource.getMessagesStream(convoId,userId));
     } catch (e) {
       return left(Failure(e.toString()));
     }
@@ -342,6 +342,7 @@ class ChatRepositoryImpl implements ChatRepository {
       final opCollection = _getMyOpCollection(userId, receiverId);
 
       final convoId = generateConversationId(userId, receiverId);
+      bool isNewConvo = false;
 
       if (!isScheduled) {
         await chatLocalDataSource.initDatabase();
@@ -366,6 +367,9 @@ class ChatRepositoryImpl implements ChatRepository {
           'profile': userProfile,
           'convoId': convoId,
         });
+
+        isNewConvo = !await chatLocalDataSource.hasConversation(convoId);
+
         chatLocalDataSource.updateConvo(
           convoId,
           msgId,
@@ -376,9 +380,7 @@ class ChatRepositoryImpl implements ChatRepository {
         );
       }
 
-      final isNewConvo = !isScheduled && !await chatLocalDataSource.hasConversation(convoId);
-
-      if (!await InternetConnection().hasInternetAccess) {
+      if (!await InternetConnection().hasInternetAccess && !isScheduled) {
         await _pendAndSetup(
           msgId: msgId, userId: userId, receiverId: receiverId,
           content: content, type: 'text',
@@ -463,6 +465,8 @@ class ChatRepositoryImpl implements ChatRepository {
         'convoId': convoId,
       });
 
+      final isNewConvo = !await chatLocalDataSource.hasConversation(convoId);
+
       chatLocalDataSource.updateConvo(
         convoId,
         msgId,
@@ -471,8 +475,6 @@ class ChatRepositoryImpl implements ChatRepository {
         receiverId,
         userId,
       );
-
-      final isNewConvo = !await chatLocalDataSource.hasConversation(convoId);
 
       if (!await InternetConnection().hasInternetAccess) {
         await _pendAndSetup(
