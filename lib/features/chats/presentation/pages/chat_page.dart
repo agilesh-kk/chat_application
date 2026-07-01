@@ -99,7 +99,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    ChatPage.activeConvoId = widget.convoId;
+    ChatPage.activeConvoId = _conversationId;
     if (widget.convoId != null) {
       removeChatMessages(widget.convoId!);
       flutterLocalNotificationsPlugin.cancel(widget.convoId.hashCode,tag: widget.convoId);

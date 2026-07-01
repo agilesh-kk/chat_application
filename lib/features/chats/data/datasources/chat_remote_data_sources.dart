@@ -521,7 +521,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       if (!isScheduled) {
         try {
-           await supabase.from('messages').insert({
+           supabase.from('messages').insert({
             'chat_id': generateConversationId(userId, receiverId),
             'sender_id': userId,
             'receiver_id': receiverId,
@@ -545,7 +545,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
         final timelineService = TimelineService(firestore,opCollection!);
 
-        await timelineService.handleMessage(
+         timelineService.handleMessage(
           messageId: msgId,
           senderId: userId,
           receiverId: receiverId,
