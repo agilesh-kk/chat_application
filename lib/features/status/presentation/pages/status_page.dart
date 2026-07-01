@@ -6,7 +6,6 @@ import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart'
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
-import 'package:chat_application/features/status/presentation/functions/helper_functions.dart';
 import 'package:chat_application/features/status/presentation/pages/add_status_page.dart';
 import 'package:chat_application/features/status/presentation/models/user_status_batch.dart';
 import 'package:chat_application/features/status/presentation/pages/view_status_page.dart';
@@ -161,10 +160,9 @@ class _StatusPageState extends State<StatusPage>
                                 }
                               },
                               onAddStatus: () async {
-                                XFile? res =
-                                    await HelperFunctions.showImageSourceBottomSheet(
-                                  currentUserId,
-                                  context,
+                                final picker = ImagePicker();
+                                XFile? res = await picker.pickImage(
+                                  source: ImageSource.gallery,
                                 );
 
                                 if (!context.mounted || res == null) {

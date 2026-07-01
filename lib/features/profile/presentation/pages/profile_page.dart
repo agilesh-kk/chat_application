@@ -6,7 +6,6 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_confirmation_dialog.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:chat_application/features/chats/presentation/pages/chat_page.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/friends/presentation/friend_requests_cubit.dart';
 import 'package:chat_application/features/friends/presentation/pages/friend_requests_page.dart';
@@ -1602,15 +1601,11 @@ class _ProfilePageState extends State<ProfilePage>
             profileUser.name as String,
           );
         } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (c) => ChatPage(
-                currentUserId: currentUser.id,
-                receiverId: profileUser.id,
-                receiverName: profileUser.name,
-              ),
-            ),
+          final cubit = context.read<NavPageIndexCubit>();
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          cubit.navigateToChat(
+            profileUser.id as String,
+            profileUser.name as String,
           );
         }
       },

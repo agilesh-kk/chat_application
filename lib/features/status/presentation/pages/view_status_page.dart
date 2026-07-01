@@ -4,13 +4,14 @@ import 'dart:io';
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
+import 'package:chat_application/core/utils/profile_image_provider.dart';
+import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/friends/data/friend_model.dart';
 import 'package:chat_application/features/friends/presentation/friends_cubit.dart';
 import 'package:chat_application/features/status/domain/entities/status.dart';
 import 'package:chat_application/features/status/presentation/bloc/status/status_bloc.dart';
 import 'package:chat_application/features/status/presentation/bloc/status_view/statusview_bloc.dart';
 import 'package:chat_application/features/status/presentation/models/user_status_batch.dart';
-import 'package:chat_application/core/utils/profile_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -250,13 +251,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
     _replyFocusNode.unfocus();
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Reply sent to ${_currentBatch.userName}"),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showSnackbar(context, "Reply sent to ${_currentBatch.userName}");
     }
     resumeStory();
   }
@@ -967,6 +962,7 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
                                 isPrimary: true,
                                 onTap: () {
                                   Navigator.pop(ctx);
+                                  showSnackbar(context, "Status deleted");
                                   context.read<StatusBloc>().add(
                                     DeleteStatusEvent(statusId: status.id),
                                   );

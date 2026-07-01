@@ -6,6 +6,7 @@ import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/moments_ago.dart';
 import 'package:chat_application/core/utils/profile_image_provider.dart';
+import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
 import 'package:chat_application/features/chats/presentation/pages/time_capsule_messages.dart';
 import 'package:chat_application/features/chats/presentation/widgets/image_tile.dart';
@@ -451,12 +452,7 @@ class _ChatPageState extends State<ChatPage>
       final expiresAt = DateTime.parse(data['expiresAt'] as String);
       if (expiresAt.isBefore(DateTime.now())) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Status has expired"),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          showSnackbar(context, "Status has expired");
         }
         return;
       }
@@ -492,12 +488,7 @@ class _ChatPageState extends State<ChatPage>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Could not load status"),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showSnackbar(context, "Could not load status");
       }
     }
   }
