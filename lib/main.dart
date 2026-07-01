@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/keys/app_keys.dart';
@@ -623,6 +624,9 @@ void main() async {
   }
 
   await initDependencies();
+
+  FlutterNativeSplash.remove();
+
   runApp(
     MultiBlocProvider(
       providers: [
