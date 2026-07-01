@@ -95,25 +95,30 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
 
   @override
   Future<void> markMessagesDelivered({
-    required String userId, 
-    required String receiverId
+    required String userId,
+    required String receiverId,
+    String? opCollection,
   }) async {
     final convoId = generateConversationId(userId, receiverId);
     final convoRef = firestore
         .collection("Conversations")
-        .doc(convoId)
-      ..update({"$userId.unread": 0});
+        .doc(convoId);
 
-    final snapshot = 
+    final snapshot =
         await convoRef
             .collection("messages")
             .where("senderId", isEqualTo: receiverId)
             .where("status", isEqualTo: "sent")
             .get();
 
-    if (snapshot.docs.isEmpty) return;
+    if (snapshot.docs.isEmpty) {
+      await convoRef.update({"$userId.unread": 0});
+      return;
+    }
 
     final batch = firestore.batch();
+
+    batch.update(convoRef, {"$userId.unread": 0});
 
     final seenMsgIds = <String>[];
     for (final doc in snapshot.docs) {
@@ -121,11 +126,11 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
       seenMsgIds.add(doc.id);
     }
 
-    final opCollection = _getMyOpCollection(userId, receiverId);
-    final opRef = convoRef.collection(opCollection).doc();
+    final opCol = opCollection ?? _getMyOpCollection(userId, receiverId);
+    final opRef = convoRef.collection(opCol).doc();
     batch.set(opRef, {
       "type": "seen",
-      "messageIds": seenMsgIds,
+      "seenMsgIds": seenMsgIds,
       "seenByUserId": userId,
       "timestamp": FieldValue.serverTimestamp(),
     });

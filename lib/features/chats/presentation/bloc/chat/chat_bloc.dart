@@ -294,7 +294,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     final hasUnseen = messages.any(
       (msg) =>
           msg.senderId == _currentReceiverId &&
-          msg.status == "sent" &&
+          msg.status != "seen" &&
           !msg.isLocal,
     );
 
@@ -352,7 +352,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       ),
     );
     result.fold(
-      (failure) => null,
+      (failure) => emit(ChatError(failure.message)),
       (_) => null,
     );
   }
