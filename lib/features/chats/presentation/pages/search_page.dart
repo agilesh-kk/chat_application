@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
@@ -27,9 +28,7 @@ class _SearchPageState extends State<SearchPage>
   final _kbFocusNode = FocusNode();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _headerSlide;
-  late Animation<Offset> _searchSlide;
-  late Animation<Offset> _contentSlide;
+  late Animation<double> _scaleAnimation;
   StreamSubscription? _friendStateSub;
 
   @override
@@ -37,36 +36,15 @@ class _SearchPageState extends State<SearchPage>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 400),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-    _headerSlide = Tween<Offset>(
-      begin: const Offset(0, -0.3),
-      end: Offset.zero,
-    ).animate(
+    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
-        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
-      ),
-    );
-    _searchSlide = Tween<Offset>(
-      begin: const Offset(-0.3, 0),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.1, 0.65, curve: Curves.easeOutCubic),
-      ),
-    );
-    _contentSlide = Tween<Offset>(
-      begin: const Offset(0.3, 0),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.2, 0.75, curve: Curves.easeOutCubic),
+        curve: Curves.easeOutBack,
       ),
     );
     _animationController.forward();
@@ -93,72 +71,107 @@ class _SearchPageState extends State<SearchPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppPallete.darkBg,
-      body: KeyboardListener(
-        focusNode: _kbFocusNode,
-        autofocus: true,
-        onKeyEvent: (event) {
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.escape) {
-            Navigator.pop(context);
-          }
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppPallete.darkBg,
-                AppPallete.darkSecondary,
-                AppPallete.darkBg,
-              ],
-              stops: const [0.0, 0.5, 1.0],
-            ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppPallete.darkBg,
+              AppPallete.darkSecondary,
+              AppPallete.darkBg,
+            ],
+            stops: const [0.0, 0.5, 1.0],
           ),
-          child: SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  SlideTransition(
-                    position: _headerSlide,
-                    child: _buildHeader(context),
+        ),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              ClipRect(
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.5),
                   ),
-                  SlideTransition(
-                    position: _searchSlide,
-                    child: _buildSearchInput(),
-                  ),
-                  Expanded(
-                    child: SlideTransition(
-                      position: _contentSlide,
-                      child: BlocBuilder<SearchBloc, SearchState>(
-                        builder: (context, state) {
-                          if (state is Searching) {
-                            return const Center(
-                              child: CircularProgressIndicator(
-                                color: AppPallete.primaryOrange,
-                              ),
-                            );
-                          }
+                ),
+              ),
+              Center(
+                child: AnimatedBuilder(
+                  animation: _animationController,
+                  builder: (context, child) {
+                    return Opacity(
+                      opacity: _fadeAnimation.value,
+                      child: Transform.scale(
+                        scale: _scaleAnimation.value,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      maxWidth: 520,
+                      maxHeight: 700,
+                    ),
+                    margin: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppPallete.cardBg,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppPallete.divider),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 40,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: KeyboardListener(
+                      focusNode: _kbFocusNode,
+                      autofocus: true,
+                      onKeyEvent: (event) {
+                        if (event is KeyDownEvent &&
+                            event.logicalKey == LogicalKeyboardKey.escape) {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildHeader(context),
+                          _buildSearchInput(),
+                          Flexible(
+                            child: BlocBuilder<SearchBloc, SearchState>(
+                              builder: (context, state) {
+                                if (state is Searching) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppPallete.primaryOrange,
+                                    ),
+                                  );
+                                }
 
-                          if (state is SearchFound) {
-                            final users = state.user;
+                                if (state is SearchFound) {
+                                  final users = state.user;
 
-                            if (users.isEmpty) {
-                              return _buildNoResults();
-                            }
+                                  if (users.isEmpty) {
+                                    return _buildNoResults();
+                                  }
 
-                            return _buildUsersList(users);
-                          }
+                                  return _buildUsersList(users);
+                                }
 
-                          return _buildInitialState();
-                        },
+                                return _buildInitialState();
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -350,7 +363,7 @@ class _SearchPageState extends State<SearchPage>
 
   Widget _buildUsersList(List<User> users) {
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 8, bottom: 100),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: users.length,
       itemBuilder: (context, index) {
         final user = users[index];
