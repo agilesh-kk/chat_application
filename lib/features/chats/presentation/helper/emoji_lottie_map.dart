@@ -1,4 +1,4 @@
-import 'package:emoji_regex/emoji_regex.dart';
+import 'package:chat_application/core/utils/emoji_utils.dart';
 
 class EmojiLottieConfig {
   final String bundledAsset;
@@ -160,9 +160,7 @@ const Map<String, EmojiLottieConfig> emojiLottieMap = {
 };
 
 EmojiLottieConfig? getLottieForEmoji(String text) {
-  final regex = emojiRegex();
-  final matches = regex.allMatches(text).toList();
-  if (matches.length != 1) return null;
-  final emoji = matches.first.group(0)!;
+  final emoji = EmojiUtils.extractSingleEmoji(text);
+  if (emoji == null) return null;
   return emojiLottieMap[emoji];
 }

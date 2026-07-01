@@ -10,8 +10,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 
-import 'package:emoji_regex/emoji_regex.dart';
 import 'package:lottie/lottie.dart';
+import 'package:chat_application/core/utils/emoji_utils.dart';
 import 'package:chat_application/features/chats/presentation/helper/emoji_lottie_map.dart';
 
 class MessageBubble extends StatefulWidget {
@@ -51,7 +51,6 @@ class MessageBubble extends StatefulWidget {
 }
 
 class _MessageBubbleState extends State<MessageBubble> with SingleTickerProviderStateMixin {
-  static final _emojiRegExp = emojiRegex();
   late final AnimationController _controller;
   int _playCount = 0;
 
@@ -289,11 +288,7 @@ return Align(
 
   bool get _isEmojiOnly {
     if (widget.message.deletedForEveryone) return false;
-    final cleaned = widget.message.content.replaceAll(RegExp(r'[\uFE0F\u200D]'), '');
-    final regex = _emojiRegExp;
-    final emojiCount = regex.allMatches(cleaned).length;
-    final onlyEmojis = cleaned.replaceAll(regex, '').trim().isEmpty;
-    return onlyEmojis && emojiCount > 0;
+    return EmojiUtils.isOnlyEmojis(widget.message.content);
   }
 
   Widget _buildLottieWidget() {
@@ -354,10 +349,8 @@ return Align(
   }
 
   double _emojiFontSize(String text) {
-    final cleaned = text.replaceAll(RegExp(r'[\uFE0F\u200D]'), '');
-    final regex = _emojiRegExp;
-    final emojiCount = regex.allMatches(cleaned).length;
-    final onlyEmojis = cleaned.replaceAll(regex, '').trim().isEmpty;
+    final emojiCount = EmojiUtils.countEmojis(text);
+    final onlyEmojis = EmojiUtils.isOnlyEmojis(text);
     if (!onlyEmojis || emojiCount == 0) return 15;
     if (emojiCount == 1) return 60;
     if (emojiCount == 2) return 44;
