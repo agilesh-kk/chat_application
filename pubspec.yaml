@@ -61,12 +61,18 @@ flutter:
 
 flutter_native_splash:
   color: "#0D0D0D"
-  image: assets/logo/logo_bg.png
+  image: assets/logo/splash.png
   android: true
   ios: true
   android_gravity: center
   ios_content_mode: center
   fullscreen: true
+
+  android_12:
+    image: assets/logo/splash12.png
+    color: "#0D0D0D"
+
+    branding: assets/logo/brand.png
 
 flutter_icons:
   android: true
