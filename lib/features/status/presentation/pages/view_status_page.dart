@@ -490,12 +490,17 @@ class _ViewStatusPageState extends State<ViewStatusPage> {
             focusNode: _kbFocusNode,
             autofocus: true,
             onKeyEvent: (event) {
-              if (event is KeyDownEvent &&
-                  event.logicalKey == LogicalKeyboardKey.escape) {
-                if (_replyFocusNode.hasFocus) {
-                  _replyFocusNode.unfocus();
-                } else {
-                  Navigator.pop(context);
+              if (event is KeyDownEvent) {
+                if (event.logicalKey == LogicalKeyboardKey.escape) {
+                  if (_replyFocusNode.hasFocus) {
+                    _replyFocusNode.unfocus();
+                  } else {
+                    Navigator.pop(context);
+                  }
+                } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                  previousStory();
+                } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                  nextStory();
                 }
               }
             },
