@@ -31,6 +31,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   String? _currentUserId;
   String? _currentReceiverId;
   bool _hasMore = true;
+  bool _alreadyMarkedRecently = false;
   StreamSubscription<List<Message>>? _messageSub;
 
   ChatBloc({
@@ -124,11 +125,15 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       );
 
       stream.fold(
-        (failure) => ChatError(failure.message),
+        (failure) => emit(ChatError(failure.message)),
         (convoStream){
           _messageSub = convoStream.listen(
-            (messages)=>updateMessages(messages, emit),
+            (messages) => updateMessages(messages, emit),
           );
+          add(MarkMessagesDeliveredEvent(
+            userId: event.userId,
+            receiverId: event.receiverId,
+          ));
         }
       );
     });
@@ -248,9 +253,8 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   }
 
   void updateMessages(List<Message> received, emit) {
-    // =========================
-    // MERGE STREAM DATA WITH EXISTING MESSAGES
-    // =========================
+    _checkAndMarkSeen(received);
+
     if (state is ChatLoaded) {
       final currentState = state as ChatLoaded;
 
@@ -281,6 +285,28 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       add(MessagesUpdatedEvent(updated));
     } else {
       add(MessagesUpdatedEvent(received));
+    }
+  }
+
+  void _checkAndMarkSeen(List<Message> messages) {
+    if (_currentUserId == null || _currentReceiverId == null) return;
+
+    final hasUnseen = messages.any(
+      (msg) =>
+          msg.senderId == _currentReceiverId &&
+          msg.status == "sent" &&
+          !msg.isLocal,
+    );
+
+    if (hasUnseen && !_alreadyMarkedRecently) {
+      _alreadyMarkedRecently = true;
+      add(MarkMessagesDeliveredEvent(
+        userId: _currentUserId!,
+        receiverId: _currentReceiverId!,
+      ));
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _alreadyMarkedRecently = false;
+      });
     }
   }
 
@@ -318,12 +344,16 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     );
   }
 
-  FutureOr<void> _onMarkMessagesDeleiveredEvent(MarkMessagesDeliveredEvent event, Emitter<ChatState> emit) async{
-    await _markMessagesDelivered(
+  FutureOr<void> _onMarkMessagesDeleiveredEvent(MarkMessagesDeliveredEvent event, Emitter<ChatState> emit) async {
+    final result = await _markMessagesDelivered(
       MarkMessagesDeliveredParams(
-        userId: event.userId, 
-        receiverId: event.receiverId
-      )
+        userId: event.userId,
+        receiverId: event.receiverId,
+      ),
+    );
+    result.fold(
+      (failure) => null,
+      (_) => null,
     );
   }
 
