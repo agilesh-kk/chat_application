@@ -99,7 +99,6 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
             },
             onError: (error) {
               add(_ConversationErrorEvent(error.toString()));
-              print("error");
             },
           );
 

@@ -126,7 +126,6 @@ class MessageOptionsTray {
                           if (onEdit != null) onEdit();
                         },
                       ),
-                    if (isMe)
                       _buildMenuItem(
                         context: ctx,
                         icon: Icons.delete_outline,

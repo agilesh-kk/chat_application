@@ -40,6 +40,8 @@ abstract interface class ChatRemoteDataSources {
 
     //operation sync
     String? opCollection,
+
+    bool isNewConvo = false,
   });
 
   Future<String> uploadImage({required XFile image, required String msgId});
@@ -178,13 +180,12 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
       seenMsgIds.add(doc.id);
     }
 
-    // Write seen operation
     final opCollection = _getMyOpCollection(userId, receiverId);
     final opRef = convoRef.collection(opCollection).doc();
     batch.set(opRef, {
       "type": "seen",
-      "messageIds": seenMsgIds,
       "seenByUserId": userId,
+      "seenMsgIds": seenMsgIds,
       "timestamp": FieldValue.serverTimestamp(),
     });
 
@@ -387,6 +388,8 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
     //operation sync
     String? opCollection,
+
+    bool isNewConvo = false,
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
@@ -504,12 +507,14 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           },
         }, SetOptions(merge: true));
 
-        batch.set(firestore.collection('users').doc(userId), {
-          'convoList': FieldValue.arrayUnion([convoId]),
-        }, SetOptions(merge: true));
-        batch.set(firestore.collection('users').doc(receiverId), {
-          'convoList': FieldValue.arrayUnion([convoId]),
-        }, SetOptions(merge: true));
+        if (isNewConvo) {
+          batch.set(firestore.collection('users').doc(userId), {
+            'convoList': FieldValue.arrayUnion([convoId]),
+          }, SetOptions(merge: true));
+          batch.set(firestore.collection('users').doc(receiverId), {
+            'convoList': FieldValue.arrayUnion([convoId]),
+          }, SetOptions(merge: true));
+        }
       }
 
       await batch.commit();
@@ -540,7 +545,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
         final timelineService = TimelineService(firestore,opCollection!);
 
-        await timelineService.handleMessage(
+         timelineService.handleMessage(
           messageId: msgId,
           senderId: userId,
           receiverId: receiverId,

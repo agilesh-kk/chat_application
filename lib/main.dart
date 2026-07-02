@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/keys/app_keys.dart';
@@ -594,7 +595,8 @@ Future<void> sendReplyFromNotification(String replyText, String payload) async {
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FirebaseMessaging.instance.requestPermission();
 
@@ -623,6 +625,9 @@ void main() async {
   }
 
   await initDependencies();
+
+  FlutterNativeSplash.remove();
+
   runApp(
     MultiBlocProvider(
       providers: [

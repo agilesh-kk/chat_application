@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
@@ -51,15 +50,10 @@ class ImageMessageTile extends StatefulWidget {
   State<ImageMessageTile> createState() => _ImageMessageTileState();
 }
 
-class _ImageMessageTileState extends State<ImageMessageTile>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
+class _ImageMessageTileState extends State<ImageMessageTile> {
 
   Uint8List? imageBytes;
   bool isLoading = true;
-  double _displayW = 242;
-  static final Map<String, double> _imageSizeCache = {};
 
   @override
   void initState() {
@@ -84,17 +78,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
     if (widget.cacheService.cache.containsKey(msg.id)) {
       imageBytes = widget.cacheService.cache[msg.id];
       isLoading = false;
-
-      final cached = _imageSizeCache[msg.id];
-      if (cached != null) {
-        _displayW = cached;
-      }
-
       if (mounted) setState(() {});
-
-      if (cached == null) {
-        _cacheImageSize(msg.id, imageBytes!);
-      }
       return;
     }
 
@@ -132,7 +116,6 @@ class _ImageMessageTileState extends State<ImageMessageTile>
       imageBytes = bytes;
       isLoading = false;
       if (mounted) setState(() {});
-      _cacheImageSize(msg.id, bytes);
       return;
     }
 
@@ -141,39 +124,11 @@ class _ImageMessageTileState extends State<ImageMessageTile>
       imageBytes = widget.cacheService.cache[msg.id];
       isLoading = false;
       if (mounted) setState(() {});
-      if (imageBytes != null) {
-        _cacheImageSize(msg.id, imageBytes!);
-      }
     }
-  }
-
-  Future<void> _cacheImageSize(String id, Uint8List bytes) async {
-    if (_imageSizeCache.containsKey(id)) return;
-    try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final rawW = frame.image.width.toDouble();
-      final rawH = frame.image.height.toDouble();
-      frame.image.dispose();
-      codec.dispose();
-      double w = rawW, h = rawH;
-      if (w > 242) {
-        h *= 242 / w;
-        w = 242;
-      }
-      if (h > 292) {
-        w *= 292 / h;
-      }
-      _imageSizeCache[id] = w;
-      if (mounted && widget.message.id == id) {
-        setState(() { _displayW = w; });
-      }
-    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
 
     return GestureDetector(
       onLongPressStart: (details) {
@@ -441,10 +396,11 @@ class _ImageMessageTileState extends State<ImageMessageTile>
     final msg = widget.message;
 
     if (isLoading) {
-      return const SizedBox(
-        height: 200,
-        child: Center(
-          child: CircularProgressIndicator(color: AppPallete.primaryOrange),
+      return SizedBox(
+          width: 190,
+          height: 275,
+        child: const Center(
+          child: CircularProgressIndicator(),
         ),
       );
     }
@@ -457,11 +413,12 @@ class _ImageMessageTileState extends State<ImageMessageTile>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (hasReply) ...[
-            SizedBox(width: _displayW, child: _buildReplyPreview()),
+            SizedBox(width: 190, child: _buildReplyPreview()),
             const SizedBox(height: 4),
           ],
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 242, maxHeight: 292),
+          SizedBox(
+            width: 190,
+            height: 275,
             child: Stack(
               children: [
                 GestureDetector(
@@ -472,16 +429,27 @@ class _ImageMessageTileState extends State<ImageMessageTile>
                         builder: (_) => FullScreenImagePage(
                           bytes: imageBytes!,
                           tag: msg.id,
+                          senderName: widget.isMe
+                              ? 'You'
+                              : (widget.receiverName ?? 'Unknown'),
+                          time: widget.message.createdAt,
+                          isMe: widget.isMe,
+                          onDelete:
+                              widget.isMe ? widget.onDelete : null,
                         ),
                       ),
                     );
                   },
                   child: Hero(
                     tag: msg.id,
-                    child: Image.memory(
-                      imageBytes!,
-                      fit: BoxFit.scaleDown,
-                      gaplessPlayback: true,
+                    child: SizedBox(
+              width: 190,
+              height: 275,
+                      child: Image.memory(
+                        imageBytes!,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                      ),
                     ),
                   ),
                 ),
@@ -533,7 +501,7 @@ class _ImageMessageTileState extends State<ImageMessageTile>
     Color color;
 
     switch (status) {
-      case "sending":
+      case "loading":
         icon = Icons.access_time;
         color = AppPallete.whiteColor;
         break;

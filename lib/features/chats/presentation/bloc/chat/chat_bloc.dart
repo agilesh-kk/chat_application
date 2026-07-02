@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
+import 'package:chat_application/features/chats/domain/entities/list_operation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:chat_application/features/chats/domain/usecase/delete_message.dart';
@@ -30,7 +31,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
   final ChatRepository _chatRepository;
   final ChatLocalDataSource _chatLocalDataSource;
 
-  StreamSubscription<List<Message>>? _messageSub;
+  StreamSubscription<ListOperation<Message>>? _messageSub;
 
   String? _currentUserId;
   String? _currentReceiverId;
@@ -62,7 +63,6 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<Closechat>((event, emit) async {
       await _messageSub?.cancel();
       //await _chatRepository.stopOperationListener();
-      print("cancelled");
       emit(ChatClosed());
     });
 
@@ -82,7 +82,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         type: "image",
         localPath: event.image.path,
         isLocal: true,
-        status: "sending",
+        status: "loading",
         replyToId: event.replyToId,
         replyToContent: event.replyToContent,
         replyToSenderId: event.replyToSenderId,
@@ -94,9 +94,10 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       await _chatLocalDataSource.upsertMessageFromFirestore({
         'senderId': event.userId,
         'content': '',
+        'localPath': event.image.path,
         'type': 'image',
         'messageType': 'image',
-        'status': 'sending',
+        'status': 'loading',
         'createdAt': DateTime.now(),
         'deletedfor': <String>[],
         'deletedForEveryone': false,
@@ -115,7 +116,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       }, msgId);
 
       // 3. Emit instantly
-      emit(ChatLoaded([localMessage, ...current.messages]));
+      //emit(ChatLoaded([localMessage, ...current.messages]));
 
       // 4. Send in background
       await _sendImage(
@@ -163,7 +164,18 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         (messageStream) {
           _messageSub = messageStream.listen(
             
-            (messages)  {add(MessagesUpdatedEvent(messages));},
+            (operation)  {
+              final st = state;
+              if(st is ChatLoaded){
+                operation.performOperation(st.ids, st.messages);
+                add(MessagesUpdatedEvent( st.ids,st.messages));
+              }else{
+                Map<String,Message> temp = {};
+                List<String> ids = [];
+                operation.performOperation(ids, temp);
+                add(MessagesUpdatedEvent(ids,temp));
+              }
+            },
           );
         }
       );
@@ -177,7 +189,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       // 1. Create temp message
       final tempMessage = Message(
         id: msgId,
-        status: "sent",
+        status: "loading",
         senderId: event.userId,
         content: event.content,
         createdAt: DateTime.now(),
@@ -197,7 +209,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           'content': event.content,
           'type': 'text',
           'messageType': 'text',
-          'status': 'sent',
+          'status': 'loading',
           'createdAt': DateTime.now(),
           'deletedfor': <String>[],
           'deletedForEveryone': false,
@@ -215,9 +227,9 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           'isLocal': true,
         }, msgId);
 
-        final updatedMessages = List<Message>.from(currentState.messages)
-          ..insert(0, tempMessage);
-        emit(ChatLoaded(updatedMessages));
+        // final updatedMessages = List<Message>.from(currentState.messages)
+        //   ..insert(0, tempMessage);
+        // emit(ChatLoaded(updatedMessages));
       }
 
       // 3. Send to remote
@@ -274,7 +286,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     });
 
     on<MessagesUpdatedEvent>((event, emit) {
-      _updateMessages(event.messages, emit);
+      _updateMessages(event.ids,event.messages,emit);
     });
 
     on<DeleteMessageEvent>(_onDeleteMessageEvent);
@@ -344,13 +356,12 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     ));
   }
 
-  void _updateMessages(List<Message> received, Emitter<ChatState> emit) {
-    final hasUnseen = received.any(
+  void _updateMessages(List<String> ids,Map<String,Message> received,Emitter<ChatState> emit) {
+    final hasUnseen = ids.any(
       (msg) =>
-          msg.status == "sent" &&
-          !msg.isLocal,
+          received[msg]!.status == "sent" &&
+          !received[msg]!.isLocal,
     );
-
 
     if (hasUnseen &&
         _currentUserId != null &&
@@ -361,14 +372,12 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         userId: _currentUserId!,
         receiverId: _currentReceiverId!,
       ));
-
-      // Future.delayed(const Duration(milliseconds: 500), () {
-      //   _alreadyMarkedRecently = false;
-      // });
     }
 
-    received.removeWhere((e)=>(e.deletedfor.contains(_currentUserId)&&!e.deletedForEveryone));
+    emit(ChatLoaded(received, ids));
+    }
 
-    emit(ChatLoaded(received));
-    }
-    }
+  void retryPendingMessages() {
+    _chatRepository.retryPendingMessages();
+  }
+  }

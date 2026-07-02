@@ -77,20 +77,40 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
   }
 
-  void _onAuthCheckRequested(AuthCheckRequested event, Emitter<AuthState> emit) async{
-    //print("Checking current user...");
-    final result = await _currentUser(NoParams());
+  void _onAuthCheckRequested(AuthCheckRequested event, Emitter<AuthState> emit) async {
+    final cached = await AppUserCubit.getCachedUser();
+    if (cached != null) {
+      _appUserCubit.updateUser(cached);
+      emit(AuthSuccess(cached));
+      final result = await _currentUser(NoParams());
+      result.fold(
+        (_) => _emitAuthUnauthenticated(emit),
+        (user) {
+          if (user != null) {
+            _emitAuthSuccess(user, emit);
+          } else {
+            _emitAuthUnauthenticated(emit);
+          }
+        },
+      );
+    } else {
+      final result = await _currentUser(NoParams());
+      result.fold(
+        (failure) => emit(AuthUnauthenticated()),
+        (user) {
+          if (user != null) {
+            _emitAuthSuccess(user, emit);
+          } else {
+            emit(AuthUnauthenticated());
+          }
+        },
+      );
+    }
+  }
 
-    result.fold(
-      (failure) => emit(AuthUnauthenticated()),
-      (user) {
-        if (user != null) {
-          _emitAuthSuccess(user, emit);
-        } else {
-          emit(AuthUnauthenticated());
-        }
-      },
-    );
+  void _emitAuthUnauthenticated(Emitter<AuthState> emit) {
+    _appUserCubit.updateUser(null);
+    emit(AuthUnauthenticated());
   }
 
   FutureOr<void> _onAuthSignOut(AuthSignOut event, Emitter<AuthState> emit) async{

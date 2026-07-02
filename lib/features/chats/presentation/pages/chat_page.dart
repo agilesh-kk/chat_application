@@ -67,16 +67,18 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final TextEditingController controller = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   late final ChatBloc cb;
   int? highlightedIndex;
-  String lastAnimated = "";
-  bool firstTime = true;
+  final Set<String> _animatedMessageIds = {};
+  bool _initialBuild = true;
   Message? _replyToMessage;
   String? _editingMessageId;
   String? lastMessageId;
+  Message? _animMessage;
+  late final AnimationController _msgAnimController;
   late final typingCubit;
   late final inChat;
 
@@ -97,12 +99,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    ChatPage.activeConvoId = widget.convoId;
+    ChatPage.activeConvoId = _conversationId;
     if (widget.convoId != null) {
       removeChatMessages(widget.convoId!);
       flutterLocalNotificationsPlugin.cancel(widget.convoId.hashCode,tag: widget.convoId);
     }
     _stickyHeaderCubit = StickyHeaderCubit();
+    _msgAnimController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
+    _msgAnimController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (mounted) setState(() => _animMessage = null);
+      }
+    });
     widget.cacheService = CacheService();
     cb = context.read<ChatBloc>()
       ..add(LoadMessagesEvent(userId: widget.currentUserId, receiverId: widget.receiverId));
@@ -141,6 +149,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     _messageFocusNode.dispose();
     ChatPage.activeConvoId = null;
     _stickyHeaderCubit.close();
+    _msgAnimController.dispose();
     typingCubit.stopTyping(_conversationId, widget.currentUserId);
     inChat.setInChat(_conversationId, widget.currentUserId, false);
     inChat.unsubscribeFromInChat(_conversationId);
@@ -154,10 +163,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       inChat.setInChat(_conversationId, widget.currentUserId, false);
     } else if (state == AppLifecycleState.resumed) {
       inChat.setInChat(_conversationId, widget.currentUserId, true);
+      context.read<ChatBloc>().retryPendingMessages();
     }
   }
 
+  Timer? _scrollDebounce;
+
   void _onScrollPositionChanged() {
+    _scrollDebounce?.cancel();
+    _scrollDebounce = Timer(const Duration(milliseconds: 80), () {
     final positions = _positionsListener.itemPositions.value;
     if (positions.isEmpty) return;
 
@@ -171,8 +185,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
     final topIndex = visibleItems.first.index;
     final state = cb.state;
-    if (state is ChatLoaded && topIndex < state.messages.length) {
-      final message = state.messages[topIndex];
+    if (state is ChatLoaded && topIndex < state.ids.length) {
+      final message = state.messages[state.ids[topIndex]]!;
       final newLabel = _getDateLabel(message.createdAt);
       _stickyHeaderCubit.updateDateLabel(newLabel);
     }
@@ -184,6 +198,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     if (shouldShow != _showScrollToBottom) {
       setState(() => _showScrollToBottom = shouldShow);
     }
+
+    });
   }
 
   String _getDateLabel(DateTime date) {
@@ -208,7 +224,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   void _onReplyTap(String replyToId) {
     final state = cb.state;
     if (state is ChatLoaded) {
-      final index = state.messages.indexWhere((m) => m.id == replyToId);
+      final index = state.ids.indexWhere((id) => id == replyToId);
       if (index != -1) {
         _scrollToIndex(index);
         Future.delayed(const Duration(milliseconds: 300), () {
@@ -440,7 +456,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               stops: const [0.0, 0.5, 1.0],
             ),
           ),
-          child: SafeArea(
+            child: SafeArea(
             child: Column(
               children: [
                 _buildHeader(context),
@@ -592,7 +608,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               );
               if (cb.state is ChatLoaded) {
                 final cl = cb.state as ChatLoaded;
-                if (messageId != null && cl.messages.any((m) => m.id == messageId)) {
+                if (messageId != null && cl.messages.containsKey(messageId)) {
                   setState(() => widget.highlightMessageId = messageId);
                 }
               }
@@ -656,15 +672,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           }
           if (state is ChatLoaded) {
             final messages = state.messages;
+            final ids = state.ids;
 
-            if(messages.isNotEmpty){
-            if(lastMessageId==null){
-              lastMessageId = messages[0].id;
+            if (_initialBuild) {
+              _animatedMessageIds.addAll(ids);
+              _initialBuild = false;
             }
-            else if(lastMessageId != messages[0].id && _scrollController.isAttached){
-              _scrollController.scrollTo(index: 0, duration: Duration(milliseconds: 350),curve: Curves.easeIn);
-              lastMessageId = messages[0].id;
-            }
+
+            final isNewMessage = ids.isNotEmpty && !_animatedMessageIds.contains(ids[0]) && _animMessage == null;
+            if (isNewMessage) {
+              _animatedMessageIds.add(ids[0]);
+              _animMessage = messages[ids[0]];
+              _msgAnimController.forward(from: 0);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (_scrollController.isAttached) {
+                  _scrollController.jumpTo(index: 0);
+                }
+              });
             }
 
             if (widget.scrolltoIndex != null) {
@@ -673,7 +697,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             }
 
             if (widget.highlightMessageId != null) {
-              final highlightIndex = messages.indexWhere((m) => m.id == widget.highlightMessageId);
+              final highlightIndex = ids.indexWhere((id) => id == widget.highlightMessageId);
               if (highlightIndex != -1) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _scrollToIndex(highlightIndex);
@@ -690,7 +714,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               }
             }
 
+            final showDateHeader = List<bool>.generate(ids.length, (i) {
+              if (i == ids.length - 1) return true;
+              final curr = messages[ids[i]]!.createdAt;
+              final next = messages[ids[i + 1]]!.createdAt;
+              return curr.year != next.year || curr.month != next.month || curr.day != next.day;
+            });
+
             return Stack(
+              clipBehavior: Clip.none,
               children: [
                 NotificationListener<ScrollNotification>(
                   onNotification: (notification) {
@@ -699,29 +731,24 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   },
                   child: ScrollablePositionedList.builder(
                     reverse: true,
-                    itemCount: messages.length,
+                    itemCount: ids.length,
                     itemScrollController: _scrollController,
                     itemPositionsListener: _positionsListener,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemBuilder: (context, index) {
-                      final message = messages[index];
+                      final message = messages[ids[index]]!;
+                      
                       final isMe = message.senderId == widget.currentUserId;
-                      bool isAnimate = false;
-                  
-                      if ((index == messages.length - 1 && message.id != lastAnimated) && !firstTime) {
-                        isAnimate = true;
-                      }
-                      if (index == messages.length - 1) lastAnimated = message.id;
-                      firstTime = false;
-                  
-                      return Padding(
+                      final isAnimate = isNewMessage && index == 0;
+
+                      final bubble = Padding(
                         padding: EdgeInsets.only(
                           bottom: message.type == "image" ? 8 : (message.inTimeline && index == 0 ? 12 : 0),
                         ),
                         child: Column(
                           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                           children: [
-                            if (_shouldShowDateHeader(messages, index))
+                            if (showDateHeader[index])
                               _buildDateHeader(message.createdAt),
                             SwipeToReply(
                               isMe: isMe,
@@ -762,6 +789,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           ],
                         ),
                       );
+
+                      if (_animMessage != null && index == 0) return Opacity(opacity: 0, child: bubble);
+
+                      return bubble;
                     },
                   ),
                 ),
@@ -776,7 +807,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                       child: AnimatedOpacity(
                         opacity: state.showHeader ? 1.0 : 0.0,
                         duration: const Duration(milliseconds: 300),
-                        child: _buildStickyDateHeader(state.dateLabel!,messages),
+                        child: _buildStickyDateHeader(state.dateLabel!, messages, ids),
                       ),
                     );
                   },
@@ -812,9 +843,32 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
+                      ),
                     ),
                   ),
-                ),
+                if (_animMessage != null)
+                  Positioned(
+                    bottom: 0,
+                    left: 16,
+                    right: 16,
+                    child: AnimatedBuilder(
+                      animation: _msgAnimController,
+                      builder: (context, child) {
+                        final t = _msgAnimController.value;
+                        return Transform.translate(
+                          offset: Offset(0, (1 - t) * 100),
+                          child: Opacity(
+                            opacity: t,
+                            child: Transform.scale(
+                              scale: 0.85 + 0.15 * t,
+                              child: child,
+                            ),
+                          ),
+                        );
+                      },
+                      child: buildBubble(_animMessage!, _animMessage!.senderId == widget.currentUserId, false, false, false),
+                    ),
+                  ),
               ],
             );
           }
@@ -824,15 +878,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildStickyDateHeader(String label,List<Message> messages) {
+  Widget _buildStickyDateHeader(String label, Map<String, Message> messages, List<String> ids) {
     return GestureDetector(
       onLongPress: ()async{
-        print(messages[0].createdAt);
-        DateTime? picked = await showDatePicker(context: context, firstDate: messages[messages.length-1].createdAt, lastDate: DateTime.now());
+        DateTime? picked = await showDatePicker(context: context, firstDate: messages[ids[ids.length-1]]!.createdAt, lastDate: DateTime.now());
 
         if(picked != null){
-          final index = messages.lastIndexWhere((element) => element.createdAt.eqvYearMonthDay(picked),);
-          if(index != null) {
+          final index = ids.lastIndexWhere((id) => messages[id]!.createdAt.eqvYearMonthDay(picked),);
+          if(index != -1) {
             _scrollToIndex(index);
           }
         }
@@ -853,13 +906,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ),
       ),
     );
-  }
-
-  bool _shouldShowDateHeader(List<Message> messages, int index) {
-    if (index == messages.length - 1) return true;
-    final currentDate = DateTime(messages[index].createdAt.year, messages[index].createdAt.month, messages[index].createdAt.day);
-    final nextDate = DateTime(messages[index + 1].createdAt.year, messages[index + 1].createdAt.month, messages[index + 1].createdAt.day);
-    return currentDate != nextDate;
   }
 
   Widget _buildDateHeader(DateTime date) {

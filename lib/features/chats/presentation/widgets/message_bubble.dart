@@ -55,6 +55,7 @@ class _MessageBubbleState extends State<MessageBubble>
   int _playCount = 0;
 
   late final Animation<double> fade;
+  late final Animation<double> scale;
   late final Animation<Offset> slide;
 
   @override
@@ -63,7 +64,7 @@ class _MessageBubbleState extends State<MessageBubble>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 200),
     );
 
     fade = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -73,14 +74,19 @@ class _MessageBubbleState extends State<MessageBubble>
       ),
     );
 
-    final slideX = widget.isMe ? 0.5 : -0.5;
-    slide = Tween<Offset>(
-      begin: Offset(slideX, 0.0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    scale = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut,
+      ),
+    );
+
+    slide = Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut,
+      ),
+    );
 
     if (widget.animate) {
       _controller.forward();
@@ -135,15 +141,16 @@ class _MessageBubbleState extends State<MessageBubble>
           onEdit: widget.onEdit,
         );
       },
-      child: widget.animate
-        ? FadeTransition(
-            opacity: fade,
-            child: SlideTransition(
-              position: slide,
-              child: bubble,
-            ),
-          )
-        : bubble,
+      child: SlideTransition(
+        position: slide,
+        child: FadeTransition(
+          opacity: fade,
+          child: ScaleTransition(
+            scale: scale,
+            child: bubble,
+          ),
+        ),
+      ),
     );
   }
 
@@ -376,6 +383,8 @@ return Align(
   Widget _buildReceiptStatus(String status, bool isMe) {
     if (!isMe) return const SizedBox();
     switch (status) {
+      case "loading":
+        return const SizedBox();
       case "sent":
         return Icon(Icons.check, size: 14, color: AppPallete.whiteColor.withValues(alpha: 0.7));
       case "delivered":

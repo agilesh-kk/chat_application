@@ -6,10 +6,12 @@ import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_local_data_sources.dart';
 import 'package:chat_application/features/chats/data/datasources/chat_remote_data_sources.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
+import 'package:chat_application/features/chats/domain/entities/list_operation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:chat_application/features/chats/domain/repository/chat_repository.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSources chatRemoteDataSources;
@@ -17,6 +19,8 @@ class ChatRepositoryImpl implements ChatRepository {
   final Set<String> _recentlyDownloadedConvos = {};
 
   final Map<String, StreamSubscription<Map<String, dynamic>>> _opSub = {};
+  StreamSubscription<InternetStatus>? _connectivitySub;
+  Timer? _pendingRetryTimer;
 
   ChatRepositoryImpl({
     required this.chatRemoteDataSources,
@@ -30,12 +34,19 @@ class ChatRepositoryImpl implements ChatRepository {
     try {
       await chatLocalDataSource.initDatabase();
 
+      final c = (await chatLocalDataSource.getPendingMessages()).length;
+      print("pending messages on app start: $c");
+
       final userChanged = await chatLocalDataSource.ischeckUserChanged(userId);
 
       if (userChanged) {
         await chatLocalDataSource.updateUser(userId);
         return left(Failure('user-changed'));
       }
+
+      _ensureConnectivityListener();
+      _startPendingRetry();
+      _retryPendingMessages();
 
       Stream<List<Conversation>> res =
           chatLocalDataSource.getConversationsStream();
@@ -101,7 +112,7 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, Stream<List<Message>>>> getMessages({
+  Future<Either<Failure, Stream<ListOperation<Message>>>> getMessages({
     required String receiverId,
     required String userId,
   }) async {
@@ -120,7 +131,7 @@ class ChatRepositoryImpl implements ChatRepository {
         // }
       }
 
-      return right(chatLocalDataSource.getMessagesStream(convoId));
+      return right(chatLocalDataSource.getMessagesStream(convoId,userId));
     } catch (e) {
       return left(Failure(e.toString()));
     }
@@ -283,15 +294,9 @@ class ChatRepositoryImpl implements ChatRepository {
           break;
 
         case 'seen':
-          final msgIds = List<String>.from(opData['messageIds'] ?? []);
+          final seenMsgIds = List<String>.from(opData['seenMsgIds'] as List? ?? []);
           final seenByUserId = opData['seenByUserId'] as String? ?? '';
-          if (msgIds.isNotEmpty) {
-            await chatLocalDataSource.markMessagesSeen(
-              msgIds,
-              seenByUserId,
-              convoId,
-            );
-          }
+          await chatLocalDataSource.markMessagesSeen(seenMsgIds, seenByUserId, convoId);
           break;
 
         case 'timeline':
@@ -336,15 +341,17 @@ class ChatRepositoryImpl implements ChatRepository {
     try {
       final opCollection = _getMyOpCollection(userId, receiverId);
 
+      final convoId = generateConversationId(userId, receiverId);
+      bool isNewConvo = false;
+
       if (!isScheduled) {
-        final convoId = generateConversationId(userId, receiverId);
         await chatLocalDataSource.initDatabase();
         await chatLocalDataSource.confirmLocalMessage(msgId, {
           'senderId': userId,
           'content': content,
           'type': 'text',
           'messageType': 'text',
-          'status': 'sent',
+          'status': 'loading',
           'createdAt': DateTime.now(),
           'deletedfor': <String>[],
           'deletedForEveryone': false,
@@ -360,6 +367,9 @@ class ChatRepositoryImpl implements ChatRepository {
           'profile': userProfile,
           'convoId': convoId,
         });
+
+        isNewConvo = !await chatLocalDataSource.hasConversation(convoId);
+
         chatLocalDataSource.updateConvo(
           convoId,
           msgId,
@@ -370,20 +380,44 @@ class ChatRepositoryImpl implements ChatRepository {
         );
       }
 
-      await chatRemoteDataSources.sendMessage(
-        receiverId: receiverId,
-        userId: userId,
-        content: content,
-        userName: userName,
-        userProfile: userProfile,
-        msgId: msgId,
-        sendAt: sendAt,
-        replyToId: replyToId,
-        replyToContent: replyToContent,
-        replyToSenderId: replyToSenderId,
-        replyToType: replyToType,
-        opCollection: isScheduled ? null : opCollection,
-      );
+      if (!await InternetConnection().hasInternetAccess && !isScheduled) {
+        await _pendAndSetup(
+          msgId: msgId, userId: userId, receiverId: receiverId,
+          content: content, type: 'text',
+          userName: userName, userProfile: userProfile,
+          replyToId: replyToId, replyToContent: replyToContent,
+          replyToSenderId: replyToSenderId, replyToType: replyToType,
+        );
+        return right(null);
+      }
+
+      try {
+        await chatRemoteDataSources.sendMessage(
+          receiverId: receiverId,
+          userId: userId,
+          content: content,
+          userName: userName,
+          userProfile: userProfile,
+          msgId: msgId,
+          sendAt: sendAt,
+          replyToId: replyToId,
+          replyToContent: replyToContent,
+          replyToSenderId: replyToSenderId,
+          replyToType: replyToType,
+          opCollection: isScheduled ? null : opCollection,
+          isNewConvo: isNewConvo,
+        );
+        await chatLocalDataSource.updateMessageStatus(msgId, 'sent');
+        await chatLocalDataSource.deletePendingMessage(msgId);
+      } catch (e) {
+        await _pendAndSetup(
+          msgId: msgId, userId: userId, receiverId: receiverId,
+          content: content, type: 'text',
+          userName: userName, userProfile: userProfile,
+          replyToId: replyToId, replyToContent: replyToContent,
+          replyToSenderId: replyToSenderId, replyToType: replyToType,
+        );
+      }
 
       return right(null);
     } on ServerExceptions catch (e) {
@@ -405,21 +439,16 @@ class ChatRepositoryImpl implements ChatRepository {
     String? replyToType,
   }) async {
     try {
-      await chatLocalDataSource.saveImage(image, msgId);
+      final localPath = await chatLocalDataSource.saveImage(image, msgId);
 
-      final imageUrl = await chatRemoteDataSources.uploadImage(
-        image: image,
-        msgId: msgId,
-      );
-
-      // Confirm local message
       final convoId = generateConversationId(userId, receiverId);
       await chatLocalDataSource.confirmLocalMessage(msgId, {
         'senderId': userId,
-        'content': imageUrl,
+        'content': '',
+        'localPath': localPath,
         'type': 'image',
         'messageType': 'image',
-        'status': 'sent',
+        'status': 'loading',
         'createdAt': DateTime.now(),
         'deletedfor': <String>[],
         'deletedForEveryone': false,
@@ -436,6 +465,8 @@ class ChatRepositoryImpl implements ChatRepository {
         'convoId': convoId,
       });
 
+      final isNewConvo = !await chatLocalDataSource.hasConversation(convoId);
+
       chatLocalDataSource.updateConvo(
         convoId,
         msgId,
@@ -445,20 +476,51 @@ class ChatRepositoryImpl implements ChatRepository {
         userId,
       );
 
-      await chatRemoteDataSources.sendMessage(
-        type: "image",
-        receiverId: receiverId,
-        userId: userId,
-        msgId: msgId,
-        content: imageUrl,
-        userName: userName,
-        userProfile: userProfile,
-        replyToId: replyToId,
-        replyToContent: replyToContent,
-        replyToSenderId: replyToSenderId,
-        replyToType: replyToType,
-        opCollection: _getMyOpCollection(userId, receiverId),
-      );
+      if (!await InternetConnection().hasInternetAccess) {
+        await _pendAndSetup(
+          msgId: msgId, userId: userId, receiverId: receiverId,
+          content: '', type: 'image',
+          userName: userName, userProfile: userProfile,
+          replyToId: replyToId, replyToContent: replyToContent,
+          replyToSenderId: replyToSenderId, replyToType: replyToType,
+        );
+        return right(null);
+      }
+
+      try {
+        final imageUrl = await chatRemoteDataSources.uploadImage(
+          image: image,
+          msgId: msgId,
+        );
+
+        await chatLocalDataSource.updateMessageStatus(msgId, 'sent');
+
+        await chatRemoteDataSources.sendMessage(
+          type: "image",
+          receiverId: receiverId,
+          userId: userId,
+          msgId: msgId,
+          content: imageUrl,
+          userName: userName,
+          userProfile: userProfile,
+          replyToId: replyToId,
+          replyToContent: replyToContent,
+          replyToSenderId: replyToSenderId,
+          replyToType: replyToType,
+          opCollection: _getMyOpCollection(userId, receiverId),
+          isNewConvo: isNewConvo,
+        );
+        
+        await chatLocalDataSource.deletePendingMessage(msgId);
+      } catch (e) {
+        await _pendAndSetup(
+          msgId: msgId, userId: userId, receiverId: receiverId,
+          content: '', type: 'image',
+          userName: userName, userProfile: userProfile,
+          replyToId: replyToId, replyToContent: replyToContent,
+          replyToSenderId: replyToSenderId, replyToType: replyToType,
+        );
+      }
 
       return right(null);
     } catch (e) {
@@ -547,7 +609,6 @@ class ChatRepositoryImpl implements ChatRepository {
     required String userId,
     required String receiverId,
   }) async {
-    print("llllllllllllllllllllllllllllllllllllllllllllllllllllllllllll");
     chatLocalDataSource.resetUnread(generateConversationId(userId, receiverId));
     await chatRemoteDataSources.markMessagesDelivered(
       receiverId: receiverId,
@@ -563,16 +624,8 @@ class ChatRepositoryImpl implements ChatRepository {
     required String emoji,
   }) async {
     try {
-      await chatRemoteDataSources.toggleReaction(
-        userId: userId,
-        receiverId: receiverId,
-        messageId: messageId,
-        emoji: emoji,
-        opCollection: _getMyOpCollection(userId, receiverId),
-      );
 
-      // Update local DB
-      await chatLocalDataSource.updateMessageReaction(
+       chatLocalDataSource.updateMessageReaction(
         messageId,
         generateConversationId(userId, receiverId),
         userId,
@@ -580,6 +633,14 @@ class ChatRepositoryImpl implements ChatRepository {
         {userId: emoji},
         emoji,
         userId,
+      );
+
+      await chatRemoteDataSources.toggleReaction(
+        userId: userId,
+        receiverId: receiverId,
+        messageId: messageId,
+        emoji: emoji,
+        opCollection: _getMyOpCollection(userId, receiverId),
       );
     } catch (e) {
       throw ServerExceptions(e.toString());
@@ -607,6 +668,123 @@ class ChatRepositoryImpl implements ChatRepository {
       throw ServerExceptions(e.toString());
     }
   }
+  @override
+  Future<void> retryPendingMessages() async {
+    await _retryPendingMessages();
+  }
+
+  Future<void> _pendAndSetup({
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    required String content,
+    required String type,
+    String? userName,
+    String? userProfile,
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
+  }) async {
+    await chatLocalDataSource.insertPendingMessage(
+      msgId: msgId,
+      userId: userId,
+      receiverId: receiverId,
+      content: content,
+      type: type,
+      userName: userName,
+      userProfile: userProfile,
+      replyToId: replyToId,
+      replyToContent: replyToContent,
+      replyToSenderId: replyToSenderId,
+      replyToType: replyToType,
+    );
+    final c = (await chatLocalDataSource.getPendingMessages()).length;
+    print("pending messages: $c");
+    _ensureConnectivityListener();
+    _startPendingRetry();
+  }
+
+  void _ensureConnectivityListener() {
+    if (_connectivitySub != null) return;
+    _connectivitySub = InternetConnection().onStatusChange.listen((status) {
+      if (status == InternetStatus.connected) {
+        _retryPendingMessages();
+      }
+    });
+  }
+
+  Future<void> _retryPendingMessages() async {
+    final pending = await chatLocalDataSource.getPendingMessages();
+    if (pending.isEmpty) {
+      _stopPendingRetry();
+      return;
+    }
+
+    if (!await InternetConnection().hasInternetAccess) {
+      return;
+    }
+
+    for(var msg in pending){
+      final msgId = msg['msgId'] as String;
+      final userId = msg['userId'] as String;
+      final receiverId = msg['receiverId'] as String;
+      final type = msg['type'] as String? ?? 'text';
+      var content = msg['content'] as String? ?? '';
+
+      try {
+        if (type == 'image') {
+          final localPath = await chatLocalDataSource.getImage(msgId);
+          if (localPath != null) {
+            final newUrl = await chatRemoteDataSources.uploadImage(
+              image: XFile(localPath),
+              msgId: msgId,
+            );
+            content = newUrl;
+          }
+        }
+
+        final opCollection = _getMyOpCollection(userId, receiverId);
+        await chatRemoteDataSources.sendMessage(
+          type: type,
+          receiverId: receiverId,
+          userId: userId,
+          msgId: msgId,
+          content: content,
+          userName: msg['userName'] as String?,
+          userProfile: msg['userProfile'] as String?,
+          replyToId: msg['replyToId'] as String?,
+          replyToContent: msg['replyToContent'] as String?,
+          replyToSenderId: msg['replyToSenderId'] as String?,
+          replyToType: msg['replyToType'] as String?,
+          opCollection: opCollection,
+          isNewConvo: false,
+        );
+
+        await chatLocalDataSource.updateMessageStatus(msgId, 'sent');
+        await chatLocalDataSource.deletePendingMessage(msgId);
+      } catch (e) {
+        // Leave in queue for next retry
+      }
+    }
+
+    final remaining = await chatLocalDataSource.getPendingMessages();
+    if (remaining.isEmpty) {
+      _stopPendingRetry();
+    }
+  }
+
+  void _startPendingRetry() {
+    _pendingRetryTimer ??= Timer.periodic(const Duration(seconds: 15), (_) {
+      _retryPendingMessages();
+    });
+  }
+
+  void _stopPendingRetry() {
+    _pendingRetryTimer?.cancel();
+    _pendingRetryTimer = null;
+  }
+
   // ===================== Helpers =====================
 
   @override

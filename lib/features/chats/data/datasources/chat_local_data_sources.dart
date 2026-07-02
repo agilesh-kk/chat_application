@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:chat_application/features/chats/data/models/message_model.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
+import 'package:chat_application/features/chats/domain/entities/list_operation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,7 +32,7 @@ abstract interface class ChatLocalDataSource {
   Future<void> resetUnread(String convoId);
   Future<void> deleteMessageLocally(String msgId);
   Future<void> bulkInsertMessages(List<Map<String, dynamic>> firestoreDocs, List<String> docIds, String receiverId);
-  Stream<List<Message>> getMessagesStream(String conversationId);
+  Stream<ListOperation<Message>> getMessagesStream(String conversationId,String userId);
   Stream<List<Conversation>> getConversationsStream();
 
   Future<bool> ischeckUserChanged(String userId);
@@ -42,13 +43,32 @@ abstract interface class ChatLocalDataSource {
   Future<void> updateConversationFriendStatus(String convoId, bool isFriend);
   Future<String?> getConvoIdByReceiverId(String receiverId);
   Future<List<Conversation>> queryAllConversations();
+  Future<bool> hasConversation(String convoId);
+
+  // Pending message queue
+  Future<void> insertPendingMessage({
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    required String content,
+    String type = 'text',
+    String? userName,
+    String? userProfile,
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
+  });
+  Future<List<Map<String, dynamic>>> getPendingMessages();
+  Future<void> deletePendingMessage(String msgId);
+  Future<void> updateMessageStatus(String msgId, String status);
 
   void dispose();
 }
 
 class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   Database? _db;
-  final Map<String, StreamController<List<Message>>> _controllers = {};
+  final Map<String, StreamController<ListOperation<Message>>> _controllers = {};
   StreamController<List<Conversation>>? _convoController;
 
   // ===================== Database Init =====================
@@ -67,7 +87,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
     _db = await openDatabase(
       dbPath,
-      version: 7,
+      version: 8,
       onCreate: _createTables,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -94,6 +114,27 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
           await db.execute('''
             CREATE INDEX IF NOT EXISTS idx_messages_conversation_time
             ON messages(conversationId, createdAt DESC)
+          ''');
+        }
+
+        if (oldVersion < 8) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS pending_messages (
+              msgId TEXT PRIMARY KEY,
+              userId TEXT NOT NULL,
+              receiverId TEXT NOT NULL,
+              content TEXT NOT NULL,
+              type TEXT DEFAULT 'text',
+              userName TEXT,
+              userProfile TEXT,
+              replyToId TEXT,
+              replyToContent TEXT,
+              replyToSenderId TEXT,
+              replyToType TEXT,
+              retryCount INTEGER DEFAULT 0,
+              lastError TEXT,
+              createdAt INTEGER NOT NULL
+            )
           ''');
         }
       },
@@ -161,7 +202,6 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
     if(rows.isNotEmpty){
       final first = rows[0];
-      print(first['content']);
       updateConvo(convoId, first['id'] as String, first['content'] as String, DateTime.fromMillisecondsSinceEpoch(first['createdAt'] as int), receiverId, first['senderId'] as String);
     }
   }
@@ -223,6 +263,24 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_messages_conversation_time
       ON messages(conversationId, createdAt DESC)
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pending_messages (
+        msgId TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        receiverId TEXT NOT NULL,
+        content TEXT NOT NULL,
+        type TEXT DEFAULT 'text',
+        userName TEXT,
+        userProfile TEXT,
+        replyToId TEXT,
+        replyToContent TEXT,
+        replyToSenderId TEXT,
+        replyToType TEXT,
+        retryCount INTEGER DEFAULT 0,
+        lastError TEXT,
+        createdAt INTEGER NOT NULL
+      )
     ''');
     await convoUpgrade(db);
   }
@@ -286,11 +344,11 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   Map<String, dynamic> _firestoreToDb(Map<String, dynamic> data, String docId, String conversationId) {
     return {
       'id': docId,
-      'conversationId': conversationId,
+        'conversationId': conversationId,
       'senderId': data['senderId'],
       'content': data['content'] ?? '',
       'type': data['messageType'] ?? data['type'] ?? 'text',
-      'status': data['status'] ?? 'sent',
+      'status': data['status'] ?? 'loading',
       'createdAt': data['createdAt'] != null
           ? _toMillis(data['createdAt'])
           : DateTime.now().millisecondsSinceEpoch,
@@ -309,6 +367,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       'receiverId': data['receiverId'],
       'profile': data['profile'],
       'isLocal': (data['isLocal'] ?? false) ? 1 : 0,
+      'localPath': data['localPath'],
     };
   }
 
@@ -359,6 +418,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       deletedForEveryone: (row['deletedForEveryone'] as int? ?? 0) == 1,
       type: row['type'] as String? ?? 'text',
       isLocal: (row['isLocal'] as int? ?? 0) == 1,
+      localPath: row['localPath'] as String?,
       sendAt: row['sendAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch(row['sendAt'] as int)
           : null,
@@ -395,12 +455,10 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
   }
 
-  void _notify(String conversationId) {
+  void _notify(String conversationId, ListOperation<Message> lp) {
     final controller = _controllers[conversationId];
     if (controller == null || controller.isClosed) return;
-    _queryMessagesSafe(conversationId).then((messages) {
-      if (!controller.isClosed) controller.add(messages);
-    });
+     if (!controller.isClosed) controller.add(lp);
   }
 
   void _notifyConvo() {
@@ -408,25 +466,24 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     if (_convoController == null || _convoController!.isClosed) return;
     _queryConversations().then((convos) {
       if (!_convoController!.isClosed){
-        print("added");
          _convoController!.add(convos);}
     });
   }
 
-  Future<List<Message>> _queryMessagesSafe(String conversationId) async {
+  Future<List<Message>> _queryMessagesSafe(String conversationId,String userId) async {
     try {
-      return await _queryMessages(conversationId);
+      return await _queryMessages(conversationId,userId);
     } catch (_) {
       return [];
     }
   }
 
-  Future<List<Message>> _queryMessages(String conversationId) async {
+  Future<List<Message>> _queryMessages(String conversationId,String userId) async {
     if (_db == null) return [];
     final rows = await _db!.query(
       'messages',
-      where: 'conversationId = ?',
-      whereArgs: [conversationId],
+      where: 'conversationId = ? and deletedForEveryone = ? and deletedFor NOT LIKE ?',
+      whereArgs: [conversationId,0,"%$userId%"],
       orderBy: 'createdAt DESC',
     );
     return rows.map(_dbToMessage).toList();
@@ -452,7 +509,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       row,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    _notify(convoId);
+    _notify(convoId,NewMessageOperation(_dbToMessage(row)));
   }
 
   @override
@@ -471,9 +528,8 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       row['createdAt'] = originalCreatedAt;
     }
     row['isLocal'] = 0;
-    row['localPath'] = null;
-    await _db!.insert('messages', row, conflictAlgorithm: ConflictAlgorithm.replace);
-    if (convoId.isNotEmpty) _notify(convoId);
+    _db!.insert('messages', row, conflictAlgorithm: ConflictAlgorithm.replace);
+    if (convoId.isNotEmpty) _notify(convoId,NewMessageOperation(_dbToMessage(row)));
   }
 
   @override
@@ -492,26 +548,24 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     final convo = await _db!.query("conversations",where: "convoId = ?",whereArgs: [convoId],limit: 1);
 
     if(convo.first['msgId'] == msgId){
-      if(deletedForEveryone){
-        await _db!.update("conversations", {"lastMessage":"this message was deleted","lastUpdateTime":_toMillis(DateTime.now())},where : "convoId = ?" , whereArgs: [convoId]);
-      }else if(deletedfor.contains(userId)){
         await changeLastMessageToPreviousMessage(convoId, userId, receiverId, 1);
-      }
       _notifyConvo();
     }
 
     final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      _notify(convoId,DeleteMessageOperation(msgId, deletedfor,deleteForEveryone: deletedForEveryone));
     }
   }
 
   Future<void> changeLastMessageToPreviousMessage(String convoId,String userId,String receiverId, int place) async{
-    final row = await _db!.query("messages",where: "deletedfor NOT LIKE ? and conversationId = ?",whereArgs: ["%$userId%",convoId],limit: place,orderBy: "createdAt DESC");
+    final row = await _db!.query("messages",where: "deletedForEveryone = ? and deletedfor NOT LIKE ? and conversationId = ?",whereArgs: [0,"%$userId%",convoId],limit: place,orderBy: "createdAt DESC");
     if(row.isNotEmpty){
       final prev = row[place-1];
       await updateConvo(convoId, prev['id'] as String, prev['content'] as String, DateTime.fromMillisecondsSinceEpoch(prev['createdAt'] as int), receiverId, prev['senderId'] as String);
+    }else{
+      await updateConvo(convoId, "", "","", receiverId, "");
     }
   }
 
@@ -519,19 +573,21 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
   Future<void> updateMessageReaction(String msgId, String convoId,String userId, String receiverId,Map<String, String> reactions, String emoji, String reacterId) async {
     if (_db == null || kIsWeb) return;
     final row = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
-    final reacts = Map<String, dynamic>.from(jsonDecode(row.first['reactions'] as String? ?? "") as Map? ?? {});
+    final reacts = Map<String, String>.from(jsonDecode(row.first['reactions'] as String? ?? "") as Map? ?? {});
     final currenReaction = reacts[reacterId]?? "";
     if(currenReaction == emoji){
       reacts.remove(reacterId);
+      _notify(convoId,SetReactionOperation(msgId, reacts));
       await changeLastMessageToPreviousMessage(convoId, userId, receiverId, 1);
       _notifyConvo();
     }else{
       reacts[reacterId] = emoji;
+      _notify(convoId,SetReactionOperation(msgId, reacts));
         try
         {
           final row = await _db!.query("messages",where: "id = ?",whereArgs: [msgId],limit: 1);
         if(row.isNotEmpty){
-          await updateConvo(row.first['conversationId'] as String, msgId, "Reacted $emoji to \"${row.first["content"] as String}\"", DateTime.now(), receiverId, reacterId);
+          await updateConvo(row.first['conversationId'] as String, msgId, "Reacted $emoji to \"${row.first["content"] as String}\"", DateTime.now(), receiverId, reacterId,incUnread: 0);
           _notifyConvo();
 
         }
@@ -548,10 +604,6 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
 
     final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
-    if (rows.isNotEmpty) {
-      final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
-    }
   }
 
   @override
@@ -566,7 +618,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      _notify(convoId,TimeLineOperation(msgId, added));
     }
   }
 
@@ -591,7 +643,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
 
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      _notify(convoId,EditMessageOperation(msgId, newContent));
     }
 
     
@@ -634,17 +686,14 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
           'UPDATE conversations SET unread = unread + $incUnread WHERE convoId = ?',
           [convoId],
           );
-          print("updatinnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn");
         }
       });
     
     
 
     }catch(e){
-      print(e);
     }finally{
       final unread = await _db!.query("conversations",where: "convoId = ?",whereArgs: [convoId]);
-      print(unread.first['unread']);
     }
     
 
@@ -675,9 +724,81 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     );
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      _notify(convoId,MarkSeenOperation(msgIds,"seen"));
       _notifyConvo();
     }
+  }
+
+  @override
+  Future<bool> hasConversation(String convoId) async {
+    if (_db == null || kIsWeb) return false;
+    final result = await _db!.query('conversations',
+      where: 'convoId = ?',
+      whereArgs: [convoId],
+      limit: 1,
+    );
+    return result.isNotEmpty;
+  }
+
+  @override
+  Future<void> insertPendingMessage({
+    required String msgId,
+    required String userId,
+    required String receiverId,
+    required String content,
+    String type = 'text',
+    String? userName,
+    String? userProfile,
+    String? replyToId,
+    String? replyToContent,
+    String? replyToSenderId,
+    String? replyToType,
+  }) async {
+    if (_db == null || kIsWeb) return;
+    await _db!.insert('pending_messages', {
+      'msgId': msgId,
+      'userId': userId,
+      'receiverId': receiverId,
+      'content': content,
+      'type': type,
+      'userName': userName,
+      'userProfile': userProfile,
+      'replyToId': replyToId,
+      'replyToContent': replyToContent,
+      'replyToSenderId': replyToSenderId,
+      'replyToType': replyToType,
+      'retryCount': 0,
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getPendingMessages() async {
+    if (_db == null || kIsWeb) return [];
+    return await _db!.query('pending_messages', orderBy: 'createdAt ASC');
+  }
+
+  @override
+  Future<void> deletePendingMessage(String msgId) async {
+    if (_db == null || kIsWeb) return;
+    await _db!.delete('pending_messages', where: 'msgId = ?', whereArgs: [msgId]);
+  }
+
+  @override
+  Future<void> updateMessageStatus(String msgId, String status) async {
+    if (_db == null || kIsWeb) return;
+    final rows = await _db!.query('messages', where: 'id = ?', whereArgs: [msgId], limit: 1);
+    if (rows.isEmpty) return;
+    final currentStatus = rows.first['status'] as String? ?? '';
+    if (currentStatus == 'seen') return;
+    await _db!.update(
+      'messages',
+      {'status': status},
+      where: 'id = ?',
+      whereArgs: [msgId],
+    );
+    final convoId = rows.first['conversationId'] as String;
+    _notify(convoId, MarkSeenOperation([msgId], status));
   }
 
   @override
@@ -687,7 +808,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     await _db!.delete('messages', where: 'id = ?', whereArgs: [msgId]);
     if (rows.isNotEmpty) {
       final convoId = rows.first['conversationId'] as String;
-      _notify(convoId);
+      //_notify(convoId);
     }
   }
 
@@ -709,25 +830,24 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
     }
 
     await batch.commit(noResult: true);
-    if (convoId != null) _notify(convoId);
+    //if (convoId != null) _notify(convoId);
 
     final rows = await _db!.query('messages',where: "conversationId = ?",whereArgs: [convoId], limit: 1, orderBy: "createdAt DESC");
 
     if(rows.isNotEmpty){
       final first = rows[0];
-      print(first['content']);
       updateConvo(convoId!, first['id'] as String, first['content'] as String, DateTime.fromMillisecondsSinceEpoch(first['createdAt'] as int), receiverId, first['senderId'] as String,incUnread: unread);
     }
   }
 
   @override
-  Stream<List<Message>> getMessagesStream(String conversationId) {
+  Stream<ListOperation<Message>> getMessagesStream(String conversationId,String userId) {
     if (_controllers[conversationId] == null || _controllers[conversationId]!.isClosed) {
-      _controllers[conversationId] = StreamController<List<Message>>.broadcast();
+      _controllers[conversationId] = StreamController<ListOperation<Message>>.broadcast();
     }
-    _queryMessagesSafe(conversationId).then((messages) {
+    _queryMessages(conversationId,userId).then((rows) {
       if (!_controllers[conversationId]!.isClosed) {
-        _controllers[conversationId]?.add(messages);
+        _controllers[conversationId]?.add(FirstFetch<Message>(rows));
       }
     });
     return _controllers[conversationId]!.stream;
@@ -739,7 +859,6 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       _convoController = StreamController<List<Conversation>>.broadcast();
     }
     _queryConversations().then((convos) {
-      print("convo lengthhhhhhhh ${convos.length}");
       _convoController!.add(convos);
     });
     return _convoController!.stream;

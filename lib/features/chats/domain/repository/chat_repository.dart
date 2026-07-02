@@ -2,6 +2,7 @@
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/errors/failure.dart';
 import 'package:chat_application/features/chats/domain/entities/conversation.dart';
+import 'package:chat_application/features/chats/domain/entities/list_operation.dart';
 import 'package:chat_application/features/chats/domain/entities/message.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
@@ -58,7 +59,7 @@ abstract interface class ChatRepository{
   });
 
   //Contract to fetch Messages of a Single Conversation
-  Future<Either<Failure,Stream<List<Message>>>> getMessages({
+  Future<Either<Failure,Stream<ListOperation<Message>>>> getMessages({
     required String receiverId,
     required String userId,
   });
@@ -116,4 +117,6 @@ abstract interface class ChatRepository{
   Future<void> markConversationNotFriend(String userId, String friendId);
   Future<List<Conversation>> queryAllLocalConversations();
   String generateConversationId(String user1, String user2);
+
+  Future<void> retryPendingMessages();
 }

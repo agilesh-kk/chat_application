@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chat_application/core/common/data/presence_remote_data_source.dart';
 import 'package:chat_application/core/common/entities/user.dart';
 import 'package:chat_application/core/data/user_device_data_source.dart';
+import 'package:chat_application/features/auth/data/models/user_model.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -39,6 +40,9 @@ class AppUserCubit extends Cubit<AppUserState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('current_user_id', user.id);
     await prefs.setString('current_user_name', user.name);
+    await prefs.setString('current_user_email', user.email);
+    await prefs.setString('current_user_birthdate', user.birthDate.millisecondsSinceEpoch.toString());
+    await prefs.setString('current_user_gender', user.gender);
     await prefs.setString('current_user_profile', user.profilePic ?? '');
   }
 
@@ -46,7 +50,32 @@ class AppUserCubit extends Cubit<AppUserState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('current_user_id');
     await prefs.remove('current_user_name');
+    await prefs.remove('current_user_email');
+    await prefs.remove('current_user_birthdate');
+    await prefs.remove('current_user_gender');
     await prefs.remove('current_user_profile');
+  }
+
+  static Future<UserModel?> getCachedUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final id = prefs.getString('current_user_id');
+    if (id == null || id.isEmpty) return null;
+    final name = prefs.getString('current_user_name') ?? '';
+    final email = prefs.getString('current_user_email') ?? '';
+    final birthDateStr = prefs.getString('current_user_birthdate');
+    final birthDate = birthDateStr != null
+        ? DateTime.fromMillisecondsSinceEpoch(int.parse(birthDateStr))
+        : DateTime(2000, 1, 1);
+    final gender = prefs.getString('current_user_gender') ?? '';
+    final profilePic = prefs.getString('current_user_profile');
+    return UserModel(
+      id: id,
+      name: name,
+      email: email,
+      birthDate: birthDate,
+      gender: gender,
+      profilePic: profilePic?.isEmpty == true ? null : profilePic,
+    );
   }
 
   Future<void> _initToken(String userId) async {
