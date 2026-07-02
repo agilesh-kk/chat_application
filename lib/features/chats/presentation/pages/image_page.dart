@@ -1,26 +1,29 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' show lerpDouble;
 
+import 'package:chat_application/features/chats/domain/entities/message.dart';
+import 'package:chat_application/features/chats/presentation/helper/cacheservice.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class FullScreenImagePage extends StatefulWidget {
-  final Uint8List bytes;
-  final String tag;
-  final String senderName;
-  final DateTime time;
-  final bool isMe;
-  final VoidCallback? onDelete;
-
+  final List<Message> messages;
+  final int initialIndex;
+  final CacheService cacheService;
+  final String currentUserId;
+  final String receiverId;
+  final String receiverName;
   const FullScreenImagePage({
     super.key,
-    required this.bytes,
-    required this.tag,
-    required this.senderName,
-    required this.time,
-    this.isMe = false,
-    this.onDelete,
+    required this.messages,
+    required this.initialIndex,
+    required this.cacheService,
+    required this.currentUserId,
+    required this.receiverId,
+    required this.receiverName,
   });
 
   @override
@@ -29,23 +32,40 @@ class FullScreenImagePage extends StatefulWidget {
 
 class _FullScreenImagePageState extends State<FullScreenImagePage>
     with SingleTickerProviderStateMixin {
+  late PageController _pageController;
+  late TransformationController _transformationController;
+  late int _currentIndex;
+
   bool _showUI = true;
-  final _transformationController = TransformationController();
+  bool _isZoomed = false;
   final _focusNode = FocusNode();
   Timer? _autoHideTimer;
 
+  final Set<int> _activePointers = {};
   double _dragOffset = 0;
   bool _isDismissing = false;
   bool _dragActive = false;
   Offset? _dragStartPos;
   late AnimationController _dismissAnimController;
 
+  final Map<String, Uint8List> _loadedBytes = {};
+
   static const _minScale = 1.0;
   static const _maxScale = 5.0;
+
+  Message get _currentMessage => widget.messages[_currentIndex];
+  String get _currentSenderName =>
+      _currentMessage.senderId == widget.currentUserId
+          ? 'You'
+          : widget.receiverName;
 
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, widget.messages.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
+    _transformationController = TransformationController();
+    _transformationController.addListener(_onTransformationChanged);
     _hideSystemUI();
     _focusNode.requestFocus();
     _dismissAnimController = AnimationController(
@@ -55,6 +75,15 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
     _dismissAnimController.addListener(_onDismissProgress);
     _dismissAnimController.addStatusListener(_onDismissStatus);
     _startAutoHideTimer();
+    _loadImageForIndex(_currentIndex);
+  }
+
+  void _onTransformationChanged() {
+    final scale = _transformationController.value.getMaxScaleOnAxis();
+    final zoomed = scale > 1.05;
+    if (zoomed != _isZoomed) {
+      setState(() => _isZoomed = zoomed);
+    }
   }
 
   void _onDismissProgress() {
@@ -89,9 +118,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
   }
 
   void _toggleUI() {
-    setState(() {
-      _showUI = !_showUI;
-    });
+    setState(() => _showUI = !_showUI);
     if (_showUI) _startAutoHideTimer();
   }
 
@@ -100,6 +127,14 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
     _dismissAnimController.removeStatusListener(_onDismissStatus);
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     if (mounted) Navigator.of(context).pop();
+  }
+
+  void _onPageChanged(int index) {
+    if (index == _currentIndex) return;
+    setState(() => _currentIndex = index);
+    _transformationController.value = Matrix4.identity();
+    _isZoomed = false;
+    _loadImageForIndex(index);
   }
 
   void _handleDoubleTapDown(TapDownDetails details) {
@@ -120,19 +155,28 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
   }
 
   void _onPointerDown(PointerDownEvent event) {
+    _activePointers.add(event.pointer);
+    if (_activePointers.length > 1) {
+      _dragStartPos = null;
+      _dragActive = false;
+      _dragOffset = 0;
+      return;
+    }
     if (_isDismissing) return;
-    if (_transformationController.value.getMaxScaleOnAxis() > 1.05) return;
+    if (_isZoomed) return;
     _dragStartPos = event.position;
     _dragActive = false;
   }
 
   void _onPointerMove(PointerMoveEvent event) {
     if (_isDismissing) return;
-    if (_dragStartPos == null) return;
-    if (_transformationController.value.getMaxScaleOnAxis() > 1.05) {
+    if (_activePointers.length > 1 || _isZoomed) {
       _dragStartPos = null;
+      _dragActive = false;
+      _dragOffset = 0;
       return;
     }
+    if (_dragStartPos == null) return;
 
     final dy = event.position.dy - _dragStartPos!.dy;
 
@@ -149,6 +193,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
   }
 
   void _onPointerUp(PointerUpEvent event) {
+    _activePointers.remove(event.pointer);
     if (_isDismissing) return;
     _dragStartPos = null;
     if (!_dragActive) return;
@@ -163,6 +208,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
   }
 
   void _onPointerCancel(PointerCancelEvent event) {
+    _activePointers.remove(event.pointer);
     _dragStartPos = null;
     _dragActive = false;
     setState(() => _dragOffset = 0);
@@ -193,8 +239,45 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
     return shrink * (1.0 - _dismissProgress * 0.5);
   }
 
+  Future<void> _loadImageForIndex(int index) async {
+    final msg = widget.messages[index];
+    if (_loadedBytes.containsKey(msg.id)) return;
+
+    if (!mounted) return;
+    setState(() {});
+
+    if (widget.cacheService.cache.containsKey(msg.id)) {
+      _loadedBytes[msg.id] = widget.cacheService.cache[msg.id]!;
+      if (mounted) setState(() {});
+      return;
+    }
+
+    if (!kIsWeb && msg.localPath != null) {
+      try {
+        final bytes = await File(msg.localPath!).readAsBytes();
+        widget.cacheService.cache[msg.id] = bytes;
+        _loadedBytes[msg.id] = bytes;
+        if (mounted) setState(() {});
+        return;
+      } catch (_) {}
+    }
+
+    if (msg.content.isNotEmpty) {
+      try {
+        await widget.cacheService.getOrDownload(msg.content, msg.id);
+        if (widget.cacheService.cache.containsKey(msg.id)) {
+          _loadedBytes[msg.id] = widget.cacheService.cache[msg.id]!;
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _pageController.dispose();
+    _transformationController.removeListener(_onTransformationChanged);
     _transformationController.dispose();
     _focusNode.dispose();
     _autoHideTimer?.cancel();
@@ -231,45 +314,75 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
               onDoubleTapDown: _handleDoubleTapDown,
               behavior: HitTestBehavior.opaque,
               child: Stack(
-            children: [
-              Center(
-                child: Transform.translate(
-                  offset: Offset(0, _displayOffset),
-                  child: Transform.scale(
-                    scale: _displayScale,
-                    child: Hero(
-                      tag: widget.tag,
-                      child: InteractiveViewer(
-                        transformationController:
-                            _transformationController,
-                        minScale: _minScale,
-                        maxScale: _maxScale,
-                        child: Image.memory(
-                          widget.bytes,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
+                children: [
+                  _buildGallery(),
+
+                  if (_showUI) ...[
+                    _buildTopBar(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGallery() {
+    return Transform.translate(
+      offset: Offset(0, _displayOffset),
+      child: Transform.scale(
+        scale: _displayScale,
+        child: PageView.builder(
+          controller: _pageController,
+          onPageChanged: _onPageChanged,
+          physics: _isZoomed
+              ? const NeverScrollableScrollPhysics()
+              : const PageScrollPhysics(),
+          itemCount: widget.messages.length,
+          itemBuilder: (context, index) {
+            final msg = widget.messages[index];
+            final bytes = _loadedBytes[msg.id];
+
+            if (bytes == null) {
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
+            }
+
+            final isInitialImage = index == widget.initialIndex;
+
+            return Center(
+              child: Hero(
+                tag: isInitialImage ? msg.id : '${msg.id}_${index}',
+                child: InteractiveViewer(
+                  transformationController:
+                      index == _currentIndex
+                          ? _transformationController
+                          : TransformationController(),
+                  minScale: _minScale,
+                  maxScale: _maxScale,
+                  child: Image.memory(
+                    bytes,
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),
-
-              if (_showUI) ...[
-                _buildTopBar(),
-                _buildBottomBar(),
-            ],
-            ]
-          ),
+            );
+          },
         ),
-        ),
-      ),
       ),
     );
   }
 
   Widget _buildTopBar() {
     final top = MediaQuery.of(context).padding.top;
-    final formatted = DateFormat('h:mm a').format(widget.time);
+    final formatted = DateFormat('h:mm a').format(_currentMessage.createdAt);
+    final count = widget.messages.length;
+    final label = count > 1
+        ?         '${_currentIndex + 1} of $count \u00b7 ${_currentSenderName}'
+        : _currentSenderName;
 
     return Positioned(
       top: 0,
@@ -300,7 +413,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      widget.senderName,
+                      label,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -318,36 +431,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white),
-                color: const Color(0xFF2A2A2A),
-                onSelected: (value) {
-                  if (value == 'save') _saveImage();
-                  if (value == 'share') _shareImage();
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'save',
-                    child: ListTile(
-                      leading: Icon(Icons.download, color: Colors.white),
-                      title: Text('Save to gallery',
-                          style: TextStyle(color: Colors.white)),
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'share',
-                    child: ListTile(
-                      leading: Icon(Icons.share, color: Colors.white),
-                      title: Text('Share',
-                          style: TextStyle(color: Colors.white)),
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
-              ),
+
             ],
           ),
         ),
@@ -355,73 +439,5 @@ class _FullScreenImagePageState extends State<FullScreenImagePage>
     );
   }
 
-  Widget _buildBottomBar() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: AnimatedOpacity(
-        opacity: _showUI ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 200),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(
-            4,
-            16,
-            4,
-            MediaQuery.of(context).padding.bottom + 4,
-          ),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black87],
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              if (widget.isMe && widget.onDelete != null)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      color: Colors.white),
-                  onPressed: () {
-                    widget.onDelete!();
-                    _handleDismiss();
-                  },
-                ),
-              IconButton(
-                icon: const Icon(Icons.share_outlined,
-                    color: Colors.white),
-                onPressed: _shareImage,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  void _saveImage() {
-    // TODO: implement save to gallery
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Save to gallery coming soon'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-    }
-  }
-
-  void _shareImage() {
-    // TODO: implement share
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Share coming soon'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-    }
-  }
 }
