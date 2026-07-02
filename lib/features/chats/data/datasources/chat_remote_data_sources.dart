@@ -521,7 +521,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       if (!isScheduled) {
         try {
-           supabase.from('messages').insert({
+           await supabase.from('messages').insert({
             'chat_id': generateConversationId(userId, receiverId),
             'sender_id': userId,
             'receiver_id': receiverId,

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:chat_application/core/common/cubit/app_user_cubit.dart';
 import 'package:chat_application/core/theme/app_pallette.dart';
@@ -55,8 +54,6 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
 
   Uint8List? imageBytes;
   bool isLoading = true;
-  double _displayW = 242;
-  static final Map<String, double> _imageSizeCache = {};
 
   @override
   void initState() {
@@ -81,15 +78,6 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
     if (widget.cacheService.cache.containsKey(msg.id)) {
       imageBytes = widget.cacheService.cache[msg.id];
       isLoading = false;
-
-      final cached = _imageSizeCache[msg.id];
-      if (cached != null) {
-        _displayW = cached;
-      } else if (imageBytes != null) {
-        final w = await _cacheImageSize(msg.id, imageBytes!);
-        if (w != null) _displayW = w;
-      }
-
       if (mounted) setState(() {});
       return;
     }
@@ -127,8 +115,6 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
       widget.cacheService.cache[msg.id] = bytes;
       imageBytes = bytes;
       isLoading = false;
-      final w = await _cacheImageSize(msg.id, bytes);
-      if (w != null) _displayW = w;
       if (mounted) setState(() {});
       return;
     }
@@ -137,35 +123,8 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
       await widget.cacheService.getOrDownload(msg.content, msg.id);
       imageBytes = widget.cacheService.cache[msg.id];
       isLoading = false;
-      if (imageBytes != null) {
-        final w = await _cacheImageSize(msg.id, imageBytes!);
-        if (w != null) _displayW = w;
-      }
       if (mounted) setState(() {});
     }
-  }
-
-  Future<double?> _cacheImageSize(String id, Uint8List bytes) async {
-    if (_imageSizeCache.containsKey(id)) return _imageSizeCache[id];
-    try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final rawW = frame.image.width.toDouble();
-      final rawH = frame.image.height.toDouble();
-      frame.image.dispose();
-      codec.dispose();
-      double w = rawW, h = rawH;
-      if (w > 242) {
-        h *= 242 / w;
-        w = 242;
-      }
-      if (h > 292) {
-        w *= 292 / h;
-      }
-      _imageSizeCache[id] = w;
-      return w;
-    } catch (_) {}
-    return null;
   }
 
   @override
@@ -437,8 +396,9 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
     final msg = widget.message;
 
     if (isLoading) {
-      return ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 242, maxHeight: 292),
+      return SizedBox(
+          width: 190,
+          height: 275,
         child: const Center(
           child: CircularProgressIndicator(),
         ),
@@ -453,11 +413,12 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (hasReply) ...[
-            SizedBox(width: _displayW, child: _buildReplyPreview()),
+            SizedBox(width: 190, child: _buildReplyPreview()),
             const SizedBox(height: 4),
           ],
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 242, maxHeight: 292),
+          SizedBox(
+            width: 190,
+            height: 275,
             child: Stack(
               children: [
                 GestureDetector(
@@ -468,16 +429,27 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
                         builder: (_) => FullScreenImagePage(
                           bytes: imageBytes!,
                           tag: msg.id,
+                          senderName: widget.isMe
+                              ? 'You'
+                              : (widget.receiverName ?? 'Unknown'),
+                          time: widget.message.createdAt,
+                          isMe: widget.isMe,
+                          onDelete:
+                              widget.isMe ? widget.onDelete : null,
                         ),
                       ),
                     );
                   },
                   child: Hero(
                     tag: msg.id,
-                    child: Image.memory(
-                      imageBytes!,
-                      fit: BoxFit.scaleDown,
-                      gaplessPlayback: true,
+                    child: SizedBox(
+              width: 190,
+              height: 275,
+                      child: Image.memory(
+                        imageBytes!,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                      ),
                     ),
                   ),
                 ),

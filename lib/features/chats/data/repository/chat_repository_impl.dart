@@ -725,7 +725,7 @@ class ChatRepositoryImpl implements ChatRepository {
       return;
     }
 
-    pending.forEach((msg) async{
+    for(var msg in pending){
       final msgId = msg['msgId'] as String;
       final userId = msg['userId'] as String;
       final receiverId = msg['receiverId'] as String;
@@ -766,7 +766,7 @@ class ChatRepositoryImpl implements ChatRepository {
       } catch (e) {
         // Leave in queue for next retry
       }
-    });
+    }
 
     final remaining = await chatLocalDataSource.getPendingMessages();
     if (remaining.isEmpty) {
