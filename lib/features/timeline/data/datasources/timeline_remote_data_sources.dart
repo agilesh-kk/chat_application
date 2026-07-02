@@ -135,6 +135,20 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
     await messageRef.update({
       "inTimeline": true, // 🔥 NEW FIELD
     });
+
+    final sorted = [userId, receiverId]..sort();
+    final opName = sorted[0] == userId ? "operation_1" : "operation_2";
+    final opRef = firebaseFirestore
+        .collection("Conversations")
+        .doc(convoId)
+        .collection(opName)
+        .doc("${message.id}_timeline");
+    await opRef.set({
+      "type": "in_timeline",
+      "messageId": message.id,
+      "addedToTimeline": true,
+      "timestamp": FieldValue.serverTimestamp(),
+    });
   }
 
   @override
@@ -176,6 +190,20 @@ class TimelineRemoteDataSourcesImpl implements TimelineRemoteDataSources {
             "inTimeline": false,
           }, SetOptions(merge: true));
         }
+      });
+
+      final sorted = [userId, receiverId]..sort();
+      final opName = sorted[0] == userId ? "operation_1" : "operation_2";
+      final opRef = firebaseFirestore
+          .collection("Conversations")
+          .doc(convoId)
+          .collection(opName)
+          .doc();
+      await opRef.set({
+        "type": "remove_from_timeline",
+        "messageId": messageId,
+        "addedToTimeline": false,
+        "timestamp": FieldValue.serverTimestamp(),
       });
     } catch (e) {
       throw ServerExceptions(e.toString());

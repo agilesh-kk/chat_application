@@ -458,7 +458,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
       }
 
       if (!isScheduled) {
-        final timelineService = TimelineService(firestore, opColToUse);
+        final timelineService = TimelineService(firestore, opCollection ?? _getMyOpCollection(userId, receiverId));
 
         await timelineService.handleMessage(
           messageId: msgId,

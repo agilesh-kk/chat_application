@@ -149,7 +149,7 @@ class TimelineService {
     });
 
     // =========================
-    // 🔥 MARK MESSAGE (OPTIONAL)
+    // 🔥 MARK MESSAGE & WRITE OP DOC
     // =========================
     if (triggeredEvents.isNotEmpty) {
       final messageRef = firestore
@@ -162,6 +162,15 @@ class TimelineService {
         {"inTimeline": true},
         SetOptions(merge: true),
       );
+
+      final opDoc = convoRef.collection(opCollection).doc();
+      await opDoc
+      .set({
+        "type" : "timeline",
+        "messageId" : messageId,
+        "addedToTimeline" : true,
+        "timestamp" : FieldValue.serverTimestamp()
+      });
     }
   }
 

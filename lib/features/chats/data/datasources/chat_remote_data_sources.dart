@@ -602,7 +602,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         //   createdAt: Timestamp.now(),
         // );
 
-        final timelineService = TimelineService(firestore, collectionName);
+        final timelineService = TimelineService(firestore, opCollection ?? _getMyOpCollection(userId, receiverId));
 
         await timelineService.handleMessage(
           messageId: msgId,
