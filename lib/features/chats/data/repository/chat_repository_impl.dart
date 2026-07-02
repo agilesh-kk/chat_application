@@ -245,6 +245,7 @@ class ChatRepositoryImpl implements ChatRepository {
     String? replyToContent,
     String? replyToSenderId,
     String? replyToType,
+    bool isNewConvo = false,
   }) async {
     try {
       final imageUrl = await chatRemoteDataSources.uploadImage(
@@ -264,6 +265,7 @@ class ChatRepositoryImpl implements ChatRepository {
         replyToSenderId: replyToSenderId,
         replyToType: replyToType,
         opCollection: _getMyOpCollection(userId, receiverId),
+        isNewConvo: isNewConvo,
       );
       return right(null);
     } catch (e) {
@@ -285,6 +287,7 @@ class ChatRepositoryImpl implements ChatRepository {
     String? replyToContent,
     String? replyToSenderId,
     String? replyToType,
+    bool isNewConvo = false,
   }) async {
     try {
       await chatRemoteDataSources.sendMessage(
@@ -300,6 +303,7 @@ class ChatRepositoryImpl implements ChatRepository {
         replyToSenderId: replyToSenderId,
         replyToType: replyToType,
         opCollection: _getMyOpCollection(userId, receiverId),
+        isNewConvo: isNewConvo,
       );
       return right(null);
     } on ServerExceptions catch (e) {

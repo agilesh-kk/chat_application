@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:chat_application/core/common/entities/user.dart';
+import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/achievement/services/achievement_details_mapper.dart';
 import 'package:chat_application/features/chats/data/datasources/timeline_service.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
@@ -37,6 +38,9 @@ abstract interface class ChatRemoteDataSources {
 
     //operation sync
     String? opCollection,
+
+    //new conversation tracking
+    bool isNewConvo = false,
   });
 
   Future<String> uploadImage({required XFile image, required String msgId});
@@ -208,7 +212,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
     final convoRef = firestore
         .collection("Conversations")
         .doc(convoId)
-      ..update({"$userId.unread": 0});
+      ..set({"$userId.unread": 0}, SetOptions(merge: true));
 
     final snapshot = 
         await convoRef
@@ -437,6 +441,9 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
     //operation sync
     String? opCollection,
+
+    //new conversation tracking
+    bool isNewConvo = false,
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
@@ -454,6 +461,14 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
 
       //skip operation for scheduled messages and when opCollection is not provided
       final shouldWriteOp = opCollection != null && !isScheduled;
+
+      if (!isScheduled) {
+        final senderDoc = await firestore.collection('users').doc(userId).get();
+        final senderFriends = List<String>.from(senderDoc.data()?['friends'] ?? []);
+        if (!senderFriends.contains(receiverId)) {
+          throw ServerExceptions("You must be friends with this user to send messages");
+        }
+      }
 
       final message = MessageModel(
         id: msgId,
@@ -525,8 +540,6 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
           //per-user conversation model
           userId: {
             "receiverId": receiverId,
-            //"receiverName": receiverData["name"],
-            //"receiverProfile": receiverData["profilePic"],
             "unread": 0,
 
             // ✅ per-user last message
@@ -534,32 +547,34 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),
+            "isFriend": true,
           },
 
           receiverId: {
             "receiverId": userId,
-            //"receiverName": userName,
-            //"receiverProfile": userProfile,
             "unread": FieldValue.increment(1),
 
             "lastMessage": type == "text" ? content : "📷 Image",
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),
+            "isFriend": true,
           },
         }, SetOptions(merge: true));
       }
 
-      final userRef = firestore.collection("users").doc(userId);
-      final receiverRef = firestore.collection("users").doc(receiverId);
+      if (isNewConvo) {
+        final userRef = firestore.collection("users").doc(userId);
+        final receiverRef = firestore.collection("users").doc(receiverId);
 
-      batch.set(userRef, {
-        "friends": FieldValue.arrayUnion([receiverId]),
-      }, SetOptions(merge: true));
+        batch.set(userRef, {
+          "convoList": FieldValue.arrayUnion([convoId]),
+        }, SetOptions(merge: true));
 
-      batch.set(receiverRef, {
-        "friends": FieldValue.arrayUnion([userId]),
-      }, SetOptions(merge: true));
+        batch.set(receiverRef, {
+          "convoList": FieldValue.arrayUnion([convoId]),
+        }, SetOptions(merge: true));
+      }
 
       await batch.commit();
 
@@ -587,7 +602,7 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
         //   createdAt: Timestamp.now(),
         // );
 
-        final timelineService = TimelineService(firestore);
+        final timelineService = TimelineService(firestore, collectionName);
 
         await timelineService.handleMessage(
           messageId: msgId,

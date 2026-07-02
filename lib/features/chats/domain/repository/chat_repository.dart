@@ -34,6 +34,9 @@ abstract interface class ChatRepository{
     String? replyToContent,
     String? replyToSenderId,
     String? replyToType,
+
+    //new conversation tracking
+    bool isNewConvo = false,
   });
 
   Future<Either<Failure, void>> sendImage({
@@ -47,6 +50,7 @@ abstract interface class ChatRepository{
     String? replyToContent,
     String? replyToSenderId,
     String? replyToType,
+    bool isNewConvo = false,
   });
 
   //Contract to fetch Messages of a Single Conversation

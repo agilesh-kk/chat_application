@@ -64,6 +64,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
       SendImageEvent event, Emitter<ChatState> emit) async {
 
       final current = state as ChatLoaded;
+      final isNewConvo = current.messages.isEmpty;
 
       final msgId = const Uuid().v1();
 
@@ -100,6 +101,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           replyToContent: event.replyToContent,
           replyToSenderId: event.replyToSenderId,
           replyToType: event.replyToType,
+          isNewConvo: isNewConvo,
         ),
       );
     });
@@ -141,6 +143,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
     on<SendMessageEvent>((event, emit) async {
 
       final currentState = state as ChatLoaded;
+      final isNewConvo = currentState.messages.isEmpty && !event.isScheduled;
 
       var uid = Uuid();
 
@@ -195,6 +198,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
             replyToContent: event.replyToContent,
             replyToSenderId: event.replyToSenderId,
             replyToType: event.replyToType,
+            isNewConvo: false,
           )
         );
 
@@ -224,6 +228,7 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
           replyToContent: event.replyToContent,
           replyToSenderId: event.replyToSenderId,
           replyToType: event.replyToType,
+          isNewConvo: isNewConvo,
         ),
       );
 

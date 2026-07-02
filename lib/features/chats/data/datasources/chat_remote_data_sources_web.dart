@@ -1,4 +1,5 @@
 import 'package:chat_application/core/common/entities/user.dart';
+import 'package:chat_application/core/errors/exceptions.dart';
 import 'package:chat_application/features/chats/data/datasources/timeline_service.dart';
 import 'package:chat_application/features/chats/data/models/conversation_model.dart';
 import 'package:chat_application/features/chats/data/models/message_model.dart';
@@ -112,13 +113,13 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
             .get();
 
     if (snapshot.docs.isEmpty) {
-      await convoRef.update({"$userId.unread": 0});
+      await convoRef.set({"$userId.unread": 0}, SetOptions(merge: true));
       return;
     }
 
     final batch = firestore.batch();
 
-    batch.update(convoRef, {"$userId.unread": 0});
+    batch.set(convoRef, {"$userId.unread": 0}, SetOptions(merge: true));
 
     final seenMsgIds = <String>[];
     for (final doc in snapshot.docs) {
@@ -319,6 +320,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
     String? replyToSenderId,
     String? replyToType,
     String? opCollection,
+    bool isNewConvo = false,
   }) async {
     try {
       final convoId = generateConversationId(userId, receiverId);
@@ -333,6 +335,14 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
       // Web always writes operation doc for non-scheduled messages (generate internally)
       final opColToUse = opCollection ?? _getMyOpCollection(userId, receiverId);
       final shouldWriteOp = !isScheduled;
+
+      if (!isScheduled) {
+        final senderDoc = await firestore.collection('users').doc(userId).get();
+        final senderFriends = List<String>.from(senderDoc.data()?['friends'] ?? []);
+        if (!senderFriends.contains(receiverId)) {
+          throw ServerExceptions("You must be friends with this user to send messages");
+        }
+      }
 
       final message = MessageModel(
         id: msgId,
@@ -403,6 +413,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),
+            "isFriend": true,
           },
 
           receiverId: {
@@ -412,20 +423,23 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
             "lastMessageId": msgId,
             "lastSender": userId,
             "lastupdateTime": FieldValue.serverTimestamp(),
+            "isFriend": true,
           },
         }, SetOptions(merge: true));
       }
 
-      final userRef = firestore.collection("users").doc(userId);
-      final receiverRef = firestore.collection("users").doc(receiverId);
+      if (isNewConvo) {
+        final userRef = firestore.collection("users").doc(userId);
+        final receiverRef = firestore.collection("users").doc(receiverId);
 
-      batch.set(userRef, {
-        "friends": FieldValue.arrayUnion([receiverId]),
-      }, SetOptions(merge: true));
+        batch.set(userRef, {
+          "convoList": FieldValue.arrayUnion([convoId]),
+        }, SetOptions(merge: true));
 
-      batch.set(receiverRef, {
-        "friends": FieldValue.arrayUnion([userId]),
-      }, SetOptions(merge: true));
+        batch.set(receiverRef, {
+          "convoList": FieldValue.arrayUnion([convoId]),
+        }, SetOptions(merge: true));
+      }
 
       await batch.commit();
 
@@ -444,7 +458,7 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
       }
 
       if (!isScheduled) {
-        final timelineService = TimelineService(firestore);
+        final timelineService = TimelineService(firestore, opColToUse);
 
         await timelineService.handleMessage(
           messageId: msgId,

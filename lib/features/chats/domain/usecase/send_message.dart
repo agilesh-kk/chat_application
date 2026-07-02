@@ -22,6 +22,7 @@ class SendMessage implements UseCase<void,SendMessageParams>{
       replyToContent: params.replyToContent,
       replyToSenderId: params.replyToSenderId,
       replyToType: params.replyToType,
+      isNewConvo: params.isNewConvo,
     );
   }
 }
@@ -44,6 +45,9 @@ class SendMessageParams{
   final String? replyToSenderId;
   final String? replyToType;
 
+  //new conversation tracking
+  final bool isNewConvo;
+
   SendMessageParams({
     required this.receiverId,
     required this.userId,
@@ -57,5 +61,6 @@ class SendMessageParams{
     this.replyToContent,
     this.replyToSenderId,
     this.replyToType,
+    this.isNewConvo = false,
   });
 }

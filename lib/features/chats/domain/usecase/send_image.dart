@@ -21,6 +21,7 @@ class SendImage implements UseCase<void,SendImageParams>{
       replyToContent: params.replyToContent,
       replyToSenderId: params.replyToSenderId,
       replyToType: params.replyToType,
+      isNewConvo: params.isNewConvo,
     );
   }
 }
@@ -36,6 +37,7 @@ class SendImageParams{
   final String? replyToContent;
   final String? replyToSenderId;
   final String? replyToType;
+  final bool isNewConvo;
 
   SendImageParams({
     required this.receiverId,
@@ -48,5 +50,6 @@ class SendImageParams{
     this.replyToContent,
     this.replyToSenderId,
     this.replyToType,
+    this.isNewConvo = false,
   });
 }

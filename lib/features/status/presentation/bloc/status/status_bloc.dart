@@ -224,6 +224,7 @@ class StatusBloc extends Bloc<StatusEvent, StatusState> {
       }),
       replyToSenderId: event.statusUserId,
       replyToType: "status",
+      isNewConvo: true,
     );
     result.fold(
       (failure) => emit(StatusFailure(failure.message)),

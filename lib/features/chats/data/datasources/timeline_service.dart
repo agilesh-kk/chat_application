@@ -3,8 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TimelineService {
   final FirebaseFirestore firestore;
+  final String opCollection;
 
-  TimelineService(this.firestore);
+  TimelineService(this.firestore, this.opCollection);
 
   List<TimelineRule> _cachedRules = [];
   bool _rulesLoaded = false;
