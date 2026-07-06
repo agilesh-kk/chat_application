@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:chat_application/features/timeline/presentation/widgets/event_detail_dialog.dart';
 import 'package:chat_application/init_dependencies.dart';
 
 class TimelinePage extends StatefulWidget {
@@ -362,7 +361,6 @@ class _TimelineContentState extends State<TimelineContent> {
   Widget _bubble(dynamic event, bool isMe, BuildContext context) {
     Offset? tapPos;
     return GestureDetector(
-      onTap: () => EventDetailDialog.show(context, event),
       onDoubleTapDown: (details) => tapPos = details.globalPosition,
       onDoubleTap: () {
         TimelineOptionsTray.show(

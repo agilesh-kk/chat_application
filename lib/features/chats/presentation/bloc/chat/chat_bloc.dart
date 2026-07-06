@@ -343,8 +343,13 @@ class ChatBloc extends Bloc<ChatEvent,ChatState>{
         emit(ChatError(failure.message));
       },
       (_) {
-        // If delete succeeds, the message stream should update automatically.
-        // No immediate state change is required here unless you want optimistic UI.
+        if (state is ChatLoaded) {
+          final current = state as ChatLoaded;
+          final updated = current.messages
+              .where((msg) => msg.id != event.msgId)
+              .toList();
+          emit(ChatLoaded(updated, hasMore: current.hasMore, isLoadingMore: current.isLoadingMore));
+        }
       },
     );
   }
