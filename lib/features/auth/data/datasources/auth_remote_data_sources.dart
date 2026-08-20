@@ -100,12 +100,11 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         "time": DateTime.now(),
       });
 
-      if(firebaseUser.emailVerified){
-        return userModel;
-      }else{
+      if(!firebaseUser.emailVerified){
         await firebaseUser.sendEmailVerification();
-        throw ServerExceptions("Verify your email");
+        await firebaseAuth.signOut();
       }
+      return userModel;
 
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
@@ -176,12 +175,21 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
       } else if (e.code == 'invalid-email') {
         throw ServerExceptions("Invalid email address");
       } else {
-        throw ServerExceptions(e.message ?? "Login failed");
+        throw ServerExceptions(_friendlyAuthError(e.message));
       }
 
     } catch (e) {
-      throw ServerExceptions(e.toString());
+      throw ServerExceptions(_friendlyAuthError(e.toString()));
     }
+  }
+
+  String _friendlyAuthError(String? message) {
+    if (message == null) return "Login failed";
+    if (message.toLowerCase().contains('blocked') ||
+        message.toLowerCase().contains('unusual activity')) {
+      return "Too many attempts. Please try again later.";
+    }
+    return message;
   }
   
   @override

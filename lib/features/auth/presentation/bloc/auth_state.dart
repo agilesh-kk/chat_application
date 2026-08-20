@@ -20,3 +20,5 @@ final class AuthFailure extends AuthState {
 }
 
 final class AuthUnauthenticated extends AuthState {} //state of user not logged in
+
+final class SignUpSuccess extends AuthState{}

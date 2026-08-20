@@ -19,7 +19,7 @@ class AuthGate extends StatelessWidget {
       buildWhen: (prev, curr) => curr is AuthInitial || curr is AuthUnauthenticated || curr is AuthSuccess,
       builder: (context, state) {
         if (state is AuthInitial || state is AuthLoading) {
-          return const _SplashScreen();
+          //return const _SplashScreen();
         }
         if (state is AuthSuccess) {
           return MultiBlocProvider(
@@ -60,7 +60,7 @@ class _SplashScreen extends StatelessWidget {
             Image.asset('assets/logo/logo.png', width: 120, height: 120),
             const SizedBox(height: 24),
             Text(
-              'Chat App',
+              'Memento',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
