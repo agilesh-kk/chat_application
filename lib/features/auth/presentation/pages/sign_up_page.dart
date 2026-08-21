@@ -213,6 +213,8 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             isObscure: false,
             icon: Icons.person_outline,
             isSmall : true,
+            inputFormatters: [AuthFields.nameInputFormatter],
+            isNameField: true,
           ),
           const SizedBox(height: 16),
           AuthFields(
