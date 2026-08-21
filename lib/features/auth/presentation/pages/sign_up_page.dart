@@ -7,6 +7,7 @@ import 'package:chat_application/features/auth/presentation/widgets/auth_dropdow
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
 import 'package:chat_application/core/utils/date_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -213,7 +214,10 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             isObscure: false,
             icon: Icons.person_outline,
             isSmall : true,
-            inputFormatters: [AuthFields.nameInputFormatter],
+            inputFormatters: [
+              AuthFields.nameInputFormatter,
+              LengthLimitingTextInputFormatter(15),
+            ],
             isNameField: true,
           ),
           const SizedBox(height: 16),

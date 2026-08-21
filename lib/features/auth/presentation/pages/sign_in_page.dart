@@ -52,6 +52,9 @@ class _SignInPageState extends State<SignInPage> with SingleTickerProviderStateM
             if(state is AuthFailure){
               showSnackbar(context, state.message);
             }
+            if (state is AuthSuccess) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
           },
           builder: (context, state) {
             if (state is AuthLoading) {
