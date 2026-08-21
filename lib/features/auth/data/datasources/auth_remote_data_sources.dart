@@ -162,6 +162,7 @@ class AuthRemoteDataSourcesImpl implements AuthRemoteDataSources {
         return UserModel.fromJson(userDoc.data()!);
       }else{
         await firebaseUser.sendEmailVerification();
+        await firebaseAuth.signOut();
         throw ServerExceptions("Email not verified");
       }
       
