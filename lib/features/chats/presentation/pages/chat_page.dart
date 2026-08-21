@@ -134,6 +134,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver, Single
     final text = controller.text.trim();
     if (text.isNotEmpty) {
       await context.read<DraftService>().saveDraft(_conversationId, text);
+    } else {
+      await _clearDraft();
     }
   }
 
