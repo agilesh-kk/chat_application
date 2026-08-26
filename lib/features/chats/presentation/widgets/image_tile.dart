@@ -423,19 +423,31 @@ class _ImageMessageTileState extends State<ImageMessageTile> {
               children: [
                 GestureDetector(
                   onTap: () {
+                    final state = context.read<ChatBloc>().state;
+                    List<Message> imageMessages = [];
+                    int initialIndex = 0;
+                    if (state is ChatLoaded) {
+                      imageMessages = state.ids
+                          .map((id) => state.messages[id]!)
+                          .where((m) =>
+                              m.type == "image" &&
+                              !m.deletedForEveryone)
+                          .toList();
+                      initialIndex =
+                          imageMessages.indexWhere((m) => m.id == msg.id);
+                      if (initialIndex == -1) initialIndex = 0;
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => FullScreenImagePage(
-                          bytes: imageBytes!,
-                          tag: msg.id,
-                          senderName: widget.isMe
-                              ? 'You'
-                              : (widget.receiverName ?? 'Unknown'),
-                          time: widget.message.createdAt,
-                          isMe: widget.isMe,
-                          onDelete:
-                              widget.isMe ? widget.onDelete : null,
+                          messages: imageMessages,
+                          initialIndex: initialIndex,
+                          cacheService: widget.cacheService,
+                          currentUserId: widget.currentUserId,
+                          receiverId: widget.receiverId,
+                          receiverName:
+                              widget.receiverName ?? 'Unknown',
                         ),
                       ),
                     );
