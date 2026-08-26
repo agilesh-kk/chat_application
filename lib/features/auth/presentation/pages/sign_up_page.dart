@@ -1,11 +1,13 @@
 import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:chat_application/core/utils/show_snackbar.dart';
 import 'package:chat_application/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_application/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_buttons.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_dropdown_selector.dart';
 import 'package:chat_application/features/auth/presentation/widgets/auth_fields.dart';
 import 'package:chat_application/core/utils/date_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -66,8 +68,31 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             child: BlocConsumer<AuthBloc, AuthState>(
               listener: (context, state) {
                 if(state is AuthFailure){
-                showSnackbar(context, state.message);
-              }
+                  showSnackbar(context, state.message);
+                }
+                if(state is SignUpSuccess){
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => AlertDialog(
+                      title: const Text('Verify Your Email'),
+                      content: const Text(
+                        'A verification link has been sent to your email. Please verify before signing in.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(builder: (_) => const SignInPage()),
+                            );
+                          },
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
               },
               builder: (context, state) {
                 if (state is AuthLoading) {
@@ -189,6 +214,11 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             isObscure: false,
             icon: Icons.person_outline,
             isSmall : true,
+            inputFormatters: [
+              AuthFields.nameInputFormatter,
+              LengthLimitingTextInputFormatter(15),
+            ],
+            isNameField: true,
           ),
           const SizedBox(height: 16),
           AuthFields(
