@@ -76,6 +76,8 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
               listener: (context, state) {
                 if(state is AuthFailure){
                 showSnackbar(context, state.message);
+              } else if (state is SignUpSuccess) {
+                _showVerificationDialog(context);
               } else if (state is AuthSuccess) {
                 Navigator.of(context).popUntil((route) => route.isFirst);
               }
@@ -204,6 +206,11 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             isObscure: false,
             icon: Icons.person_outline,
             isSmall : true,
+            inputFormatters: [
+              AuthFields.nameInputFormatter,
+              LengthLimitingTextInputFormatter(15),
+            ],
+            isNameField: true,
           ),
           const SizedBox(height: 16),
           AuthFields(
@@ -281,6 +288,120 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
               );
         }
       },
+    );
+  }
+
+  void _showVerificationDialog(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final maxWidth = (screenWidth - 48).clamp(200.0, 400.0).toDouble();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: AppPallete.cardBg,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppPallete.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 30,
+                  offset: const Offset(0, 15),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppPallete.primaryOrange.withValues(alpha: 0.2),
+                        AppPallete.lightOrange.withValues(alpha: 0.1),
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppPallete.primaryOrange.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.mark_email_read_outlined,
+                    color: AppPallete.primaryOrange,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Verify Your Email',
+                  style: TextStyle(
+                    color: AppPallete.whiteColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'A verification link has been sent to your email. Please verify before signing in.',
+                  style: TextStyle(
+                    color: AppPallete.greyText,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 28),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(dialogContext).pop();
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const SignInPage()),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppPallete.primaryOrange,
+                          AppPallete.lightOrange,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppPallete.primaryOrange.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'OK',
+                        style: TextStyle(
+                          color: AppPallete.whiteColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

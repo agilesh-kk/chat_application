@@ -3,11 +3,31 @@ import 'package:chat_application/core/theme/app_pallette.dart';
 import 'package:flutter/services.dart';
 
 class AuthFields extends StatefulWidget {
+  static final disallowedNameChars =
+      RegExp(r"[^\p{L}\p{M}\p{N}\s'.\-_]", unicode: true);
+
+  static final nameInputFormatter = TextInputFormatter.withFunction(
+    (oldValue, newValue) {
+      final filtered = newValue.text.replaceAll(disallowedNameChars, '');
+      if (filtered == newValue.text) return newValue;
+      var offset = newValue.selection.baseOffset -
+          (newValue.text.length - filtered.length);
+      if (offset < 0) offset = 0;
+      if (offset > filtered.length) offset = filtered.length;
+      return TextEditingValue(
+        text: filtered,
+        selection: TextSelection.collapsed(offset: offset),
+      );
+    },
+  );
+
   final String hinText;
   final TextEditingController textController;
   final bool isObscure;
   final IconData? icon;
   final bool? isSmall;
+  final List<TextInputFormatter>? inputFormatters;
+  final bool isNameField;
 
   const AuthFields({
     super.key,
@@ -16,6 +36,8 @@ class AuthFields extends StatefulWidget {
     required this.isObscure,
     this.icon,
     this.isSmall,
+    this.inputFormatters,
+    this.isNameField = false,
   });
 
   @override
@@ -68,18 +90,18 @@ class _AuthFieldsState extends State<AuthFields> {
           });
         },
         child: TextFormField(
-          inputFormatters: widget.isSmall == true
-            ? [
-                TextInputFormatter.withFunction(
-                  (oldValue, newValue) {
-                    return newValue.copyWith(
-                      text: newValue.text.toLowerCase(),
-                      selection: newValue.selection,
-                    );
-                  },
-                ),
-              ]
-            : null,
+          inputFormatters: [
+            ...?widget.inputFormatters,
+            if (widget.isSmall == true)
+              TextInputFormatter.withFunction(
+                (oldValue, newValue) {
+                  return newValue.copyWith(
+                    text: newValue.text.toLowerCase(),
+                    selection: newValue.selection,
+                  );
+                },
+              ),
+          ],
           style: const TextStyle(color: AppPallete.whiteColor),
           decoration: InputDecoration(
             hintText: widget.hinText,
@@ -114,6 +136,10 @@ class _AuthFieldsState extends State<AuthFields> {
           validator: (value) {
             if (value == null || value.isEmpty) {
               return "${widget.hinText} is empty";
+            }
+            if (widget.isNameField &&
+                AuthFields.disallowedNameChars.hasMatch(value)) {
+              return "${widget.hinText} can only contain letters, numbers and underscores";
             }
             return null;
           },
