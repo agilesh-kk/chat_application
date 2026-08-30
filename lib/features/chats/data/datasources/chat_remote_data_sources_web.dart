@@ -103,7 +103,10 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
     final convoId = generateConversationId(userId, receiverId);
     final convoRef = firestore
         .collection("Conversations")
-        .doc(convoId);
+        .doc(convoId)
+        ..update({"$userId.unread": 0});
+    
+    //print("\n\nrunning\n\n");
 
     final snapshot =
         await convoRef
@@ -113,13 +116,15 @@ class ChatRemoteDataSourcesWebImpl implements ChatRemoteDataSources {
             .get();
 
     if (snapshot.docs.isEmpty) {
-      await convoRef.set({"$userId.unread": 0}, SetOptions(merge: true));
-      return;
+      // await convoRef.set({"$userId.unread": 100}, SetOptions(merge: true));
+      // print("\n\nrunning\n\n");
+      //return;
     }
 
     final batch = firestore.batch();
 
-    batch.set(convoRef, {"$userId.unread": 0}, SetOptions(merge: true));
+    //batch.set(convoRef, {"$userId.unread": 100}, SetOptions(merge: true));
+    //await convoRef.set({"$userId.unread": 9}, SetOptions(merge: true));
 
     final seenMsgIds = <String>[];
     for (final doc in snapshot.docs) {

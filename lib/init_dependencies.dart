@@ -260,15 +260,10 @@ void _initAuth() {
 void _initChat()async {
   serviceLocator
   ..registerFactory<ChatRemoteDataSources>(
-    () => kIsWeb
-        ? ChatRemoteDataSourcesWebImpl(
+    () => ChatRemoteDataSourcesWebImpl(
             firestore: serviceLocator<FirebaseFirestore>(),
             supabase: serviceLocator<SupabaseClient>(),
           )
-        : ChatRemoteDataSourcesImpl(
-            firestore: serviceLocator<FirebaseFirestore>(),
-            supabase: serviceLocator<SupabaseClient>(),
-          ),
   )
 
   ..registerLazySingleton<ChatRepository>(

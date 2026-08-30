@@ -221,7 +221,10 @@ class ChatRemoteDataSourcesImpl implements ChatRemoteDataSources {
             .where("status", isEqualTo: "sent")
             .get();
 
-    if (snapshot.docs.isEmpty) return;
+    if (snapshot.docs.isEmpty) {
+      await convoRef.set({"$userId.unread": 0}, SetOptions(merge: true));
+      //return;
+    }
 
     final batch = firestore.batch();
 
